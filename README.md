@@ -43,12 +43,12 @@ minatomo-play/
 
 2. ビルドスクリプトを実行（JSX→HTML変換）:
    ```
-   python3 /tmp/minatomo_build.py
+   python3 scripts/build.py
    ```
 
 3. ポータル再生成:
    ```
-   python3 /tmp/minatomo_portal.py
+   python3 scripts/portal.py
    ```
 
 4. コミット & push:
