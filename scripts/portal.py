@@ -1,48 +1,12 @@
 #!/usr/bin/env python3
-"""Generate new index.html portal from all minatomo-*.html files."""
+"""Generate index.html portal from games-catalog.json."""
 import re
 import json
 from pathlib import Path
 from datetime import datetime
 
-IMPORT_DIR = Path.home() / "Work" / "minatomo-play-import"
-
-# Same domain rules as build script (for legacy HTMLs without meta tags)
-DOMAIN_RULES = [
-    ("orientation",  ["clock", "date", "yesterday", "schedule"]),
-    ("calculation",  ["addition", "serialadd", "serial-add", "serial-calc", "stack-calc", "wallet", "samecount", "same-count", "howmany", "numseries", "num-series", "counttap", "count-tap", "change-calc", "number-compare"]),
-    ("executive",    ["stroop", "gonogo", "go-nogo", "flanker", "sort", "category", "error", "step-rhythm", "step-order", "dual", "tmtb", "cooking", "compare-ranking"]),
-    ("memory",       ["memory", "corsi", "digit", "digitback", "recall", "remember", "prospective", "story", "where", "whatadded", "what-added", "wherewasite", "where-was", "pair", "simon", "delayed", "wordpic", "word-pic", "appearorder", "appear-order", "phone-memory", "face-name", "shopping", "message", "map-memory", "flash-memory"]),
-    ("visuospatial", ["rotation", "path", "trace", "shape", "leftright", "left-right", "bigger", "updown", "up-down", "mostcommon", "most-common", "realone", "real-one", "puzzle", "block-stack", "blockstack", "fragment"]),
-    ("attention",    ["tap", "mole", "balloon", "cancellation", "search", "spotdiff", "spot-diff", "change-detection", "reaction", "chase", "counting", "falling", "disappear", "greentap", "green-tap", "justone", "just-one", "color", "odd", "shell", "pairs", "voice", "rhythm", "big-tap", "bigtap", "emotion", "letter-search", "whack", "listening", "nback", "n-back", "hint", "word-builder", "word-connect", "fragment-id"]),
-]
-
-def classify_domain(slug):
-    s = slug.lower()
-    for domain, keywords in DOMAIN_RULES:
-        for kw in keywords:
-            if kw in s:
-                return domain
-    return "uncategorized"
-
-TITLE_RE  = re.compile(r'<title>(.+?)</title>', re.DOTALL)
-META_RE   = re.compile(r'<meta\s+name="([^"]+)"\s+content="([^"]*)"')
-
-def parse_html_meta(path):
-    txt = path.read_text(encoding='utf-8', errors='ignore')
-    m = TITLE_RE.search(txt)
-    title_full = m.group(1).strip() if m else path.stem
-    # strip " | みなともPlay"
-    title = re.sub(r'\s*\|\s*みなともPlay\s*$', '', title_full).strip()
-    metas = dict(META_RE.findall(txt))
-    return {
-        'title': title,
-        'description': metas.get('description', ''),
-        'domain': metas.get('minatomo-domain', ''),
-        'category': metas.get('minatomo-category', ''),
-        'source': metas.get('minatomo-source', ''),
-        'is_new': metas.get('minatomo-source', '').startswith('jsx-build-'),
-    }
+ROOT = Path.home() / "Work" / "minatomo-play-import"
+CATALOG_PATH = ROOT / "games-catalog.json"
 
 DOMAIN_INFO = {
     'memory':       {'name': '記憶',     'icon': '🧠', 'color': '#FF6B35', 'bg': '#FFF3E0', 'desc': '覚えて思い出す力'},
@@ -55,35 +19,49 @@ DOMAIN_INFO = {
 }
 
 def main():
-    games = []
-    for h in sorted(IMPORT_DIR.glob('minatomo-*.html')):
-        if h.name == 'index.html' or h.name == 'index-old.html':
-            continue
-        if h.stat().st_size < 1000:
-            continue  # skip the 230B broken stubs (memory-game already overwritten)
-        meta = parse_html_meta(h)
-        if not meta['domain']:
-            meta['domain'] = classify_domain(h.stem)
-        games.append({
-            'slug': h.stem,
-            'file': h.name,
-            'title': meta['title'],
-            'description': meta['description'],
-            'domain': meta['domain'],
-            'category': meta['category'],
-            'is_new': meta['is_new'],
+    if not CATALOG_PATH.exists():
+        raise SystemExit("games-catalog.json not found. Run scripts/catalog_build.py first.")
+
+    catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+    games_raw = catalog["games"]
+
+    portal_games = []
+    for g in games_raw:
+        portal_games.append({
+            "id": g["id"],
+            "file": g["url"],
+            "title": g["name"],
+            "category": g["category"],
+            "phase": g["phase"],
+            "domain": g["domain"]["primary"],
+            "secondary": g["domain"]["secondary"],
+            "subdomains": g["domain"]["subdomains"],
+            "targets": g["indications"]["recommended"],
+            "duration": g["duration"]["estimated_minutes"],
+            "test_base": (g.get("neuropsych_basis") or {}).get("test_name") or "",
+            "design_notes": g.get("design_notes") or "",
+            "tags": g.get("tags", []),
+            "is_new": g["category"] in ("simple", "rehabilitation"),
+            "completion_status": g["metadata"]["completion_status"],
         })
 
-    # Sort: by domain order, then title
     domain_order = ['memory', 'attention', 'executive', 'orientation', 'visuospatial', 'calculation', 'uncategorized']
-    games.sort(key=lambda g: (domain_order.index(g['domain']) if g['domain'] in domain_order else 99, g['title']))
+    cat_order = {"regular": 1, "rehabilitation": 2, "simple": 3}
+    portal_games.sort(key=lambda g: (
+        domain_order.index(g['domain']) if g['domain'] in domain_order else 99,
+        cat_order.get(g['category'], 9),
+        g['title']
+    ))
 
-    games_json = json.dumps(games, ensure_ascii=False)
+    games_json = json.dumps(portal_games, ensure_ascii=False)
     domains_json = json.dumps(DOMAIN_INFO, ensure_ascii=False)
     domain_order_json = json.dumps(domain_order, ensure_ascii=False)
-    total = len(games)
-    new_count = sum(1 for g in games if g['is_new'])
+    subdomains_json = json.dumps(catalog["domains"]["subdomains"], ensure_ascii=False)
+    targets_json = json.dumps(catalog["target_populations"], ensure_ascii=False)
+    total = len(portal_games)
+    new_count = sum(1 for g in portal_games if g['is_new'])
     ts = datetime.now().strftime('%Y-%m-%d %H:%M')
+    schema_v = catalog.get("schema_version", "1.0")
 
     html = f'''<!DOCTYPE html>
 <html lang="ja">
@@ -91,29 +69,22 @@ def main():
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>みなともPlay - 無料リハビリゲーム {total}本</title>
-<meta name="description" content="認知症・脳卒中後のリハビリに{total}種類の無料ゲーム。記憶・注意・遂行・見当識・視空間・計算の6領域を自宅で。">
+<meta name="description" content="認知症・脳卒中後のリハビリに{total}種類の無料ゲーム。記憶・注意・遂行・見当識・視空間・計算の6領域、対象者・部位別フィルタ対応。">
 <style>
 :root {{
-  --bg: #FAFAF7;
-  --surface: #ffffff;
-  --text: #1a1a1a;
-  --muted: #6B6B6B;
-  --border: #E0E0E0;
-  --accent: #FF6B35;
-  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --bg: #FAFAF7; --surface: #fff; --text: #1a1a1a; --muted: #6B6B6B;
+  --border: #E0E0E0; --accent: #FF6B35; --shadow: 0 2px 12px rgba(0,0,0,0.06);
   --radius: 14px;
 }}
 * {{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }}
 html {{ font-size:16px; -webkit-text-size-adjust:100%; }}
 body {{
   font-family: 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Yu Gothic', sans-serif;
-  background: var(--bg); color: var(--text); line-height: 1.6;
-  padding-bottom: 60px;
+  background: var(--bg); color: var(--text); line-height: 1.6; padding-bottom: 60px;
 }}
 a {{ color: inherit; text-decoration: none; }}
 button {{ font-family: inherit; cursor: pointer; }}
 
-/* Header */
 .hero {{
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   color: white; padding: 36px 20px 28px; text-align: center;
@@ -124,56 +95,63 @@ button {{ font-family: inherit; cursor: pointer; }}
 .hero .stats {{ margin-top: 18px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }}
 .hero .stat {{ background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); padding: 8px 14px; border-radius: 20px; font-size: 12px; }}
 .hero .stat strong {{ font-size: 16px; font-weight:800; color: #FFB199; margin-right: 4px; }}
+.hero .rx-btn {{
+  margin-top:18px; background:#6ECEB2; color:#0f3460; border:none;
+  padding:10px 22px; border-radius:24px; font-size:13px; font-weight:800;
+  letter-spacing:0.5px; cursor:pointer; opacity:0.85;
+}}
+.hero .rx-btn:hover {{ opacity:1; }}
+.hero .rx-btn .beta {{ font-size:9px; background:#FF6B35; color:white; padding:2px 6px; border-radius:8px; margin-left:6px; }}
 
-/* Toolbar */
 .toolbar {{
   position: sticky; top: 0; z-index: 50;
   background: rgba(250,250,247,0.95); backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
-  padding: 14px 16px;
+  border-bottom: 1px solid var(--border); padding: 14px 16px;
 }}
-.search {{
-  width: 100%; max-width: 720px; margin: 0 auto 12px;
-  display: flex; gap: 8px;
-}}
+.search {{ width: 100%; max-width: 720px; margin: 0 auto 12px; display: flex; gap: 8px; }}
 .search input {{
-  flex: 1; padding: 12px 16px;
-  border: 1.5px solid var(--border); border-radius: 24px;
-  font-size: 15px; outline: none;
-  background: white;
-  transition: border-color 0.15s;
+  flex: 1; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 24px;
+  font-size: 15px; outline: none; background: white; transition: border-color 0.15s;
 }}
 .search input:focus {{ border-color: var(--accent); }}
 .filters {{
-  display: flex; gap: 8px; flex-wrap: wrap;
-  max-width: 720px; margin: 0 auto;
-  justify-content: center;
+  display: flex; gap: 8px; flex-wrap: wrap; max-width: 720px; margin: 0 auto;
+  justify-content: center; margin-bottom:8px;
 }}
 .filter-btn {{
-  padding: 6px 12px; border-radius: 16px;
-  border: 1.5px solid var(--border); background: white;
+  padding: 6px 12px; border-radius: 16px; border: 1.5px solid var(--border); background: white;
   font-size: 12px; font-weight: 600; color: var(--muted);
-  display: flex; align-items: center; gap: 4px;
-  transition: all 0.15s;
+  display: flex; align-items: center; gap: 4px; transition: all 0.15s;
 }}
 .filter-btn:hover {{ border-color: var(--accent); }}
-.filter-btn.active {{
-  background: var(--text); color: white; border-color: var(--text);
-}}
-.filter-btn .count {{
-  font-size: 10px; opacity: 0.7;
-  background: rgba(0,0,0,0.08); padding: 1px 6px; border-radius: 10px;
-}}
+.filter-btn.active {{ background: var(--text); color: white; border-color: var(--text); }}
+.filter-btn .count {{ font-size: 10px; opacity: 0.7; background: rgba(0,0,0,0.08); padding: 1px 6px; border-radius: 10px; }}
 .filter-btn.active .count {{ background: rgba(255,255,255,0.2); }}
 
-/* Domain section */
+.advanced {{
+  max-width:720px; margin:6px auto 0;
+  background:#fff; border:1px solid var(--border); border-radius:12px;
+  padding:0 12px; max-height:0; overflow:hidden; transition:max-height 0.25s, padding 0.2s;
+}}
+.advanced.open {{ max-height:600px; padding:12px; margin-top:10px; }}
+.advanced h4 {{ font-size:11px; color:var(--muted); margin-bottom:6px; font-weight:700; }}
+.adv-row {{ margin-bottom:10px; }}
+.adv-chips {{ display:flex; gap:6px; flex-wrap:wrap; }}
+.adv-chip {{
+  font-size:11px; padding:4px 10px; border-radius:12px; border:1px solid var(--border);
+  background:#FAFAF7; color:var(--muted); cursor:pointer;
+}}
+.adv-chip.active {{ background:#1a1a2e; color:white; border-color:#1a1a2e; }}
+.adv-toggle {{
+  display:block; max-width:720px; margin:8px auto 0; text-align:center;
+  background:transparent; border:none; color:var(--muted); font-size:11px; cursor:pointer;
+}}
+
 .container {{ max-width: 1100px; margin: 0 auto; padding: 0 16px; }}
 .domain-section {{ margin: 28px 0 12px; }}
 .domain-header {{
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 0; cursor: pointer;
-  border-bottom: 2px solid currentColor;
-  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 12px; padding: 8px 0; cursor: pointer;
+  border-bottom: 2px solid currentColor; margin-bottom: 14px;
 }}
 .domain-header .icon {{ font-size: 28px; line-height: 1; }}
 .domain-header .name {{ font-size: 20px; font-weight: 800; }}
@@ -183,40 +161,28 @@ button {{ font-family: inherit; cursor: pointer; }}
 .domain-section.collapsed .toggle {{ transform: rotate(-90deg); }}
 .domain-section.collapsed .grid {{ display: none; }}
 
-.grid {{
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 10px;
-}}
+.grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }}
 .card {{
-  display: block;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 12px;
-  position: relative;
-  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
-  min-height: 90px;
+  display: block; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 12px; position: relative;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s; min-height: 100px;
 }}
-.card:hover {{
-  transform: translateY(-2px); box-shadow: var(--shadow);
-  border-color: var(--accent);
-}}
+.card:hover {{ transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--accent); }}
 .card .title {{ font-size: 14px; font-weight: 700; line-height: 1.35; margin-bottom: 6px; }}
-.card .meta {{ font-size: 11px; color: var(--muted); }}
-.card .badge-new {{
-  position: absolute; top: 8px; right: 8px;
-  background: #FF6B35; color: white;
-  font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
-  padding: 2px 6px; border-radius: 8px;
+.card .meta {{ font-size: 11px; color: var(--muted); display:flex; justify-content:space-between; gap:6px; }}
+.card .meta .duration {{ font-weight:700; white-space:nowrap; }}
+.card .badge-rehab {{
+  position: absolute; top: 8px; right: 8px; background: #7B1FA2; color: white;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.5px; padding: 2px 6px; border-radius: 8px;
 }}
-.empty {{
-  text-align: center; padding: 60px 20px; color: var(--muted);
+.card .badge-simple {{
+  position: absolute; top: 8px; right: 8px; background: #43A047; color: white;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.5px; padding: 2px 6px; border-radius: 8px;
 }}
+.empty {{ text-align: center; padding: 60px 20px; color: var(--muted); }}
 
 footer {{
-  margin-top: 40px; padding: 20px;
-  text-align: center; color: var(--muted); font-size: 11px;
+  margin-top: 40px; padding: 20px; text-align: center; color: var(--muted); font-size: 11px;
 }}
 footer a {{ color: var(--accent); }}
 
@@ -237,15 +203,27 @@ footer a {{ color: var(--accent); }}
   <div class="stats">
     <span class="stat"><strong>{total}</strong>ゲーム</span>
     <span class="stat"><strong>6</strong>領域</span>
-    <span class="stat"><strong>{new_count}</strong>新着</span>
+    <span class="stat"><strong>{new_count}</strong>新版</span>
   </div>
+  <button class="rx-btn" onclick="alert('処方モードは現在開発中です。\\n臨床判断データを整備中（catalog v{schema_v}）。'); return false;">🩺 処方モード <span class="beta">BETA</span></button>
 </header>
 
 <div class="toolbar">
   <div class="search">
-    <input id="search" type="search" placeholder="ゲーム名で検索（例：ストループ、記憶、計算）" autocomplete="off">
+    <input id="search" type="search" placeholder="ゲーム名・キーワードで検索（例：ストループ、注意、計算）" autocomplete="off">
   </div>
   <div class="filters" id="filters"></div>
+  <button class="adv-toggle" id="advToggle">▼ 詳細フィルタ（部位・対象者）</button>
+  <div class="advanced" id="adv">
+    <div class="adv-row">
+      <h4>🎯 認知部位（subdomain）</h4>
+      <div class="adv-chips" id="subFilters"></div>
+    </div>
+    <div class="adv-row">
+      <h4>👥 対象者</h4>
+      <div class="adv-chips" id="targetFilters"></div>
+    </div>
+  </div>
 </div>
 
 <main class="container" id="main">
@@ -254,46 +232,53 @@ footer a {{ color: var(--accent); }}
 
 <footer>
   <p>みなともPlay © {datetime.now().year} 株式会社Welloop / みなとも</p>
-  <p style="margin-top:6px; opacity:0.7;">最終ビルド: {ts}</p>
+  <p style="margin-top:6px; opacity:0.7;">最終ビルド: {ts} ／ catalog v{schema_v}</p>
 </footer>
 
 <script>
 const GAMES = {games_json};
 const DOMAIN_INFO = {domains_json};
 const DOMAIN_ORDER = {domain_order_json};
+const SUBDOMAINS = {subdomains_json};
+const TARGETS = {targets_json};
 
 const main = document.getElementById('main');
 const empty = document.getElementById('empty');
 const searchInput = document.getElementById('search');
 const filtersEl = document.getElementById('filters');
+const subFiltersEl = document.getElementById('subFilters');
+const targetFiltersEl = document.getElementById('targetFilters');
+const advToggle = document.getElementById('advToggle');
+const advEl = document.getElementById('adv');
 
 let activeFilter = 'all';
+let activeSub = null;
+let activeTarget = null;
 let searchQuery = '';
+
+advToggle.addEventListener('click', () => {{
+  advEl.classList.toggle('open');
+  advToggle.textContent = advEl.classList.contains('open')
+    ? '▲ 詳細フィルタを閉じる'
+    : '▼ 詳細フィルタ（部位・対象者）';
+}});
 
 function buildFilters() {{
   const counts = {{ all: GAMES.length, new: GAMES.filter(g => g.is_new).length }};
   for (const dom of DOMAIN_ORDER) {{
     counts[dom] = GAMES.filter(g => g.domain === dom).length;
   }}
-
   const items = [
-    {{ key: 'all',   label: 'すべて',   icon: '🎮' }},
-    {{ key: 'new',   label: '新着',     icon: '✨' }},
+    {{ key: 'all', label: 'すべて', icon: '🎮' }},
+    {{ key: 'new', label: '新版', icon: '✨' }},
     ...DOMAIN_ORDER.map(d => ({{
-      key: d,
-      label: DOMAIN_INFO[d].name,
-      icon: DOMAIN_INFO[d].icon,
+      key: d, label: DOMAIN_INFO[d].name, icon: DOMAIN_INFO[d].icon,
     }})),
   ];
-
   filtersEl.innerHTML = items.filter(it => (counts[it.key] || 0) > 0).map(it => `
     <button class="filter-btn ${{activeFilter === it.key ? 'active' : ''}}" data-key="${{it.key}}">
-      <span>${{it.icon}}</span>
-      <span>${{it.label}}</span>
-      <span class="count">${{counts[it.key] || 0}}</span>
-    </button>
-  `).join('');
-
+      <span>${{it.icon}}</span><span>${{it.label}}</span><span class="count">${{counts[it.key] || 0}}</span>
+    </button>`).join('');
   filtersEl.querySelectorAll('.filter-btn').forEach(btn => {{
     btn.addEventListener('click', () => {{
       activeFilter = btn.dataset.key;
@@ -303,16 +288,66 @@ function buildFilters() {{
   }});
 }}
 
+function buildSubFilters() {{
+  const counts = {{}};
+  for (const g of GAMES) {{
+    for (const s of g.subdomains) counts[s] = (counts[s] || 0) + 1;
+  }}
+  const items = SUBDOMAINS.filter(s => counts[s.id])
+    .sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0))
+    .slice(0, 16);
+  subFiltersEl.innerHTML = items.map(s => `
+    <button class="adv-chip ${{activeSub === s.id ? 'active' : ''}}" data-sub="${{s.id}}">
+      ${{s.jp}} <span style="opacity:0.5; font-size:10px;">${{counts[s.id]}}</span>
+    </button>`).join('') + `
+    <button class="adv-chip ${{activeSub === null ? 'active' : ''}}" data-sub="">クリア</button>`;
+  subFiltersEl.querySelectorAll('.adv-chip').forEach(btn => {{
+    btn.addEventListener('click', () => {{
+      activeSub = btn.dataset.sub || null;
+      buildSubFilters();
+      render();
+    }});
+  }});
+}}
+
+function buildTargetFilters() {{
+  const counts = {{}};
+  for (const g of GAMES) {{
+    for (const t of g.targets) counts[t] = (counts[t] || 0) + 1;
+  }}
+  const items = TARGETS.filter(t => counts[t.id]);
+  targetFiltersEl.innerHTML = items.map(t => `
+    <button class="adv-chip ${{activeTarget === t.id ? 'active' : ''}}" data-target="${{t.id}}">
+      ${{t.jp}} <span style="opacity:0.5; font-size:10px;">${{counts[t.id]}}</span>
+    </button>`).join('') + `
+    <button class="adv-chip ${{activeTarget === null ? 'active' : ''}}" data-target="">クリア</button>`;
+  targetFiltersEl.querySelectorAll('.adv-chip').forEach(btn => {{
+    btn.addEventListener('click', () => {{
+      activeTarget = btn.dataset.target || null;
+      buildTargetFilters();
+      render();
+    }});
+  }});
+}}
+
 function matchesSearch(g, q) {{
   if (!q) return true;
-  const haystack = (g.title + ' ' + g.description + ' ' + g.slug + ' ' + (DOMAIN_INFO[g.domain]?.name || '')).toLowerCase();
+  const haystack = [g.title, g.id, g.test_base, g.design_notes, ...g.tags, ...g.subdomains, DOMAIN_INFO[g.domain]?.name].join(' ').toLowerCase();
   return q.toLowerCase().split(/\\s+/).every(t => haystack.includes(t));
 }}
 
 function matchesFilter(g) {{
-  if (activeFilter === 'all') return true;
-  if (activeFilter === 'new') return g.is_new;
-  return g.domain === activeFilter;
+  if (activeFilter === 'new') {{ if (!g.is_new) return false; }}
+  else if (activeFilter !== 'all') {{ if (g.domain !== activeFilter) return false; }}
+  if (activeSub && !g.subdomains.includes(activeSub)) return false;
+  if (activeTarget && !g.targets.includes(activeTarget)) return false;
+  return true;
+}}
+
+function badge(g) {{
+  if (g.category === 'rehabilitation') return '<span class="badge-rehab">REHAB</span>';
+  if (g.category === 'simple') return '<span class="badge-simple">SIMPLE</span>';
+  return '';
 }}
 
 function render() {{
@@ -324,12 +359,10 @@ function render() {{
     return;
   }}
   empty.style.display = 'none';
-
   const byDomain = {{}};
   for (const g of filtered) {{
     (byDomain[g.domain] = byDomain[g.domain] || []).push(g);
   }}
-
   let html = '';
   for (const dom of DOMAIN_ORDER) {{
     const list = byDomain[dom];
@@ -346,15 +379,16 @@ function render() {{
         </div>
         <div class="grid">
           ${{list.map(g => `
-            <a class="card" href="${{g.file}}" data-domain="${{g.domain}}">
-              ${{g.is_new ? '<span class="badge-new">NEW</span>' : ''}}
+            <a class="card" href="${{g.file}}" data-domain="${{g.domain}}" data-cat="${{g.category}}">
+              ${{badge(g)}}
               <div class="title" style="color:${{info.color}};">${{escapeHtml(g.title)}}</div>
-              <div class="meta">${{escapeHtml(g.category || info.name)}}</div>
-            </a>
-          `).join('')}}
+              <div class="meta">
+                <span>${{g.test_base ? escapeHtml(g.test_base) : (g.tags[0] ? escapeHtml(g.tags[0]) : info.name)}}</span>
+                <span class="duration">⏱ ${{g.duration}}分</span>
+              </div>
+            </a>`).join('')}}
         </div>
-      </section>
-    `;
+      </section>`;
   }}
   main.innerHTML = html;
 }}
@@ -369,25 +403,17 @@ searchInput.addEventListener('input', e => {{
 }});
 
 buildFilters();
+buildSubFilters();
+buildTargetFilters();
 render();
 </script>
 </body>
 </html>
 '''
-    out = IMPORT_DIR / 'index.html'
+    out = ROOT / 'index.html'
     out.write_text(html, encoding='utf-8')
-
-    print(f"Portal generated: {out}")
+    print(f"Portal generated: {out} ({out.stat().st_size} bytes)")
     print(f"Total games: {total} (new: {new_count})")
-    from collections import Counter
-    by_dom = Counter(g['domain'] for g in games)
-    for d in domain_order:
-        print(f"  {d}: {by_dom.get(d, 0)}")
-
-    # Save manifest for reference
-    manifest = IMPORT_DIR / 'games-manifest.json'
-    manifest.write_text(json.dumps(games, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(f"Manifest: {manifest}")
 
 if __name__ == '__main__':
     main()

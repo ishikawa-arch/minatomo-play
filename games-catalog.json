@@ -1,0 +1,8579 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-04-25",
+  "total_games": 112,
+  "domains": {
+    "primary_categories": [
+      {
+        "id": "attention",
+        "jp": "注意力",
+        "icon": "👁️"
+      },
+      {
+        "id": "memory",
+        "jp": "記憶",
+        "icon": "🧠"
+      },
+      {
+        "id": "executive",
+        "jp": "遂行",
+        "icon": "🔄"
+      },
+      {
+        "id": "visuospatial",
+        "jp": "視空間",
+        "icon": "🧩"
+      },
+      {
+        "id": "calculation",
+        "jp": "計算",
+        "icon": "🔢"
+      },
+      {
+        "id": "orientation",
+        "jp": "見当識",
+        "icon": "📅"
+      }
+    ],
+    "subdomains": [
+      {
+        "id": "selective_attention",
+        "jp": "選択的注意",
+        "primary": "attention"
+      },
+      {
+        "id": "sustained_attention",
+        "jp": "持続的注意",
+        "primary": "attention"
+      },
+      {
+        "id": "divided_attention",
+        "jp": "分配的注意",
+        "primary": "attention"
+      },
+      {
+        "id": "spatial_attention",
+        "jp": "空間的注意",
+        "primary": "attention"
+      },
+      {
+        "id": "inhibition",
+        "jp": "抑制機能",
+        "primary": "executive"
+      },
+      {
+        "id": "set_shifting",
+        "jp": "認知的柔軟性",
+        "primary": "executive"
+      },
+      {
+        "id": "planning",
+        "jp": "計画立案",
+        "primary": "executive"
+      },
+      {
+        "id": "working_memory_verbal",
+        "jp": "言語的WM",
+        "primary": "memory"
+      },
+      {
+        "id": "working_memory_visual",
+        "jp": "視覚的WM",
+        "primary": "memory"
+      },
+      {
+        "id": "working_memory_spatial",
+        "jp": "空間的WM",
+        "primary": "memory"
+      },
+      {
+        "id": "working_memory_update",
+        "jp": "WM更新",
+        "primary": "memory"
+      },
+      {
+        "id": "episodic_memory",
+        "jp": "エピソード記憶",
+        "primary": "memory"
+      },
+      {
+        "id": "semantic_memory",
+        "jp": "意味記憶",
+        "primary": "memory"
+      },
+      {
+        "id": "visual_memory",
+        "jp": "視覚記憶",
+        "primary": "memory"
+      },
+      {
+        "id": "spatial_memory",
+        "jp": "空間記憶",
+        "primary": "memory"
+      },
+      {
+        "id": "prospective_memory",
+        "jp": "展望記憶",
+        "primary": "memory"
+      },
+      {
+        "id": "auditory_memory",
+        "jp": "聴覚記憶",
+        "primary": "memory"
+      },
+      {
+        "id": "mental_rotation",
+        "jp": "心的回転",
+        "primary": "visuospatial"
+      },
+      {
+        "id": "visual_perception",
+        "jp": "視覚認識",
+        "primary": "visuospatial"
+      },
+      {
+        "id": "left_right_discrimination",
+        "jp": "左右弁別",
+        "primary": "visuospatial"
+      },
+      {
+        "id": "topographical",
+        "jp": "地誌的記憶",
+        "primary": "visuospatial"
+      },
+      {
+        "id": "time_orientation",
+        "jp": "時間見当識",
+        "primary": "orientation"
+      },
+      {
+        "id": "social_cognition",
+        "jp": "社会的認知",
+        "primary": "executive"
+      },
+      {
+        "id": "language_fluency",
+        "jp": "言語流暢性",
+        "primary": "memory"
+      },
+      {
+        "id": "language_processing",
+        "jp": "言語処理",
+        "primary": "memory"
+      },
+      {
+        "id": "processing_speed",
+        "jp": "処理速度",
+        "primary": "attention"
+      },
+      {
+        "id": "reaction_time",
+        "jp": "反応速度",
+        "primary": "attention"
+      },
+      {
+        "id": "motor_control",
+        "jp": "運動制御",
+        "primary": "executive"
+      },
+      {
+        "id": "rhythm_timing",
+        "jp": "リズム同期",
+        "primary": "executive"
+      }
+    ]
+  },
+  "target_populations": [
+    {
+      "id": "healthy_elderly",
+      "jp": "健常高齢者",
+      "description": "認知機能の予防・維持目的"
+    },
+    {
+      "id": "mci",
+      "jp": "軽度認知障害",
+      "description": "MCI、認知機能低下の予防的訓練"
+    },
+    {
+      "id": "mild_dementia",
+      "jp": "軽度認知症",
+      "description": "アルツハイマー型・脳血管性等の軽度"
+    },
+    {
+      "id": "moderate_dementia",
+      "jp": "中等度認知症",
+      "description": "シンプル版が中心、超大ボタン・自動進行が必要"
+    },
+    {
+      "id": "stroke_subacute",
+      "jp": "脳卒中亜急性期",
+      "description": "発症後〜6ヶ月、回復期"
+    },
+    {
+      "id": "stroke_chronic",
+      "jp": "脳卒中慢性期",
+      "description": "発症後6ヶ月以降、生活期"
+    },
+    {
+      "id": "tbi",
+      "jp": "外傷性脳損傷",
+      "description": "TBI、高次脳機能障害"
+    },
+    {
+      "id": "parkinson",
+      "jp": "パーキンソン病",
+      "description": "PD、運動症状＋認知症状"
+    },
+    {
+      "id": "preventive",
+      "jp": "予防",
+      "description": "認知機能低下の予防的活用"
+    }
+  ],
+  "games": [
+    {
+      "id": "minatomo-memory-game",
+      "name": "神経衰弱",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-memory-game.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "visual_memory",
+          "episodic_memory",
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "プラットフォーム第1弾。難易度3段階（emoji/形/SVG風景・顔）。最も親しみやすい題材から開始"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-face-name",
+        "minatomo-category-sort",
+        "minatomo-change-detection"
+      ],
+      "tags": [
+        "視覚記憶",
+        "対連合学習"
+      ],
+      "design_notes": "プラットフォーム第1弾。難易度3段階（emoji/形/SVG風景・顔）。最も親しみやすい題材から開始",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-delayedrecall",
+      "name": "あとでおもいだす",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-delayedrecall.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "episodic_memory",
+          "inhibition"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Rey-AVLT系",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "干渉課題（実計算4択）→遅延再認"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-face-name",
+        "minatomo-go-nogo",
+        "minatomo-memory-game"
+      ],
+      "tags": [
+        "エピソード記憶",
+        "干渉抑制"
+      ],
+      "design_notes": "干渉課題（実計算4択）→遅延再認",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-shopping-list",
+      "name": "おかいものリスト",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-shopping-list.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "prospective_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "スーパーマップ上を移動して、覚えたリストの品物を取る"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-prospective-memory",
+        "minatomo-rehab-prospective"
+      ],
+      "tags": [
+        "WM",
+        "展望記憶"
+      ],
+      "design_notes": "スーパーマップ上を移動して、覚えたリストの品物を取る",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-map-memory",
+      "name": "おつかいナビ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-map-memory.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "visuospatial"
+        ],
+        "subdomains": [
+          "topographical"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "街マップを覚えてから方向を答える。Money's Road Map系"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-path"
+      ],
+      "tags": [
+        "地誌的記憶",
+        "経路"
+      ],
+      "design_notes": "街マップを覚えてから方向を答える。Money's Road Map系",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-message-recall",
+      "name": "おぼえておえて",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-message-recall.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "episodic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "メッセージを読んで詳細質問に答える"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual",
+          "text"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-face-name",
+        "minatomo-memory-game",
+        "minatomo-rehab-delayedrecall"
+      ],
+      "tags": [
+        "エピソード記憶",
+        "テキスト理解"
+      ],
+      "design_notes": "メッセージを読んで詳細質問に答える",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-memory",
+      "name": "おぼえる",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-memory.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "visual_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-flash-memory",
+        "minatomo-memory-game"
+      ],
+      "tags": [
+        "視覚記憶"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-digitback",
+      "name": "ぎゃくからタップ",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-digitback.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "working_memory_verbal",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Digit Span Backward",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "WMS-R等の標準指標"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-digit-span",
+        "minatomo-dual-task"
+      ],
+      "tags": [
+        "言語的WM",
+        "遂行機能"
+      ],
+      "design_notes": "WMS-R等の標準指標",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-wordpic",
+      "name": "ことばとえ",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-wordpic.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "language_processing"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Word-Picture Matching（SLTA系）",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "失語症評価でも使える標準形式"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-error-finder",
+        "minatomo-hint-guess",
+        "minatomo-word-builder"
+      ],
+      "tags": [
+        "語彙アクセス",
+        "言語理解"
+      ],
+      "design_notes": "失語症評価でも使える標準形式",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-appearorder",
+      "name": "あらわれた順",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-appearorder.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "spatial_memory",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-simple-order",
+        "minatomo-simple-simon"
+      ],
+      "tags": [
+        "順序記憶"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-phone-memory",
+      "name": "でんごんばんごう",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-phone-memory.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "inhibition",
+          "working_memory_verbal"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "番号を覚える→干渉課題→再生"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-digit-span",
+        "minatomo-go-nogo",
+        "minatomo-rehab-delayedrecall"
+      ],
+      "tags": [
+        "言語的WM",
+        "干渉抑制"
+      ],
+      "design_notes": "番号を覚える→干渉課題→再生",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-wherewasite",
+      "name": "どこだった",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-wherewasite.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "spatial_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-block-stack",
+        "minatomo-cooking-steps",
+        "minatomo-simple-appearorder"
+      ],
+      "tags": [
+        "空間記憶"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-where-was-it",
+      "name": "どこだった？",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-where-was-it.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "spatial_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "グリッド上に置かれたアイテムの位置を再生"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-block-stack",
+        "minatomo-cooking-steps",
+        "minatomo-simple-appearorder"
+      ],
+      "tags": [
+        "空間記憶"
+      ],
+      "design_notes": "グリッド上に置かれたアイテムの位置を再生",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-whatadded",
+      "name": "なにふえた",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-whatadded.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "visual_memory",
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-flash-memory",
+        "minatomo-rehab-change"
+      ],
+      "tags": [
+        "変化検出"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-simon",
+      "name": "サイモン",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-simon.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "spatial_memory",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-simple-appearorder",
+        "minatomo-simple-order"
+      ],
+      "tags": [
+        "順序記憶"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-corsi",
+      "name": "まねしてタップ",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-corsi.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "working_memory_visual",
+          "working_memory_spatial"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Corsi Block Tapping",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "Digit Spanの空間版。適応的難易度3〜8"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-block-stack",
+        "minatomo-corsi-block",
+        "minatomo-change-detection"
+      ],
+      "tags": [
+        "視覚的空間的WM"
+      ],
+      "design_notes": "Digit Spanの空間版。適応的難易度3〜8",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-simon2",
+      "name": "サイモン",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-simon2.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "spatial_memory",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-simple-appearorder",
+        "minatomo-simple-order"
+      ],
+      "tags": [
+        "順序記憶"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-simon3",
+      "name": "サイモン",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-simon3.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "spatial_memory",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-simple-appearorder",
+        "minatomo-simple-order"
+      ],
+      "tags": [
+        "順序記憶"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-prospective",
+      "name": "やくそくをまもる",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-prospective.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "prospective_memory",
+          "divided_attention"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Prospective Memory",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "足し算課題＋約束タスク"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-dual-task",
+        "minatomo-prospective-memory",
+        "minatomo-shopping-list"
+      ],
+      "tags": [
+        "展望記憶",
+        "二重課題"
+      ],
+      "design_notes": "足し算課題＋約束タスク",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-flash-memory",
+      "name": "フラッシュ記憶",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-flash-memory.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "selective_attention",
+          "visual_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "グリッド上に一瞬表示→位置/種類を答える"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-rehab-change",
+        "minatomo-simple-colorchange"
+      ],
+      "tags": [
+        "瞬間記憶",
+        "視覚的注意"
+      ],
+      "design_notes": "グリッド上に一瞬表示→位置/種類を答える",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-pair-search",
+      "name": "ペアさがし",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-pair-search.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "グリッドから関連するペアを2つタップして繋ぐ"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-category-sort",
+        "minatomo-color-match",
+        "minatomo-compare-ranking"
+      ],
+      "tags": [
+        "意味連合"
+      ],
+      "design_notes": "グリッドから関連するペアを2つタップして繋ぐ",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-pairs",
+      "name": "ペア合わせ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-pairs.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "visual_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-flash-memory",
+        "minatomo-memory-game"
+      ],
+      "tags": [
+        "視覚記憶"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rhythm-memory",
+      "name": "リズム記憶",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-rhythm-memory.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "auditory_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度聴覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "Web Audio APIでリズムパターン再生。視覚優位だけでなく聴覚記憶も鍛えたい"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual",
+          "audio"
+        ],
+        "requires_audio": true,
+        "requires_microphone": false,
+        "requires_speaker": true
+      },
+      "related_games": [
+        "minatomo-listening-quiz"
+      ],
+      "tags": [
+        "聴覚的短期記憶"
+      ],
+      "design_notes": "Web Audio APIでリズムパターン再生。視覚優位だけでなく聴覚記憶も鍛えたい",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-prospective-memory",
+      "name": "やくそく覚え",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-prospective-memory.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "prospective_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "1日のスケジュール上でタスクを実行。展望記憶の機能を遊びに落とした"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-prospective",
+        "minatomo-shopping-list"
+      ],
+      "tags": [
+        "展望記憶"
+      ],
+      "design_notes": "1日のスケジュール上でタスクを実行。展望記憶の機能を遊びに落とした",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-digit-span",
+      "name": "すうじ記憶",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-digit-span.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "working_memory_verbal"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "Digit Span。古典指標の双方向版"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-phone-memory",
+        "minatomo-rehab-digitback"
+      ],
+      "tags": [
+        "言語的短期記憶（Forward",
+        "Backward）"
+      ],
+      "design_notes": "Digit Span。古典指標の双方向版",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-story-memory",
+      "name": "おはなし記憶",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-story-memory.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "episodic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "WMS-Rの論理的記憶を意識。物語を読んで質問に答える形式"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual",
+          "text"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-face-name",
+        "minatomo-memory-game",
+        "minatomo-message-recall"
+      ],
+      "tags": [
+        "エピソード記憶",
+        "物語理解"
+      ],
+      "design_notes": "WMS-Rの論理的記憶を意識。物語を読んで質問に答える形式",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-memory-game",
+      "name": "記憶マッチング",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-memory-game.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "visuospatial"
+        ],
+        "subdomains": [
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-fragment-id"
+      ],
+      "tags": [],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "needs_clinical_review"
+      }
+    },
+    {
+      "id": "minatomo-corsi-block",
+      "name": "順番記憶",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-corsi-block.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "working_memory_visual",
+          "working_memory_spatial"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "Corsi Block Tapping。神経心理の古典指標を、現場で気軽に使える形に"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-block-stack",
+        "minatomo-rehab-corsi",
+        "minatomo-change-detection"
+      ],
+      "tags": [
+        "視覚的空間的短期記憶"
+      ],
+      "design_notes": "Corsi Block Tapping。神経心理の古典指標を、現場で気軽に使える形に",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-face-name",
+      "name": "顔と名前",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-face-name.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [],
+        "subdomains": [
+          "episodic_memory",
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "アルツハイマー型認知症で最も障害されやすい機能の訓練"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-memory-game",
+        "minatomo-category-sort",
+        "minatomo-color-match"
+      ],
+      "tags": [
+        "顔-名前連合記憶"
+      ],
+      "design_notes": "アルツハイマー型認知症で最も障害されやすい機能の訓練",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-nback",
+      "name": "Nバック",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-nback.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "working_memory_update"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "古典的WM訓練課題。1-back→2-back"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-stack-calc"
+      ],
+      "tags": [
+        "ワーキングメモリ更新"
+      ],
+      "design_notes": "古典的WM訓練課題。1-back→2-back",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-voice-challenge",
+      "name": "声出しチャレンジ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-voice-challenge.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "motor_control"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly",
+          "parkinson"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "発声困難"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "LSVT LOUD発想。マイクで音量測定、持続発声・音量目標"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch",
+          "microphone"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": true,
+        "requires_microphone": true,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-big-tap",
+        "minatomo-simple-tap",
+        "minatomo-step-rhythm"
+      ],
+      "tags": [
+        "発声機能",
+        "呼気持続"
+      ],
+      "design_notes": "LSVT LOUD発想。マイクで音量測定、持続発声・音量目標",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-color",
+      "name": "色",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-color.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "visuospatial"
+        ],
+        "subdomains": [
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-fragment-id"
+      ],
+      "tags": [
+        "色覚",
+        "選択"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-colorchange",
+      "name": "色変化",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-colorchange.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "visual_memory",
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-flash-memory",
+        "minatomo-rehab-change"
+      ],
+      "tags": [
+        "変化検出"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-chasetap",
+      "name": "おいかけタップ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-chasetap.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "reaction_time"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-simple-balloon",
+        "minatomo-simple-falling",
+        "minatomo-simple-mole"
+      ],
+      "tags": [
+        "追跡",
+        "反応"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-big-tap",
+      "name": "おおきくタップ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-big-tap.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "motor_control"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly",
+          "parkinson"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "LSVT BIG発想。長押し膨張・端から端へのスワイプ"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-simple-tap",
+        "minatomo-step-rhythm",
+        "minatomo-trace"
+      ],
+      "tags": [
+        "振幅訓練",
+        "運動範囲"
+      ],
+      "design_notes": "LSVT BIG発想。長押し膨張・端から端へのスワイプ",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-falling",
+      "name": "おちてくる",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-falling.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "reaction_time"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-simple-balloon",
+        "minatomo-simple-chasetap",
+        "minatomo-simple-mole"
+      ],
+      "tags": [
+        "反応",
+        "タイミング"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-colorconnect",
+      "name": "色つなぎ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-colorconnect.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "visuospatial",
+          "memory"
+        ],
+        "subdomains": [
+          "visual_perception",
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-color-match",
+        "minatomo-category-sort",
+        "minatomo-clock-quiz"
+      ],
+      "tags": [
+        "色覚",
+        "連合"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-counting",
+      "name": "かぞえて",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-counting.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "散らばった絵文字を数える・特定種類を選別"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-flash-memory",
+        "minatomo-letter-search"
+      ],
+      "tags": [
+        "数量処理",
+        "選択的注意"
+      ],
+      "design_notes": "散らばった絵文字を数える・特定種類を選別",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-disappear",
+      "name": "きえた",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-disappear.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "visual_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-flash-memory",
+        "minatomo-memory-game"
+      ],
+      "tags": [
+        "視覚記憶"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-emotion",
+      "name": "きもちをよもう",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-emotion.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "social_cognition"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Ekman 60 Faces系",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "6基本感情、一義的決定可能なシナリオ20問"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [],
+      "tags": [
+        "表情認識",
+        "社会的認知"
+      ],
+      "design_notes": "6基本感情、一義的決定可能なシナリオ20問",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-word-builder",
+      "name": "ことわづくり",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-word-builder.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "language_processing"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "ことわざ完成・並べ替え・穴埋め・反対語"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-error-finder",
+        "minatomo-hint-guess",
+        "minatomo-rehab-wordpic"
+      ],
+      "tags": [
+        "言語処理",
+        "語彙"
+      ],
+      "design_notes": "ことわざ完成・並べ替え・穴埋め・反対語",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-hint-guess",
+      "name": "しりとりあて",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-hint-guess.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "language_processing"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "ヒントが順に出る、少ないヒントで当てるほど高得点"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-error-finder",
+        "minatomo-rehab-wordpic",
+        "minatomo-word-builder"
+      ],
+      "tags": [
+        "推論",
+        "語彙アクセス"
+      ],
+      "design_notes": "ヒントが順に出る、少ないヒントで当てるほど高得点",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-cancellation",
+      "name": "ぜんぶさがせ！",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-cancellation.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "spatial_attention",
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Cancellation Task",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "半側空間無視の検出にも使える臨床標準"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-flanker",
+        "minatomo-change-detection",
+        "minatomo-counting"
+      ],
+      "tags": [
+        "視覚探索",
+        "半側空間注意"
+      ],
+      "design_notes": "半側空間無視の検出にも使える臨床標準",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-change",
+      "name": "どこがかわった？",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-change.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "selective_attention",
+          "visual_memory"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Luck & Vogel系",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "視覚的WM容量計測"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-flash-memory",
+        "minatomo-simple-colorchange"
+      ],
+      "tags": [
+        "視覚的記憶",
+        "変化検出"
+      ],
+      "design_notes": "視覚的WM容量計測",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-spotdiff",
+      "name": "ちがいさがし",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-spotdiff.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-counting",
+        "minatomo-flash-memory"
+      ],
+      "tags": [
+        "視覚的詳細注意"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-shell",
+      "name": "シェル",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-shell.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "spatial_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-cancellation",
+        "minatomo-rehab-flanker",
+        "minatomo-simple-shell2"
+      ],
+      "tags": [
+        "物体永続性",
+        "追跡"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-count",
+      "name": "かぞえる",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-count.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "processing_speed"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-calc",
+        "minatomo-number-compare",
+        "minatomo-serial-calc"
+      ],
+      "tags": [
+        "計数"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-odd",
+      "name": "なかまはずれ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-odd.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-category-sort",
+        "minatomo-color-match",
+        "minatomo-compare-ranking"
+      ],
+      "tags": [
+        "カテゴリ判断"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-tapspeed",
+      "name": "タップスピード",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-tapspeed.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "reaction_time"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-simple-balloon",
+        "minatomo-simple-chasetap",
+        "minatomo-simple-falling"
+      ],
+      "tags": [
+        "反応速度"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-justone",
+      "name": "ひとつだけ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-justone.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "visuospatial"
+        ],
+        "subdomains": [
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-fragment-id"
+      ],
+      "tags": [
+        "識別"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-balloon",
+      "name": "バルーン",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-balloon.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "reaction_time"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-simple-chasetap",
+        "minatomo-simple-falling",
+        "minatomo-simple-mole"
+      ],
+      "tags": [
+        "反応",
+        "タイミング"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-spot-diff",
+      "name": "まちがい探し",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-spot-diff.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "2グリッド比較。色・位置・サイズの差異検出"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-counting",
+        "minatomo-flash-memory"
+      ],
+      "tags": [
+        "視覚的詳細注意"
+      ],
+      "design_notes": "2グリッド比較。色・位置・サイズの差異検出",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-reaction",
+      "name": "はんのう",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-reaction.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "reaction_time"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-simple-balloon",
+        "minatomo-simple-chasetap",
+        "minatomo-simple-falling"
+      ],
+      "tags": [
+        "反応速度"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-greentap",
+      "name": "みどりタップ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-greentap.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-counting",
+        "minatomo-flash-memory"
+      ],
+      "tags": [
+        "選択的注意"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-whack-mole",
+      "name": "もぐらたたき",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-whack-mole.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "selective_attention",
+          "reaction_time"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "古典のもぐらたたき。爆弾は避ける選択性付き"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-counting",
+        "minatomo-flash-memory"
+      ],
+      "tags": [
+        "反応速度",
+        "選択的注意"
+      ],
+      "design_notes": "古典のもぐらたたき。爆弾は避ける選択性付き",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-mole",
+      "name": "もぐら",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-mole.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "reaction_time"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-simple-balloon",
+        "minatomo-simple-chasetap",
+        "minatomo-simple-falling"
+      ],
+      "tags": [
+        "反応速度"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-shell2",
+      "name": "シェル",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-shell2.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "spatial_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-cancellation",
+        "minatomo-rehab-flanker",
+        "minatomo-simple-shell"
+      ],
+      "tags": [
+        "物体追跡"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-shell3",
+      "name": "シェル",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-shell3.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "spatial_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-cancellation",
+        "minatomo-rehab-flanker",
+        "minatomo-simple-shell"
+      ],
+      "tags": [
+        "物体追跡"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-tap",
+      "name": "タップ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-tap.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "reaction_time",
+          "motor_control"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-big-tap",
+        "minatomo-simple-balloon",
+        "minatomo-simple-chasetap"
+      ],
+      "tags": [
+        "反応",
+        "基礎運動"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rhythm-tap",
+      "name": "リズムタップ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-rhythm-tap.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "rhythm_timing"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly",
+          "parkinson"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度聴覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "メトロノーム同期、テンポキープ・テンポ変化。Web Audio API"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual",
+          "audio"
+        ],
+        "requires_audio": true,
+        "requires_microphone": false,
+        "requires_speaker": true
+      },
+      "related_games": [
+        "minatomo-step-rhythm"
+      ],
+      "tags": [
+        "リズム同期",
+        "タイミング"
+      ],
+      "design_notes": "メトロノーム同期、テンポキープ・テンポ変化。Web Audio API",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-change-detection",
+      "name": "変化さがし",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-change-detection.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "working_memory_visual",
+          "visual_memory",
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "Luck & Vogel系。一瞬で配置を覚え、何が変わったか答える"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-flash-memory",
+        "minatomo-rehab-change",
+        "minatomo-simple-colorchange"
+      ],
+      "tags": [
+        "視覚的WM",
+        "変化検出"
+      ],
+      "design_notes": "Luck & Vogel系。一瞬で配置を覚え、何が変わったか答える",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-letter-search",
+      "name": "文字さがし",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-letter-search.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [],
+        "subdomains": [
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "グリッドからターゲット文字を見つける（Cancellation）"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-counting",
+        "minatomo-flash-memory"
+      ],
+      "tags": [
+        "視覚的注意",
+        "抹消課題"
+      ],
+      "design_notes": "グリッドからターゲット文字を見つける（Cancellation）",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-listening-quiz",
+      "name": "聞き取りクイズ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-listening-quiz.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "auditory_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度聴覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "Web Speech APIで音読→質問。聴理解を鍛える唯一無二"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual",
+          "audio",
+          "text"
+        ],
+        "requires_audio": true,
+        "requires_microphone": false,
+        "requires_speaker": true
+      },
+      "related_games": [
+        "minatomo-rhythm-memory"
+      ],
+      "tags": [
+        "聴覚的理解",
+        "WM"
+      ],
+      "design_notes": "Web Speech APIで音読→質問。聴理解を鍛える唯一無二",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-color-match",
+      "name": "色あわせ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-color-match.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "visuospatial",
+          "memory"
+        ],
+        "subdomains": [
+          "visual_perception",
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "マッチング・色名・配色・グラデ並べ"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-simple-colorconnect",
+        "minatomo-category-sort",
+        "minatomo-clock-quiz"
+      ],
+      "tags": [
+        "色覚",
+        "色語連合"
+      ],
+      "design_notes": "マッチング・色名・配色・グラデ並べ",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-word-connect",
+      "name": "ことばつなぎ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-word-connect.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "自由入力の判定問題を回避し、選択肢方式に再設計"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-category-sort",
+        "minatomo-color-match",
+        "minatomo-compare-ranking"
+      ],
+      "tags": [
+        "意味連合",
+        "選択肢方式"
+      ],
+      "design_notes": "自由入力の判定問題を回避し、選択肢方式に再設計",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-dual-task",
+      "name": "ダブルタスク",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-dual-task.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "divided_attention",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly",
+          "parkinson"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "認知＋運動の同時遂行。両パフォーマンスを測定"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-error-finder",
+        "minatomo-rehab-digitback"
+      ],
+      "tags": [
+        "二重課題遂行"
+      ],
+      "design_notes": "認知＋運動の同時遂行。両パフォーマンスを測定",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-go-nogo",
+      "name": "反応スイッチ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-go-nogo.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [],
+        "subdomains": [
+          "inhibition"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "Go刺激にタップ・No-Goは抑制。色・形・反転ルール"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-phone-memory",
+        "minatomo-rehab-delayedrecall",
+        "minatomo-rehab-flanker"
+      ],
+      "tags": [
+        "Go",
+        "No-Go",
+        "抑制"
+      ],
+      "design_notes": "Go刺激にタップ・No-Goは抑制。色・形・反転ルール",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-cooking-steps",
+      "name": "おりょうり手順",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-cooking-steps.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "spatial_memory",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "レシピ手順を記憶→順番・材料・動作の質問"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-simple-appearorder",
+        "minatomo-simple-order",
+        "minatomo-simple-simon"
+      ],
+      "tags": [
+        "順序記憶",
+        "遂行機能"
+      ],
+      "design_notes": "レシピ手順を記憶→順番・材料・動作の質問",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-compare-ranking",
+      "name": "くらべてランキング",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-compare-ranking.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "サイズ・長さ・重さ・速度・価格でランク付け"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-category-sort",
+        "minatomo-color-match",
+        "minatomo-face-name"
+      ],
+      "tags": [
+        "意味記憶",
+        "大小比較"
+      ],
+      "design_notes": "サイズ・長さ・重さ・速度・価格でランク付け",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-tmtb",
+      "name": "こうごにタップ",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-tmtb.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [],
+        "subdomains": [
+          "set_shifting",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "TMT Part B",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "1→あ→2→い→...の交互タップ。set-shifting評価"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-dual-task",
+        "minatomo-error-finder"
+      ],
+      "tags": [
+        "遂行機能",
+        "認知的柔軟性"
+      ],
+      "design_notes": "1→あ→2→い→...の交互タップ。set-shifting評価",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-sort",
+      "name": "そろえる",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-sort.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-category-sort",
+        "minatomo-color-match",
+        "minatomo-compare-ranking"
+      ],
+      "tags": [
+        "分類"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-gonogo",
+      "name": "とめて！タップ！",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-gonogo.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [],
+        "subdomains": [
+          "set_shifting",
+          "inhibition"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Go/No-Go＋Reversal",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "前頭前野機能、反応抑制"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-go-nogo",
+        "minatomo-phone-memory",
+        "minatomo-rehab-delayedrecall"
+      ],
+      "tags": [
+        "抑制",
+        "反応切替"
+      ],
+      "design_notes": "前頭前野機能、反応抑制",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-category",
+      "name": "なかまはどれ？",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-category.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Category Fluency",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "8カテゴリで分類判断"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-category-sort",
+        "minatomo-color-match",
+        "minatomo-compare-ranking"
+      ],
+      "tags": [
+        "意味記憶",
+        "カテゴリ判断"
+      ],
+      "design_notes": "8カテゴリで分類判断",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-category",
+      "name": "なかまわけ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-category.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-category-sort",
+        "minatomo-color-match",
+        "minatomo-compare-ranking"
+      ],
+      "tags": [
+        "カテゴリ判断"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-error-finder",
+      "name": "まちがい直し",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-error-finder.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "language_processing",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "誤字・誤情報・誤用を文中から見つける"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-dual-task",
+        "minatomo-hint-guess"
+      ],
+      "tags": [
+        "言語処理",
+        "モニタリング"
+      ],
+      "design_notes": "誤字・誤情報・誤用を文中から見つける",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-flanker",
+      "name": "まんなかのむき",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-flanker.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "inhibition",
+          "selective_attention",
+          "spatial_attention"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Eriksen Flanker Task",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "フランカー効果計測、ADHDや前頭機能の評価"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-cancellation",
+        "minatomo-rehab-stroop",
+        "minatomo-stroop"
+      ],
+      "tags": [
+        "空間的選択的注意",
+        "抑制"
+      ],
+      "design_notes": "フランカー効果計測、ADHDや前頭機能の評価",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-category-sort",
+      "name": "カテゴリ分け",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-category-sort.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "semantic_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "アイテムを正しいビンへ。意味ネットワーク訓練"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-color-match",
+        "minatomo-compare-ranking",
+        "minatomo-face-name"
+      ],
+      "tags": [
+        "意味記憶",
+        "分類"
+      ],
+      "design_notes": "アイテムを正しいビンへ。意味ネットワーク訓練",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-step-rhythm",
+      "name": "ステップリズム",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-step-rhythm.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [],
+        "subdomains": [
+          "rhythm_timing",
+          "motor_control"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly",
+          "parkinson"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度聴覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "左右交互タップでリズム歩行模擬"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual",
+          "audio"
+        ],
+        "requires_audio": true,
+        "requires_microphone": false,
+        "requires_speaker": true
+      },
+      "related_games": [
+        "minatomo-big-tap",
+        "minatomo-rhythm-tap",
+        "minatomo-simple-tap"
+      ],
+      "tags": [
+        "歩行リズム",
+        "両側運動"
+      ],
+      "design_notes": "左右交互タップでリズム歩行模擬",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-stroop",
+      "name": "ストループ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-stroop.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "inhibition",
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "神経心理の古典課題、初期版（後にrehab系に再構築）"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-flanker",
+        "minatomo-rehab-stroop",
+        "minatomo-change-detection"
+      ],
+      "tags": [
+        "抑制機能",
+        "選択的注意"
+      ],
+      "design_notes": "神経心理の古典課題、初期版（後にrehab系に再構築）",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-stroop",
+      "name": "ストループ",
+      "name_kana": "すとるーぷ",
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-stroop.html",
+      "icon": null,
+      "domain": {
+        "primary": "attention",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "inhibition",
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Stroop Test",
+        "description": "色名と文字色の干渉を用いた抑制機能評価",
+        "measures": [
+          "処理速度",
+          "干渉抑制"
+        ],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": [
+          "前頭葉機能の評価・訓練",
+          "高次脳機能リハ",
+          "選択的注意の訓練"
+        ]
+      },
+      "contraindications": {
+        "avoid": [
+          "moderate_dementia"
+        ],
+        "cautions": [
+          "失語症の場合は文字読みが困難",
+          "色覚異常の方は不向き"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "congruent練習→incongruent本番の段階構造"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": 20
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-flanker",
+        "minatomo-rehab-gonogo",
+        "minatomo-stroop"
+      ],
+      "tags": [
+        "古典課題",
+        "前頭葉",
+        "注意",
+        "抑制"
+      ],
+      "design_notes": "古典の中の古典。congruent練習→incongruent本番の段階構造",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-24",
+        "last_reviewed": null,
+        "completion_status": "complete"
+      }
+    },
+    {
+      "id": "minatomo-step-order",
+      "name": "手順ならべ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-step-order.html",
+      "icon": null,
+      "domain": {
+        "primary": "executive",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "spatial_memory",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "ドラッグ＆ドロップで日常動作の順序を並べる。実生活直結"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-simple-appearorder",
+        "minatomo-simple-order"
+      ],
+      "tags": [
+        "遂行機能",
+        "順序計画"
+      ],
+      "design_notes": "ドラッグ＆ドロップで日常動作の順序を並べる。実生活直結",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-yesterday-quiz",
+      "name": "きのうクイズ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-yesterday-quiz.html",
+      "icon": null,
+      "domain": {
+        "primary": "orientation",
+        "secondary": [],
+        "subdomains": [
+          "time_orientation"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "昨日・明日・曜日・月の質問。リアル日付動的"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-date-quiz",
+        "minatomo-rehab-clock"
+      ],
+      "tags": [
+        "時間見当識",
+        "時間推論"
+      ],
+      "design_notes": "昨日・明日・曜日・月の質問。リアル日付動的",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-date-quiz",
+      "name": "きょうは何日？",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-date-quiz.html",
+      "icon": null,
+      "domain": {
+        "primary": "orientation",
+        "secondary": [],
+        "subdomains": [
+          "time_orientation"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "リアル日付ベースで動的に問題生成"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-rehab-clock",
+        "minatomo-schedule"
+      ],
+      "tags": [
+        "時間見当識"
+      ],
+      "design_notes": "リアル日付ベースで動的に問題生成",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-clock",
+      "name": "なんじかな？",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-clock.html",
+      "icon": null,
+      "domain": {
+        "primary": "orientation",
+        "secondary": [
+          "visuospatial"
+        ],
+        "subdomains": [
+          "time_orientation",
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "CDT読み取り版",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "SVGアナログ時計、4レベル"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-date-quiz"
+      ],
+      "tags": [
+        "時計読み",
+        "空間認知"
+      ],
+      "design_notes": "SVGアナログ時計、4レベル",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-schedule",
+      "name": "スケジュール管理",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-schedule.html",
+      "icon": null,
+      "domain": {
+        "primary": "orientation",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "planning",
+          "time_orientation"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "スケジュールを覚え、時間質問・矛盾検出"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-cooking-steps",
+        "minatomo-date-quiz"
+      ],
+      "tags": [
+        "時間管理",
+        "遂行機能"
+      ],
+      "design_notes": "スケジュールを覚え、時間質問・矛盾検出",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-clock-quiz",
+      "name": "時計よみ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-clock-quiz.html",
+      "icon": null,
+      "domain": {
+        "primary": "orientation",
+        "secondary": [
+          "visuospatial"
+        ],
+        "subdomains": [
+          "time_orientation",
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "アナログ時計の針を読む。生活スキル直結"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-clock",
+        "minatomo-color-match",
+        "minatomo-date-quiz"
+      ],
+      "tags": [
+        "時計読み",
+        "空間認知"
+      ],
+      "design_notes": "アナログ時計の針を読む。生活スキル直結",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-mostcommon",
+      "name": "いちばんおおい",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-mostcommon.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "selective_attention"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-detection",
+        "minatomo-counting",
+        "minatomo-flash-memory"
+      ],
+      "tags": [
+        "頻度判断"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-updown",
+      "name": "うえした",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-updown.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [],
+        "subdomains": [
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-fragment-id"
+      ],
+      "tags": [
+        "空間認知"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-bigger",
+      "name": "おおきい方",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-bigger.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "processing_speed"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-calc",
+        "minatomo-number-compare",
+        "minatomo-serial-calc"
+      ],
+      "tags": [
+        "数量比較"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-shape-puzzle",
+      "name": "かたちパズル",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-shape-puzzle.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [],
+        "subdomains": [
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "形の一致・半分合わせ・辺の数・仲間外れ・パターン補完"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-fragment-id"
+      ],
+      "tags": [
+        "図形認識",
+        "パターン"
+      ],
+      "design_notes": "形の一致・半分合わせ・辺の数・仲間外れ・パターン補完",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-fragment-id",
+      "name": "これなーんだ？",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-fragment-id.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [],
+        "subdomains": [
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "SVG画像が徐々に表れて何かを当てる"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-left-right"
+      ],
+      "tags": [
+        "視覚認識",
+        "プライミング"
+      ],
+      "design_notes": "SVG画像が徐々に表れて何かを当てる",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-path",
+      "name": "どうろをすすめ",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-path.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "topographical",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Money's Road Map系",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "5×5マップ"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-dual-task",
+        "minatomo-error-finder"
+      ],
+      "tags": [
+        "地誌的見当識",
+        "指示遂行"
+      ],
+      "design_notes": "5×5マップ",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-trace",
+      "name": "なぞりトレース",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-trace.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "motor_control"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly",
+          "parkinson"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "線・形・文字をなぞる。精度と大きさを測定"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-big-tap",
+        "minatomo-simple-tap",
+        "minatomo-step-rhythm"
+      ],
+      "tags": [
+        "微細運動",
+        "micrographia予防"
+      ],
+      "design_notes": "線・形・文字をなぞる。精度と大きさを測定",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-leftright",
+      "name": "右左",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-leftright.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [],
+        "subdomains": [
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-fragment-id"
+      ],
+      "tags": [
+        "空間認知"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-realone",
+      "name": "ほんもの",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-realone.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [],
+        "subdomains": [
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-fragment-id"
+      ],
+      "tags": [
+        "弁別"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-rotation",
+      "name": "まわしたらおなじ？",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-rotation.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [],
+        "subdomains": [
+          "mental_rotation"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Mental Rotation（Shepard-Metzler系）",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "正解は別角度の同一形、妨害は鏡像"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-puzzle-rotation"
+      ],
+      "tags": [
+        "心的回転",
+        "空間認知"
+      ],
+      "design_notes": "正解は別角度の同一形、妨害は鏡像",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-puzzle-rotation",
+      "name": "パズル回転",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-puzzle-rotation.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [],
+        "subdomains": [
+          "mental_rotation"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "図形を回転させて元の形に戻す"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-rehab-rotation"
+      ],
+      "tags": [
+        "心的回転",
+        "空間認知"
+      ],
+      "design_notes": "図形を回転させて元の形に戻す",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-block-stack",
+      "name": "ブロックたおし",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-block-stack.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "working_memory_visual",
+          "working_memory_spatial",
+          "spatial_memory"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "ターゲットの塔を覚え、正しい色順で再構築"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-corsi-block",
+        "minatomo-rehab-corsi",
+        "minatomo-change-detection"
+      ],
+      "tags": [
+        "視覚的空間的記憶"
+      ],
+      "design_notes": "ターゲットの塔を覚え、正しい色順で再構築",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-left-right",
+      "name": "右左クイズ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-left-right.html",
+      "icon": null,
+      "domain": {
+        "primary": "visuospatial",
+        "secondary": [],
+        "subdomains": [
+          "left_right_discrimination",
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "矢印・手・回転方向・鏡像・空間指示"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-fragment-id"
+      ],
+      "tags": [
+        "空間認知",
+        "左右弁別"
+      ],
+      "design_notes": "矢印・手・回転方向・鏡像・空間指示",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-addition",
+      "name": "たしざん",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-addition.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "processing_speed"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-calc",
+        "minatomo-number-compare",
+        "minatomo-serial-calc"
+      ],
+      "tags": [
+        "計算"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-howmany",
+      "name": "いくつ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-howmany.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "processing_speed"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-calc",
+        "minatomo-number-compare",
+        "minatomo-serial-calc"
+      ],
+      "tags": [
+        "数量見積もり"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-wallet-calc",
+      "name": "おさいふ計算",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-wallet-calc.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "processing_speed"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "硬貨/紙幣を数えて金額を作る・比較"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-calc",
+        "minatomo-number-compare",
+        "minatomo-serial-calc"
+      ],
+      "tags": [
+        "金銭処理",
+        "計算"
+      ],
+      "design_notes": "硬貨/紙幣を数えて金額を作る・比較",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-change-calc",
+      "name": "おつり計算",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-change-calc.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "processing_speed"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "お財布から硬貨をタップして釣りを作る。実生活直結"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-number-compare",
+        "minatomo-serial-calc",
+        "minatomo-simple-addition"
+      ],
+      "tags": [
+        "計算",
+        "金銭処理"
+      ],
+      "design_notes": "お財布から硬貨をタップして釣りを作る。実生活直結",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-samecount",
+      "name": "おなじかず",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-samecount.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "processing_speed"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-calc",
+        "minatomo-number-compare",
+        "minatomo-serial-calc"
+      ],
+      "tags": [
+        "数量一致"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-number-compare",
+      "name": "かずくらべ",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-number-compare.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "processing_speed"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "左右どちらが多いかを瞬時判断"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-calc",
+        "minatomo-serial-calc",
+        "minatomo-simple-addition"
+      ],
+      "tags": [
+        "数量処理",
+        "処理速度"
+      ],
+      "design_notes": "左右どちらが多いかを瞬時判断",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-counttap",
+      "name": "カウントタップ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-counttap.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "processing_speed"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-calc",
+        "minatomo-number-compare",
+        "minatomo-serial-calc"
+      ],
+      "tags": [
+        "計数"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-numseries",
+      "name": "すうじのつぎは？",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-numseries.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "planning"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "Number Series（WAIS系）",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "等差/交互/フィボナッチの3レベル"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-dual-task",
+        "minatomo-error-finder"
+      ],
+      "tags": [
+        "流動性知能",
+        "帰納推論"
+      ],
+      "design_notes": "等差/交互/フィボナッチの3レベル",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-rehab-serialadd",
+      "name": "たしざんリレー",
+      "name_kana": null,
+      "category": "rehabilitation",
+      "phase": 3,
+      "url": "minatomo-rehab-serialadd.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "sustained_attention"
+        ]
+      },
+      "neuropsych_basis": {
+        "test_name": "PASAT",
+        "description": null,
+        "measures": [],
+        "reference": null
+      },
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "MS・脳外傷のADL評価で標準的"
+      },
+      "duration": {
+        "estimated_minutes": 7,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [],
+      "tags": [
+        "WM＋計算＋持続注意"
+      ],
+      "design_notes": "MS・脳外傷のADL評価で標準的",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-stack-calc",
+      "name": "つみき計算",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-stack-calc.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "memory"
+        ],
+        "subdomains": [
+          "working_memory_update"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": []
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "数字が次々現れて累計を追う"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-nback"
+      ],
+      "tags": [
+        "WM",
+        "連続加算"
+      ],
+      "design_notes": "数字が次々現れて累計を追う",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-serial-calc",
+      "name": "なぞり計算",
+      "name_kana": null,
+      "category": "regular",
+      "phase": 1,
+      "url": "minatomo-serial-calc.html",
+      "icon": null,
+      "domain": {
+        "primary": "calculation",
+        "secondary": [
+          "attention"
+        ],
+        "subdomains": [
+          "processing_speed"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "stroke_subacute",
+          "stroke_chronic",
+          "tbi",
+          "mci",
+          "mild_dementia",
+          "healthy_elderly"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "計算障害（失算症）"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": "連続加算。クレペリン検査の現代版"
+      },
+      "duration": {
+        "estimated_minutes": 5,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-change-calc",
+        "minatomo-number-compare",
+        "minatomo-simple-addition"
+      ],
+      "tags": [
+        "WM＋計算"
+      ],
+      "design_notes": "連続加算。クレペリン検査の現代版",
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-same",
+      "name": "おなじ",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-same.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "visuospatial"
+        ],
+        "subdomains": [
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-fragment-id"
+      ],
+      "tags": [
+        "マッチング"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-order",
+      "name": "じゅんばん",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-order.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "executive"
+        ],
+        "subdomains": [
+          "spatial_memory",
+          "planning"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-cooking-steps",
+        "minatomo-simple-appearorder",
+        "minatomo-simple-simon"
+      ],
+      "tags": [
+        "順序記憶"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    },
+    {
+      "id": "minatomo-simple-pattern",
+      "name": "パターン",
+      "name_kana": null,
+      "category": "simple",
+      "phase": 2,
+      "url": "minatomo-simple-pattern.html",
+      "icon": null,
+      "domain": {
+        "primary": "memory",
+        "secondary": [
+          "visuospatial"
+        ],
+        "subdomains": [
+          "visual_perception"
+        ]
+      },
+      "neuropsych_basis": null,
+      "indications": {
+        "recommended": [
+          "moderate_dementia",
+          "mild_dementia",
+          "stroke_chronic"
+        ],
+        "use_cases": []
+      },
+      "contraindications": {
+        "avoid": [],
+        "cautions": [
+          "重度視覚障害"
+        ]
+      },
+      "difficulty": {
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "default": 1,
+        "adaptive": false,
+        "structure": null
+      },
+      "duration": {
+        "estimated_minutes": 3,
+        "trials": null
+      },
+      "device": {
+        "input": [
+          "touch"
+        ],
+        "output": [
+          "visual"
+        ],
+        "requires_audio": false,
+        "requires_microphone": false,
+        "requires_speaker": false
+      },
+      "related_games": [
+        "minatomo-clock-quiz",
+        "minatomo-color-match",
+        "minatomo-fragment-id"
+      ],
+      "tags": [
+        "パターン認識"
+      ],
+      "design_notes": null,
+      "metadata": {
+        "version": 1,
+        "created": "2026-04-25",
+        "last_reviewed": null,
+        "completion_status": "auto_filled"
+      }
+    }
+  ]
+}
