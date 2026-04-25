@@ -261,7 +261,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -306,7 +309,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-rehab-delayedrecall",
@@ -342,7 +348,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -385,7 +394,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-shopping-list",
@@ -415,7 +427,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -457,7 +472,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-map-memory",
@@ -489,7 +507,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -532,7 +553,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-message-recall",
@@ -562,8 +586,16 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -606,7 +638,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2",
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-memory",
@@ -633,7 +669,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -677,7 +716,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-rehab-digitback",
@@ -713,7 +755,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -756,7 +801,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-rehab-wordpic",
@@ -789,8 +837,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -832,7 +886,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2"
+      ]
     },
     {
       "id": "minatomo-simple-appearorder",
@@ -862,7 +919,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -906,7 +966,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-phone-memory",
@@ -939,7 +1002,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -982,7 +1048,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-wherewasite",
@@ -1009,7 +1078,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -1053,7 +1125,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-where-was-it",
@@ -1083,7 +1158,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -1127,7 +1205,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-whatadded",
@@ -1157,7 +1238,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -1201,7 +1285,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-simon",
@@ -1231,7 +1318,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -1275,7 +1365,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-rehab-corsi",
@@ -1309,7 +1402,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -1351,7 +1447,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-simon2",
@@ -1381,7 +1480,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -1425,7 +1527,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-simon3",
@@ -1455,7 +1560,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -1499,7 +1607,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-rehab-prospective",
@@ -1535,8 +1646,16 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
+        "cautions": [
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -1578,7 +1697,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P3",
+        "P8"
+      ]
     },
     {
       "id": "minatomo-flash-memory",
@@ -1611,7 +1734,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "てんかん既往",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -1656,7 +1783,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-pair-search",
@@ -1686,7 +1816,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -1728,7 +1861,14 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P6",
+        "P8"
+      ],
+      "characteristics": [
+        "motor_precision_required"
+      ]
     },
     {
       "id": "minatomo-simple-pairs",
@@ -1755,7 +1895,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -1799,7 +1942,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-rhythm-memory",
@@ -1829,9 +1975,15 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度聴覚障害（補聴器でも聴取不可）",
+          "重度認知症（聴覚認知不可）",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
-          "重度聴覚障害"
+          "重度聴覚障害",
+          "耳鳴りが強い方（音識別困難）"
         ]
       },
       "difficulty": {
@@ -1872,7 +2024,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P5",
+        "P8"
+      ]
     },
     {
       "id": "minatomo-prospective-memory",
@@ -1902,8 +2058,16 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
+        "cautions": [
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -1943,7 +2107,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P3",
+        "P8"
+      ]
     },
     {
       "id": "minatomo-digit-span",
@@ -1973,7 +2141,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -2015,7 +2186,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-story-memory",
@@ -2045,8 +2219,16 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -2089,7 +2271,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2",
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-memory-game",
@@ -2118,7 +2304,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -2159,8 +2348,11 @@
         "version": 1,
         "created": "2026-04-25",
         "last_reviewed": null,
-        "completion_status": "needs_clinical_review"
-      }
+        "completion_status": "auto_filled"
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-corsi-block",
@@ -2191,7 +2383,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -2233,7 +2428,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-face-name",
@@ -2264,8 +2462,17 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度うつ状態・抑うつ状態（face-name/emotionは感情誤発リスク）",
+          "自閉スペクトラム症 重度（emotionは評価不能）",
+          "診察応接集中全般（感情接試誤発ケース）",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
+        "cautions": [
+          "認知症で遮心不安・心理不安が高評価される方",
+          "うつ状態・不安障害（振り返り判断付きで使用）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -2306,7 +2513,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P7",
+        "P8"
+      ]
     },
     {
       "id": "minatomo-nback",
@@ -2338,7 +2549,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -2378,7 +2592,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-voice-challenge",
@@ -2411,9 +2628,25 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）",
+          "重度聴覚障害",
+          "重度聴覚障害（補聴器でも聴取不可）",
+          "重度認知症（聴覚認知不可）",
+          "重度失語症（発話不可）",
+          "重度構音障害（クリアな発話不可）",
+          "気管切開中・人工呼吸器使用中・発話ツール未使用の方",
+          "重度認知症（指示理解・反応不可）"
+        ],
         "cautions": [
-          "発声困難"
+          "発声困難",
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）",
+          "耳鳴りが強い方（音識別困難）",
+          "口腔・耳鼻科疾患",
+          "軽度〜中等度失語症（ST介助下で可能）",
+          "多人数現場（周囲騒音で認識低下、個人面談室推奨）"
         ]
       },
       "difficulty": {
@@ -2457,7 +2690,12 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2",
+        "P5",
+        "P10"
+      ]
     },
     {
       "id": "minatomo-simple-color",
@@ -2486,7 +2724,12 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "色覚異常"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -2531,7 +2774,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-simple-colorchange",
@@ -2561,7 +2807,12 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "色覚異常"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -2605,7 +2856,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-simple-chasetap",
@@ -2632,8 +2886,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -2675,7 +2934,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-big-tap",
@@ -2708,8 +2970,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -2751,7 +3018,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-simple-falling",
@@ -2778,8 +3048,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "てんかん既往"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -2821,7 +3097,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-simple-colorconnect",
@@ -2852,7 +3131,12 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "色覚異常"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -2897,7 +3181,14 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4",
+        "P6"
+      ],
+      "characteristics": [
+        "motor_precision_required"
+      ]
     },
     {
       "id": "minatomo-counting",
@@ -2929,7 +3220,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "重度半側空間無視（評価目的以外）",
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
           "計算障害（失算症）"
         ]
@@ -2974,7 +3271,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4",
+        "P9"
+      ]
     },
     {
       "id": "minatomo-simple-disappear",
@@ -3003,7 +3304,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "てんかん既往",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -3047,7 +3352,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-rehab-emotion",
@@ -3082,8 +3390,23 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）",
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）",
+          "重度うつ状態・抑うつ状態（face-name/emotionは感情誤発リスク）",
+          "自閉スペクトラム症 重度（emotionは評価不能）",
+          "診察応接集中全般（感情接試誤発ケース）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）",
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）",
+          "認知症で遮心不安・心理不安が高評価される方",
+          "うつ状態・不安障害（振り返り判断付きで使用）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -3121,7 +3444,12 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2",
+        "P3",
+        "P7"
+      ]
     },
     {
       "id": "minatomo-word-builder",
@@ -3153,8 +3481,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -3196,7 +3530,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2"
+      ]
     },
     {
       "id": "minatomo-hint-guess",
@@ -3228,8 +3565,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -3271,7 +3614,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2"
+      ]
     },
     {
       "id": "minatomo-rehab-cancellation",
@@ -3305,7 +3651,12 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "重度半側空間無視（評価目的以外）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -3348,7 +3699,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-rehab-change",
@@ -3384,7 +3738,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -3429,7 +3789,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4",
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-spotdiff",
@@ -3456,7 +3820,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -3498,7 +3866,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-simple-shell",
@@ -3525,7 +3896,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -3568,7 +3942,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-count",
@@ -3597,7 +3974,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "重度半側空間無視（評価目的以外）",
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
           "計算障害（失算症）"
         ]
@@ -3641,7 +4024,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4",
+        "P9"
+      ]
     },
     {
       "id": "minatomo-simple-odd",
@@ -3670,8 +4057,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -3712,7 +4105,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2"
+      ]
     },
     {
       "id": "minatomo-simple-tapspeed",
@@ -3739,8 +4135,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -3781,7 +4182,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-simple-justone",
@@ -3810,9 +4214,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）"
+        ],
         "cautions": [
-          "重度視覚障害"
+          "重度視覚障害",
+          "心血管リスクのある方（心拍上昇誘発）"
         ]
       },
       "difficulty": {
@@ -3854,7 +4262,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-simple-balloon",
@@ -3881,8 +4292,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "てんかん既往"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -3924,7 +4341,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-spot-diff",
@@ -3954,7 +4374,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -3996,7 +4420,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-simple-reaction",
@@ -4023,8 +4450,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -4065,7 +4497,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-simple-greentap",
@@ -4092,8 +4527,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "てんかん既往"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -4134,7 +4575,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-whack-mole",
@@ -4165,8 +4609,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "てんかん既往"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -4208,7 +4658,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-simple-mole",
@@ -4235,8 +4688,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "てんかん既往"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -4277,7 +4736,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-simple-shell2",
@@ -4304,7 +4766,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -4346,7 +4811,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-shell3",
@@ -4373,7 +4841,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -4415,7 +4886,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-tap",
@@ -4445,8 +4919,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -4488,7 +4967,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-rhythm-tap",
@@ -4521,9 +5003,16 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "重度聴覚障害（補聴器でも聴取不可）",
+          "重度認知症（聴覚認知不可）"
+        ],
         "cautions": [
-          "重度聴覚障害"
+          "重度聴覚障害",
+          "心血管リスクのある方（心拍上昇誘発）",
+          "耳鳴りが強い方（音識別困難）"
         ]
       },
       "difficulty": {
@@ -4565,7 +5054,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1",
+        "P5"
+      ]
     },
     {
       "id": "minatomo-change-detection",
@@ -4599,7 +5092,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -4644,7 +5143,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4",
+        "P8"
+      ]
     },
     {
       "id": "minatomo-letter-search",
@@ -4674,7 +5177,12 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "重度半側空間無視（評価目的以外）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -4717,7 +5225,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-listening-quiz",
@@ -4749,9 +5260,18 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）",
+          "重度聴覚障害",
+          "重度聴覚障害（補聴器でも聴取不可）",
+          "重度認知症（聴覚認知不可）"
+        ],
         "cautions": [
-          "重度聴覚障害"
+          "重度聴覚障害",
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）",
+          "耳鳴りが強い方（音識別困難）"
         ]
       },
       "difficulty": {
@@ -4794,7 +5314,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2",
+        "P5"
+      ]
     },
     {
       "id": "minatomo-color-match",
@@ -4828,7 +5352,12 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "色覚異常"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -4873,7 +5402,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-word-connect",
@@ -4905,8 +5437,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -4948,7 +5486,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2"
+      ]
     },
     {
       "id": "minatomo-dual-task",
@@ -4982,8 +5523,17 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）",
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -5024,7 +5574,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1",
+        "P3"
+      ]
     },
     {
       "id": "minatomo-go-nogo",
@@ -5054,8 +5608,13 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -5098,7 +5657,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1"
+      ]
     },
     {
       "id": "minatomo-cooking-steps",
@@ -5131,9 +5693,16 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
-          "重度視覚障害"
+          "重度視覚障害",
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）"
         ]
       },
       "difficulty": {
@@ -5176,7 +5745,15 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P3",
+        "P6",
+        "P8"
+      ],
+      "characteristics": [
+        "motor_precision_required"
+      ]
     },
     {
       "id": "minatomo-compare-ranking",
@@ -5208,7 +5785,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -5251,7 +5830,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-rehab-tmtb",
@@ -5285,8 +5867,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）"
+        ],
+        "cautions": [
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -5328,7 +5916,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P3"
+      ]
     },
     {
       "id": "minatomo-simple-sort",
@@ -5357,8 +5948,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -5399,7 +5996,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2"
+      ]
     },
     {
       "id": "minatomo-rehab-gonogo",
@@ -5433,8 +6033,17 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）",
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -5476,7 +6085,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1",
+        "P3"
+      ]
     },
     {
       "id": "minatomo-rehab-category",
@@ -5511,8 +6124,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -5554,7 +6173,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2"
+      ]
     },
     {
       "id": "minatomo-simple-category",
@@ -5583,8 +6205,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -5625,7 +6253,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2"
+      ]
     },
     {
       "id": "minatomo-error-finder",
@@ -5658,8 +6289,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -5701,7 +6338,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2"
+      ]
     },
     {
       "id": "minatomo-rehab-flanker",
@@ -5738,8 +6378,20 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）",
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
+        "cautions": [
+          "心血管リスクのある方（心拍上昇誘発）",
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -5781,7 +6433,12 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1",
+        "P3",
+        "P4"
+      ]
     },
     {
       "id": "minatomo-category-sort",
@@ -5813,8 +6470,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度失語症",
+          "言語・記号によるコミュニケーション重度困難",
+          "重度認知症（言語理解不可）"
+        ],
+        "cautions": [
+          "重度聴覚障害（聴覚ゲーム以外、文字読みゲームは継続可）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -5856,7 +6519,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P2"
+      ]
     },
     {
       "id": "minatomo-step-rhythm",
@@ -5888,9 +6554,17 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "重度聴覚障害（補聴器でも聴取不可）",
+          "重度認知症（聴覚認知不可）",
+          "めまい・バランス障害が強い方"
+        ],
         "cautions": [
-          "重度聴覚障害"
+          "重度聴覚障害",
+          "心血管リスクのある方（心拍上昇誘発）",
+          "耳鳴りが強い方（音識別困難）"
         ]
       },
       "difficulty": {
@@ -5934,7 +6608,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1",
+        "P5"
+      ]
     },
     {
       "id": "minatomo-stroop",
@@ -5967,7 +6645,12 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "色覚異常"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -6010,7 +6693,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-rehab-stroop",
@@ -6054,7 +6740,11 @@
       },
       "contraindications": {
         "avoid": [
-          "moderate_dementia"
+          "moderate_dementia",
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）",
+          "色覚異常"
         ],
         "cautions": [
           "失語症の場合は文字読みが困難",
@@ -6103,7 +6793,10 @@
         "created": "2026-04-24",
         "last_reviewed": null,
         "completion_status": "complete"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-step-order",
@@ -6136,9 +6829,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）"
+        ],
         "cautions": [
-          "重度視覚障害"
+          "重度視覚障害",
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）"
         ]
       },
       "difficulty": {
@@ -6181,7 +6879,14 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P3",
+        "P6"
+      ],
+      "characteristics": [
+        "motor_precision_required"
+      ]
     },
     {
       "id": "minatomo-yesterday-quiz",
@@ -6253,8 +6958,10 @@
         "version": 1,
         "created": "2026-04-25",
         "last_reviewed": null,
-        "completion_status": "auto_filled"
-      }
+        "completion_status": "needs_clinical_review",
+        "review_reason": "パターン分類が不明確"
+      },
+      "applied_patterns": []
     },
     {
       "id": "minatomo-date-quiz",
@@ -6325,8 +7032,10 @@
         "version": 1,
         "created": "2026-04-25",
         "last_reviewed": null,
-        "completion_status": "auto_filled"
-      }
+        "completion_status": "needs_clinical_review",
+        "review_reason": "パターン分類が不明確"
+      },
+      "applied_patterns": []
     },
     {
       "id": "minatomo-rehab-clock",
@@ -6362,7 +7071,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -6407,7 +7120,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-schedule",
@@ -6440,8 +7156,16 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
-        "cautions": []
+        "avoid": [
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）",
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
+        "cautions": [
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）"
+        ]
       },
       "difficulty": {
         "levels": [
@@ -6483,7 +7207,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P3",
+        "P8"
+      ]
     },
     {
       "id": "minatomo-clock-quiz",
@@ -6516,7 +7244,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -6561,7 +7293,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-simple-mostcommon",
@@ -6590,7 +7325,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -6632,7 +7369,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-simple-updown",
@@ -6659,7 +7399,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -6703,7 +7447,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-simple-bigger",
@@ -6732,7 +7479,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
           "計算障害（失算症）"
         ]
@@ -6776,7 +7525,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-shape-puzzle",
@@ -6806,7 +7558,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -6851,7 +7607,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-fragment-id",
@@ -6881,7 +7640,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -6926,7 +7689,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-rehab-path",
@@ -6962,7 +7728,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -7007,7 +7777,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-trace",
@@ -7083,7 +7856,13 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P6"
+      ],
+      "characteristics": [
+        "motor_precision_required"
+      ]
     },
     {
       "id": "minatomo-simple-leftright",
@@ -7110,7 +7889,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -7154,7 +7937,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-simple-realone",
@@ -7181,7 +7967,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -7225,7 +8015,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-rehab-rotation",
@@ -7258,7 +8051,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -7301,7 +8098,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-puzzle-rotation",
@@ -7331,7 +8131,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -7374,7 +8178,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-block-stack",
@@ -7408,7 +8215,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -7452,7 +8262,14 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P6",
+        "P8"
+      ],
+      "characteristics": [
+        "motor_precision_required"
+      ]
     },
     {
       "id": "minatomo-left-right",
@@ -7483,7 +8300,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -7528,7 +8349,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-simple-addition",
@@ -7557,7 +8381,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
           "計算障害（失算症）"
         ]
@@ -7601,7 +8427,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-simple-howmany",
@@ -7630,7 +8459,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
           "計算障害（失算症）"
         ]
@@ -7674,7 +8505,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-wallet-calc",
@@ -7706,7 +8540,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
           "計算障害（失算症）"
         ]
@@ -7751,7 +8587,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-change-calc",
@@ -7783,7 +8622,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
           "計算障害（失算症）"
         ]
@@ -7828,7 +8669,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-simple-samecount",
@@ -7857,7 +8701,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
           "計算障害（失算症）"
         ]
@@ -7901,7 +8747,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-number-compare",
@@ -7933,7 +8782,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
           "計算障害（失算症）"
         ]
@@ -7978,7 +8829,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-simple-counttap",
@@ -8007,9 +8861,14 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（ルール理解不可）",
+          "重度偏麻痺（Brunnstrom III以下）",
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
-          "計算障害（失算症）"
+          "計算障害（失算症）",
+          "心血管リスクのある方（心拍上昇誘発）"
         ]
       },
       "difficulty": {
@@ -8051,7 +8910,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P1",
+        "P9"
+      ]
     },
     {
       "id": "minatomo-rehab-numseries",
@@ -8086,7 +8949,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -8129,7 +8994,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-rehab-serialadd",
@@ -8164,9 +9032,15 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症",
+          "重度高次脳機能障害（遂行機能重度低下）",
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
-          "計算障害（失算症）"
+          "計算障害（失算症）",
+          "うつ状態・不安障害が強い方（挑戦課題の挫折体験誘発）",
+          "外傷性脳損傷急性期（覚醒度・易疲労性考慮）"
         ]
       },
       "difficulty": {
@@ -8204,7 +9078,11 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P3",
+        "P9"
+      ]
     },
     {
       "id": "minatomo-stack-calc",
@@ -8236,7 +9114,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": []
       },
       "difficulty": {
@@ -8277,7 +9157,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-serial-calc",
@@ -8309,7 +9192,9 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（計算不可）"
+        ],
         "cautions": [
           "計算障害（失算症）"
         ]
@@ -8353,7 +9238,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P9"
+      ]
     },
     {
       "id": "minatomo-simple-same",
@@ -8382,7 +9270,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -8426,7 +9318,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     },
     {
       "id": "minatomo-simple-order",
@@ -8456,7 +9351,10 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度認知症（古典的記憶課題は明確なerrorとなり傷つけやすい）",
+          "重度抑うつ状態（失敗体験誘発リスク高）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -8500,7 +9398,10 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P8"
+      ]
     },
     {
       "id": "minatomo-simple-pattern",
@@ -8529,7 +9430,11 @@
         "use_cases": []
       },
       "contraindications": {
-        "avoid": [],
+        "avoid": [
+          "重度視覚障害（画面識別不可）",
+          "重度視野障害",
+          "重度認知症（視覚認知不可）"
+        ],
         "cautions": [
           "重度視覚障害"
         ]
@@ -8573,7 +9478,20 @@
         "created": "2026-04-25",
         "last_reviewed": null,
         "completion_status": "auto_filled"
-      }
+      },
+      "applied_patterns": [
+        "P4"
+      ]
     }
-  ]
+  ],
+  "baseline_contraindications": {
+    "avoid": [
+      "意識障害（JCS II以上等、覚醒不安定）",
+      "急性期のバイタルサイン不安定",
+      "医師・主治医から認知記憶課題の中止指示あり",
+      "セッションに取り組める状態にない（避難・充電・守秘等）",
+      "本人による明確な拒否"
+    ],
+    "note": "これらは全112本のゲームに無条件で適用される共通禁忌。各ゲームのcontraindications.avoidは、この上に追加で適用される。"
+  }
 }

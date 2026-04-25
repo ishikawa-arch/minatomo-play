@@ -22,6 +22,7 @@ MANAGED = [
     "minatomo-difficulty-levels",
     "minatomo-duration",
     "minatomo-completion-status",
+    "minatomo-applied-patterns",
 ]
 # Note: NOT removing minatomo-domain / minatomo-category / minatomo-source — those are legacy
 
@@ -44,6 +45,9 @@ def build_meta_block(game):
         f'<meta name="minatomo-duration" content="{game["duration"]["estimated_minutes"]}">',
         f'<meta name="minatomo-completion-status" content="{game["metadata"]["completion_status"]}">',
     ])
+    patterns = game.get("applied_patterns", [])
+    if patterns:
+        lines.append(f'<meta name="minatomo-applied-patterns" content="{",".join(patterns)}">')
     return "\n".join(lines)
 
 def inject(html, meta_block):
