@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>どうろをすすめ | みなともPlay</title>
+<meta name="description" content="どうろをすすめ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="visuospatial">
+<meta name="minatomo-category" content="リハビリ脳トレ">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【リハビリ脳トレ】どうろをすすめ ==========
+// Path Following / Topographical Orientation - 地誌的見当識・指示遂行
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+const GRID_SIZE = 5; // 5x5 grid
+
+// Generate a random path with given number of steps
+function genPath(steps, gridSize) {
+  // Start at random position (not too close to edges initially)
+  let x = 1 + Math.floor(Math.random() * (gridSize - 2));
+  let y = 1 + Math.floor(Math.random() * (gridSize - 2));
+  const start = { x, y };
+  const path = [];
+
+  const dirNames = {
+    'right': 'みぎ',
+    'left': 'ひだり',
+    'up': 'うえ',
+    'down': 'した',
+  };
+
+  const dirDelta = {
+    'right': [1, 0],
+    'left': [-1, 0],
+    'up': [0, -1],
+    'down': [0, 1],
+  };
+
+  for (let i = 0; i < steps; i++) {
+    // Pick valid directions (won't go off grid)
+    const validDirs = [];
+    for (const [d, [dx, dy]] of Object.entries(dirDelta)) {
+      // Check if we can move at least 1 step
+      if (x + dx >= 0 && x + dx < gridSize && y + dy >= 0 && y + dy < gridSize) {
+        validDirs.push(d);
+      }
+    }
+    if (validDirs.length === 0) break;
+
+    // Prefer directions opposite to last (more varied paths)
+    const dir = validDirs[Math.floor(Math.random() * validDirs.length)];
+    const [dx, dy] = dirDelta[dir];
+
+    // Max steps this direction can take
+    let maxSteps = 0;
+    let nx = x, ny = y;
+    while (nx + dx >= 0 && nx + dx < gridSize && ny + dy >= 0 && ny + dy < gridSize) {
+      maxSteps++;
+      nx += dx; ny += dy;
+      if (maxSteps >= 3) break;
+    }
+    const stepCount = 1 + Math.floor(Math.random() * maxSteps);
+    x += dx * stepCount;
+    y += dy * stepCount;
+
+    path.push({ dir, dirName: dirNames[dir], steps: stepCount });
+  }
+
+  return { start, path, end: { x, y } };
+}
+
+const LEVELS = [
+  { rounds:4, steps:2, label:'レベル1', tag:'2かいの いどう' },
+  { rounds:5, steps:3, label:'レベル2', tag:'3かいの いどう' },
+  { rounds:5, steps:4, label:'レベル3', tag:'4かいの いどう' },
+];
+
+const DIR_EMOJI = {
+  'right': '➡️',
+  'left': '⬅️',
+  'up': '⬆️',
+  'down': '⬇️',
+};
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    levelIdx:0, roundIdx:0,
+    rounds:[],
+    phase:'idle', // viewing, tapping, feedback
+    selectedCell:null, feedback:null,
+    correct:0, score:0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.levelIdx = 0; g.correct = 0; g.score = 0;
+    setScreen('play');
+    startLevel(0);
+  };
+
+  const startLevel = (lvlIdx) => {
+    g.levelIdx = lvlIdx;
+    const level = LEVELS[lvlIdx];
+    g.rounds = [];
+    for (let i = 0; i < level.rounds; i++) {
+      g.rounds.push(genPath(level.steps, GRID_SIZE));
+    }
+    g.roundIdx = 0;
+    g.phase = 'viewing';
+    g.selectedCell = null; g.feedback = null;
+    rerender();
+  };
+
+  const handleCellTap = (x, y) => {
+    if (g.feedback) return;
+    const round = g.rounds[g.roundIdx];
+    const isCorrect = x === round.end.x && y === round.end.y;
+    g.selectedCell = { x, y };
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    if (isCorrect) {
+      g.correct++;
+      g.score += 15 + g.levelIdx * 5;
+    }
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.feedback = null; g.selectedCell = null;
+      if (g.roundIdx + 1 >= g.rounds.length) {
+        if (g.levelIdx + 1 >= LEVELS.length) {
+          setScreen('done'); rerender();
+        } else {
+          startLevel(g.levelIdx + 1);
+        }
+      } else {
+        g.roundIdx++;
+        rerender();
+      }
+    }, isCorrect ? 900 : 2000);
+  };
+
+  const level = LEVELS[g.levelIdx];
+  const round = g.rounds[g.roundIdx];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:scale(1)}25%{transform:scale(0.95) translateX(-3px)}75%{transform:scale(0.95) translateX(3px)}}
+        @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(232,101,46,0.4)}50%{box-shadow:0 0 0 10px rgba(232,101,46,0)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🗺 どうろをすすめ</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {level?.label}　{g.roundIdx + 1}/{level?.rounds}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'30px 20px', textAlign:'center', minHeight:'70vh' }}>
+          {/* Demo */}
+          <div style={{ background:'white', borderRadius:16, padding:12, marginBottom:14, boxShadow:'0 2px 8px rgba(0,0,0,0.05)' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:4 }}>
+              {Array.from({ length:16 }).map((_, i) => {
+                const x = i % 4, y = Math.floor(i / 4);
+                const isStart = x === 0 && y === 0;
+                const isEnd = x === 2 && y === 1;
+                return (
+                  <div key={i} style={{
+                    width:36, height:36, borderRadius:8,
+                    background: isStart ? '#E8652E' : isEnd ? '#66BB6A' : '#F5F5F0',
+                    border:`2px solid ${isStart ? '#E8652E' : isEnd ? '#66BB6A' : '#E0E0E0'}`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    fontSize:16,
+                  }}>
+                    {isStart ? '🏠' : isEnd ? '🎯' : ''}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            🏠 から ➡️2 ⬇️1 すすむと
+          </div>
+          <div style={{ fontSize:13, color:'#2E7D32', fontWeight:700, marginBottom:20 }}>
+            🎯 のばしょ！
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            しじどおりに すすもう！
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            あたまの中で みちをたどる
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:24 }}>
+            地誌的見当識・指示遂行
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && level && round && (
+        <div style={{ padding:'12px 16px', maxWidth:520, margin:'0 auto' }}>
+
+          {/* Level progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:8 }}>
+            {LEVELS.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.levelIdx ? 20 : 14, height:6, borderRadius:3,
+                background: i < g.levelIdx ? '#8BC34A' : i === g.levelIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Round progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:10 }}>
+            {g.rounds.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.roundIdx ? 10 : 6, height:6, borderRadius:3,
+                background: i < g.roundIdx ? '#8BC34A' : i === g.roundIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:12, color:'#9E9E9E' }}>pt</span></span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#555' }}>{level.tag}</span>
+          </div>
+
+          {/* Instructions */}
+          <div style={{ textAlign:'center', marginBottom:10 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#9E9E9E', marginBottom:6 }}>
+              🏠から このとおりに すすむと どこ？
+            </div>
+            <div style={{
+              background:'white', borderRadius:14, padding:'14px 12px',
+              boxShadow:'0 2px 8px rgba(0,0,0,0.05)',
+              display:'flex', gap:8, justifyContent:'center', alignItems:'center', flexWrap:'wrap',
+            }}>
+              {round.path.map((step, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  {i > 0 && <span style={{ fontSize:16, color:'#BDBDBD' }}>→</span>}
+                  <div style={{
+                    display:'flex', alignItems:'center', gap:4,
+                    background:'#FFF3E0', padding:'6px 10px', borderRadius:10,
+                    border:'2px solid #E8652E',
+                  }}>
+                    <span style={{ fontSize:20 }}>{DIR_EMOJI[step.dir]}</span>
+                    <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{step.steps}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Grid */}
+          <div style={{
+            background:'white', borderRadius:16, padding:10,
+            boxShadow:'0 4px 16px rgba(0,0,0,0.06)',
+          }} key={g.roundIdx + '-' + g.levelIdx}>
+            <div style={{
+              display:'grid',
+              gridTemplateColumns:`repeat(${GRID_SIZE}, 1fr)`,
+              gap:6,
+            }}>
+              {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
+                const x = i % GRID_SIZE;
+                const y = Math.floor(i / GRID_SIZE);
+                const isStart = x === round.start.x && y === round.start.y;
+                const isEnd = x === round.end.x && y === round.end.y;
+                const isSelected = g.selectedCell && g.selectedCell.x === x && g.selectedCell.y === y;
+                const showCorrect = g.feedback && isEnd;
+                const showWrong = g.feedback === 'wrong' && isSelected;
+
+                return (
+                  <button key={i}
+                    onClick={() => !isStart && handleCellTap(x, y)}
+                    disabled={isStart || !!g.feedback}
+                    style={{
+                      ...bs,
+                      aspectRatio:'1', borderRadius:10,
+                      background: isStart ? '#E8652E'
+                        : showCorrect ? '#F1F8E9'
+                        : showWrong ? '#FFF5F5'
+                        : isSelected ? '#FFF3E0'
+                        : '#FAFAF5',
+                      border: `2px solid ${
+                        isStart ? '#E8652E'
+                        : showCorrect ? '#66BB6A'
+                        : showWrong ? '#EF5350'
+                        : isSelected ? '#E8652E'
+                        : '#E8E8E8'
+                      }`,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:22,
+                      cursor: isStart ? 'default' : g.feedback ? 'default' : 'pointer',
+                      animation: showCorrect ? 'glow 1.5s infinite'
+                        : showWrong ? 'shake 0.3s'
+                        : undefined,
+                      boxShadow: isStart ? '0 3px 8px rgba(232,101,46,0.3)' : 'none',
+                    }}>
+                    {isStart && '🏠'}
+                    {showCorrect && !isStart && '🎯'}
+                    {showWrong && !isStart && '❌'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Feedback */}
+          {g.feedback && (
+            <div style={{ textAlign:'center', marginTop:10, animation:'fadeUp 0.2s' }}>
+              <span style={{ fontSize:36 }}>{g.feedback === 'correct' ? '⭕' : '❌'}</span>
+              {g.feedback === 'wrong' && (
+                <div style={{ fontSize:13, fontWeight:700, color:'#C62828', marginTop:2 }}>
+                  しょうかい：マップの🎯を見て
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const totalRounds = LEVELS.reduce((a, l) => a + l.rounds, 0);
+        const pct = g.correct / totalRounds;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すばらしい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize:16, fontWeight:700, color:'#555', marginBottom:20 }}>
+              {g.correct}もん せいかい / {totalRounds}もん
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

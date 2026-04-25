@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>リズム記憶 | みなともPlay</title>
+<meta name="description" content="リズムを覚えて再現 - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'3拍から・ゆっくり', startLen:3, maxLen:6, tempo:500 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'4拍から・ふつう', startLen:4, maxLen:8, tempo:400 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'5拍から・はやい', startLen:5, maxLen:10, tempo:320 },
+};
+
+// Rhythm patterns: 1 = beat, 0 = rest (silence), 2 = accent (higher pitch)
+function generatePattern(len) {
+  const pattern = [];
+  for (let i = 0; i < len; i++) {
+    const r = Math.random();
+    if (i === 0) { pattern.push(1); continue; }
+    if (r < 0.15 && i > 0 && pattern[i-1] !== 0) { pattern.push(0); }
+    else if (r < 0.35) { pattern.push(2); }
+    else { pattern.push(1); }
+  }
+  return pattern;
+}
+
+const MSGS = ['リズム完璧！👏','すごい！✨','ナイス！🎉','バッチリ！⭐','その調子！💪','お見事！🧠','完璧！💯','いいリズム！🎵'];
+
+function formatTime(s) { return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60); }
+
+// Sound engine
+function createAudioContext() {
+  try {
+    return new (window.AudioContext || window.webkitAudioContext)();
+  } catch(e) { return null; }
+}
+
+function playBeat(audioCtx, type, tempo) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  if (type === 1) {
+    osc.frequency.value = 440;
+    gain.gain.value = 0.4;
+  } else if (type === 2) {
+    osc.frequency.value = 660;
+    gain.gain.value = 0.5;
+  } else {
+    return; // rest
+  }
+
+  osc.type = 'sine';
+  const duration = Math.min(tempo * 0.6 / 1000, 0.15);
+  const now = audioCtx.currentTime;
+  gain.gain.setValueAtTime(gain.gain.value, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+function playTapSound(audioCtx) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.frequency.value = 520;
+  osc.type = 'sine';
+  gain.gain.value = 0.35;
+  const now = audioCtx.currentTime;
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+  osc.start(now);
+  osc.stop(now + 0.1);
+}
+
+function playCorrectSound(audioCtx) {
+  if (!audioCtx) return;
+  [523, 659, 784].forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.frequency.value = freq; osc.type = 'sine'; gain.gain.value = 0.3;
+    const t = audioCtx.currentTime + i * 0.12;
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.start(t); osc.stop(t + 0.2);
+  });
+}
+
+function playWrongSound(audioCtx) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.frequency.value = 200; osc.type = 'square'; gain.gain.value = 0.2;
+  const now = audioCtx.currentTime;
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  osc.start(now); osc.stop(now + 0.3);
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [pattern, setPattern] = React.useState([]);
+  const [phase, setPhase] = React.useState('idle');
+  const [activeIndex, setActiveIndex] = React.useState(-1);
+  const [activeBeatType, setActiveBeatType] = React.useState(0);
+  const [playerInput, setPlayerInput] = React.useState([]);
+  const [playerTimings, setPlayerTimings] = React.useState([]);
+  const [seqLength, setSeqLength] = React.useState(4);
+  const [round, setRound] = React.useState(1);
+  const [score, setScore] = React.useState(0);
+  const [maxReached, setMaxReached] = React.useState(0);
+  const [lives, setLives] = React.useState(2);
+  const [seconds, setSeconds] = React.useState(0);
+  const [feedbackType, setFeedbackType] = React.useState(null);
+  const [progressMsg, setProgressMsg] = React.useState('');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [tapFlash, setTapFlash] = React.useState(false);
+  const [accentFlash, setAccentFlash] = React.useState(false);
+  const audioRef = React.useRef(null);
+  const timerRef = React.useRef(null);
+  const showRef = React.useRef([]);
+  const lastTapRef = React.useRef(0);
+  const inputStartRef = React.useRef(0);
+
+  React.useEffect(() => {
+    if (screen === 'game' && phase !== 'gameover' && phase !== 'ready') {
+      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+      return () => clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [screen, phase]);
+
+  React.useEffect(() => {
+    return () => {
+      clearInterval(timerRef.current);
+      showRef.current.forEach(t => clearTimeout(t));
+    };
+  }, []);
+
+  const initAudio = React.useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = createAudioContext();
+    }
+    if (audioRef.current && audioRef.current.state === 'suspended') {
+      audioRef.current.resume();
+    }
+  }, []);
+
+  const startGame = React.useCallback((diff) => {
+    initAudio();
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    setSeqLength(cfg.startLen);
+    setRound(1); setScore(0); setMaxReached(cfg.startLen);
+    setLives(2); setSeconds(0); setFeedbackType(null);
+    setProgressMsg(''); setShowConfetti(false);
+    setScreen('game');
+    setTimeout(() => playPattern(cfg.startLen, cfg.tempo), 800);
+  }, []);
+
+  const playPattern = React.useCallback((len, tempo) => {
+    const newPattern = generatePattern(len);
+    setPattern(newPattern);
+    setPlayerInput([]);
+    setPlayerTimings([]);
+    setFeedbackType(null);
+    setPhase('ready');
+    setActiveIndex(-1);
+
+    // Clear previous timeouts
+    showRef.current.forEach(t => clearTimeout(t));
+    showRef.current = [];
+
+    // Ready phase
+    const readyTimeout = setTimeout(() => {
+      setPhase('showing');
+
+      // Play each beat - only visual pulse on actual sounds, not rests
+      newPattern.forEach((beat, i) => {
+        const t = setTimeout(() => {
+          if (beat > 0) {
+            setActiveIndex(i);
+            setActiveBeatType(beat);
+          }
+          playBeat(audioRef.current, beat, tempo);
+
+          // Clear active after short duration
+          const t2 = setTimeout(() => { setActiveIndex(-1); setActiveBeatType(0); }, tempo * 0.5);
+          showRef.current.push(t2);
+        }, i * tempo);
+        showRef.current.push(t);
+      });
+
+      // Switch to input
+      const inputTimeout = setTimeout(() => {
+        setActiveIndex(-1);
+        setPhase('input');
+        inputStartRef.current = Date.now();
+        lastTapRef.current = Date.now();
+      }, newPattern.length * tempo + 300);
+      showRef.current.push(inputTimeout);
+    }, 1500);
+    showRef.current.push(readyTimeout);
+  }, []);
+
+  const handleTap = React.useCallback((isAccent) => {
+    if (phase !== 'input') return;
+    initAudio();
+
+    const now = Date.now();
+    const timeSinceLast = now - lastTapRef.current;
+    lastTapRef.current = now;
+
+    const beatType = isAccent ? 2 : 1;
+    const newInput = [...playerInput, beatType];
+    const newTimings = [...playerTimings, timeSinceLast];
+    setPlayerInput(newInput);
+    setPlayerTimings(newTimings);
+
+    // Play tap sound
+    if (isAccent) {
+      setAccentFlash(true);
+      setTimeout(() => setAccentFlash(false), 150);
+      playBeat(audioRef.current, 2, DIFF[difficulty].tempo);
+    } else {
+      setTapFlash(true);
+      setTimeout(() => setTapFlash(false), 150);
+      playTapSound(audioRef.current);
+    }
+
+    // Check if we need to handle a rest (gap detection)
+    // We'll check timing when sequence is complete
+    if (newInput.length >= pattern.filter(p => p > 0).length) {
+      // All beats entered, evaluate
+      setTimeout(() => evaluateInput(newInput, newTimings), 300);
+    }
+  }, [phase, playerInput, playerTimings, pattern, difficulty]);
+
+  const handleRest = React.useCallback(() => {
+    if (phase !== 'input') return;
+    const now = Date.now();
+    lastTapRef.current = now;
+    const timeSinceLast = now - (playerTimings.length > 0 ? lastTapRef.current : inputStartRef.current);
+
+    const newInput = [...playerInput, 0];
+    const newTimings = [...playerTimings, timeSinceLast];
+    setPlayerInput(newInput);
+    setPlayerTimings(newTimings);
+
+    if (newInput.length >= pattern.length) {
+      setTimeout(() => evaluateInput(newInput, newTimings), 300);
+    }
+  }, [phase, playerInput, playerTimings, pattern]);
+
+  const evaluateInput = React.useCallback((input, timings) => {
+    // Simple evaluation: check beat/rest/accent pattern matches
+    const patternBeats = pattern;
+    let correctBeats = 0;
+
+    for (let i = 0; i < Math.min(input.length, patternBeats.length); i++) {
+      // Match: both are beats (1 or 2) or both are rests (0)
+      if (patternBeats[i] === 0 && input[i] === 0) correctBeats++;
+      else if (patternBeats[i] > 0 && input[i] > 0) {
+        correctBeats++;
+        // Bonus for matching accent
+        if (patternBeats[i] === input[i]) correctBeats += 0.5;
+      }
+    }
+
+    const maxScore = patternBeats.length * 1.5;
+    const accuracy = correctBeats / maxScore;
+
+    if (accuracy >= 0.5) {
+      // Pass!
+      const bonus = Math.round(accuracy * seqLength * 15);
+      const newScore = score + bonus;
+      setScore(newScore);
+      setMaxReached(Math.max(maxReached, seqLength));
+      setFeedbackType('correct');
+      setPhase('feedback');
+      setProgressMsg(MSGS[Math.floor(Math.random() * MSGS.length)]);
+      playCorrectSound(audioRef.current);
+      setTimeout(() => setProgressMsg(''), 2000);
+
+      setTimeout(() => {
+        const cfg = DIFF[difficulty];
+        if (seqLength >= cfg.maxLen) {
+          finishGame(newScore, true);
+        } else {
+          setSeqLength(s => s + 1);
+          setRound(r => r + 1);
+          setFeedbackType(null);
+          playPattern(seqLength + 1, cfg.tempo);
+        }
+      }, 2000);
+    } else {
+      // Fail
+      setFeedbackType('wrong');
+      setPhase('feedback');
+      playWrongSound(audioRef.current);
+      const newLives = lives - 1;
+      setLives(newLives);
+
+      setTimeout(() => {
+        if (newLives <= 0) {
+          finishGame(score, false);
+        } else {
+          setFeedbackType(null);
+          playPattern(seqLength, DIFF[difficulty].tempo);
+        }
+      }, 2500);
+    }
+  }, [pattern, score, seqLength, maxReached, lives, difficulty]);
+
+  const finishGame = (finalScore, perfect) => {
+    clearInterval(timerRef.current);
+    setPhase('gameover');
+    if (perfect || seqLength >= DIFF[difficulty].maxLen - 1) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 4000);
+    }
+    setHistory(prev => [{
+      diff: difficulty, maxLen: seqLength, score: finalScore,
+      time: seconds, perfect, date: new Date().toISOString(),
+    }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const replayPattern = React.useCallback(() => {
+    if (phase !== 'input') return;
+    setPhase('showing');
+    setPlayerInput([]);
+    setPlayerTimings([]);
+    setActiveIndex(-1);
+
+    showRef.current.forEach(t => clearTimeout(t));
+    showRef.current = [];
+
+    const tempo = DIFF[difficulty].tempo;
+    pattern.forEach((beat, i) => {
+      const t = setTimeout(() => {
+        if (beat > 0) {
+          setActiveIndex(i);
+          setActiveBeatType(beat);
+        }
+        playBeat(audioRef.current, beat, tempo);
+        const t2 = setTimeout(() => { setActiveIndex(-1); setActiveBeatType(0); }, tempo * 0.5);
+        showRef.current.push(t2);
+      }, i * tempo);
+      showRef.current.push(t);
+    });
+
+    const t = setTimeout(() => {
+      setActiveIndex(-1);
+      setPhase('input');
+      inputStartRef.current = Date.now();
+      lastTapRef.current = Date.now();
+    }, pattern.length * tempo + 300);
+    showRef.current.push(t);
+  }, [phase, pattern, difficulty]);
+
+  const goBack = () => {
+    clearInterval(timerRef.current);
+    showRef.current.forEach(t => clearTimeout(t));
+    setPhase('idle');
+    setScreen('select');
+  };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+  const beatsNeeded = pattern.filter(p => p > 0).length;
+  const beatsEntered = playerInput.filter(p => p > 0).length;
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes beatPulse{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
+        @keyframes rippleOut{0%{transform:scale(1);opacity:0.6}100%{transform:scale(2.5);opacity:0}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🎵 リズム記憶</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{seqLength}拍</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🎵</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>リズム記憶</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>
+            リズムを聴いて覚えよう！<br/>同じリズムをタップで再現してください。
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>
+            🧠 聴覚記憶＋リズム感のトレーニングです
+          </div>
+
+          {/* Beat explanation */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:12, textAlign:'left' }}>📝 3種類のリズム要素</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'#FFF3E0', borderRadius:12 }}>
+                <div style={{ width:36, height:36, borderRadius:'50%', background:'#FF6B35', flexShrink:0 }} />
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#FF6B35' }}>タン</span>
+                  <span style={{ fontSize:12, color:'#6B6B6B', marginLeft:8 }}>普通の拍</span>
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'#F3E5F5', borderRadius:12 }}>
+                <div style={{ width:36, height:36, borderRadius:'50%', background:'#7B1FA2', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontSize:16, fontWeight:900 }}>!</div>
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#7B1FA2' }}>タン！</span>
+                  <span style={{ fontSize:12, color:'#6B6B6B', marginLeft:8 }}>アクセント（強い拍）</span>
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'#F5F5F5', borderRadius:12 }}>
+                <div style={{ width:36, height:36, borderRadius:'50%', background:'white', border:'2px dashed #BDBDBD', flexShrink:0 }} />
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#9E9E9E' }}>ウン</span>
+                  <span style={{ fontSize:12, color:'#6B6B6B', marginLeft:8 }}>お休み（休符）</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div>
+                    <div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div>
+                    <div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* History */}
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:700}}>{hc.label}・最大{h.maxLen}拍</div>
+                        <div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div>
+                      </div>
+                    </div>
+                    <div style={{textAlign:'right'}}>
+                      <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                      <div style={{fontSize:10,color:'#9E9E9E'}}>{h.perfect?'🏆':''} {formatTime(h.time)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+            {[
+              { v:`R${round}`, l:'ラウンド', c:'#FF6B35' },
+              { v:score, l:'スコア', c:'#FF6B35' },
+              { v:formatTime(seconds), l:'時間', c:'#2EC4B6' },
+              { v:'❤️'.repeat(lives)+'🖤'.repeat(2-lives), l:'ライフ', c:'#E53935' },
+            ].map((s,i) => (
+              <div key={i} style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pattern visualization */}
+          <div style={{
+            background:'white', borderRadius:24, padding:'24px 16px',
+            boxShadow:'0 4px 24px rgba(0,0,0,0.06)', marginBottom:16, minHeight:200,
+            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+          }}>
+            {/* Ready */}
+            {phase === 'ready' && (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:42, fontWeight:800, color:'#2EC4B6', marginBottom:12 }}>Ready?</div>
+                <div style={{ fontSize:15, fontWeight:700, color:'#6B6B6B' }}>{seqLength}拍のリズムが流れます</div>
+                <div style={{ fontSize:13, color:'#9E9E9E', marginTop:8 }}>🔊 音を聴いてください</div>
+              </div>
+            )}
+
+            {/* Showing pattern - audio only, speaker color indicates beat type */}
+            {phase === 'showing' && (
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:14, fontWeight:700, color:'#FF6B35', marginBottom:20 }}>🔊 耳をすませてください</div>
+                <div style={{
+                  width:100, height:100, borderRadius:'50%', margin:'0 auto 8px',
+                  background: activeIndex >= 0
+                    ? (activeBeatType === 2
+                      ? 'linear-gradient(135deg, #7B1FA2, #AB47BC)'
+                      : 'linear-gradient(135deg, #FF6B35, #FF8F5E)')
+                    : '#F0F0F0',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  transition:'all 0.15s',
+                  boxShadow: activeIndex >= 0
+                    ? (activeBeatType === 2
+                      ? '0 0 40px rgba(123,31,162,0.5)'
+                      : '0 0 40px rgba(255,107,53,0.4)')
+                    : 'none',
+                  transform: activeIndex >= 0
+                    ? (activeBeatType === 2 ? 'scale(1.2)' : 'scale(1.1)')
+                    : 'scale(1)',
+                }}>
+                  <span style={{ fontSize:48, filter: activeIndex >= 0 ? 'none' : 'grayscale(1) opacity(0.3)' }}>
+                    {activeIndex >= 0 && activeBeatType === 2 ? '💥' : '🔊'}
+                  </span>
+                </div>
+                <div style={{ fontSize:14, fontWeight:700, color: activeIndex >= 0 && activeBeatType === 2 ? '#7B1FA2' : '#9E9E9E', minHeight:24, transition:'color 0.15s' }}>
+                  {activeIndex >= 0 ? (activeBeatType === 2 ? 'タン！（強）' : '♪') : ''}
+                </div>
+              </div>
+            )}
+
+            {/* Input phase */}
+            {phase === 'input' && (
+              <div style={{ textAlign:'center', width:'100%' }}>
+                <div style={{ fontSize:14, fontWeight:700, color:'#2EC4B6', marginBottom:12 }}>
+                  👆 同じリズムをタップしてください
+                </div>
+
+                {/* Pattern progress - neutral dots, no hints */}
+                <div style={{ display:'flex', justifyContent:'center', gap:6, marginBottom:20 }}>
+                  {pattern.map((_, i) => {
+                    const entered = i < playerInput.length;
+                    const inputBeat = playerInput[i];
+                    return (
+                      <div key={i} style={{
+                        width:32, height:32, borderRadius:'50%',
+                        background: entered
+                          ? (inputBeat === 2 ? '#7B1FA2' : inputBeat === 1 ? '#2EC4B6' : '#BDBDBD')
+                          : '#F0F0F0',
+                        border: entered ? 'none' : '2px solid #E0E0E0',
+                        transition:'all 0.2s',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                      }}>
+                        {entered && inputBeat === 2 && <span style={{ color:'white', fontWeight:900, fontSize:12 }}>!</span>}
+                        {entered && inputBeat === 0 && <span style={{ color:'white', fontWeight:700, fontSize:10 }}>-</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ fontSize:11, color:'#9E9E9E', marginBottom:4 }}>
+                  {playerInput.length} / {pattern.length}
+                </div>
+              </div>
+            )}
+
+            {/* Feedback */}
+            {phase === 'feedback' && feedbackType === 'correct' && (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ fontSize:48, marginBottom:8 }}>✅</div>
+                <div style={{ fontSize:20, fontWeight:900, color:'#66BB6A' }}>{progressMsg || '正解！'}</div>
+              </div>
+            )}
+            {phase === 'feedback' && feedbackType === 'wrong' && (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ fontSize:48, marginBottom:8 }}>❌</div>
+                <div style={{ fontSize:18, fontWeight:900, color:'#EF5350', marginBottom:8 }}>おしい！</div>
+                <div style={{ fontSize:12, color:'#6B6B6B', marginBottom:8 }}>正しいリズム:</div>
+                <div style={{ display:'flex', justifyContent:'center', gap:6 }}>
+                  {pattern.map((beat, i) => (
+                    <div key={i} style={{
+                      width:32, height:32, borderRadius:'50%',
+                      background: beat === 2 ? '#7B1FA2' : beat === 1 ? '#FF6B35' : 'transparent',
+                      border: beat === 0 ? '2px dashed #BDBDBD' : 'none',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                    }}>
+                      {beat === 2 && <span style={{ color:'white', fontWeight:900, fontSize:12 }}>!</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Tap buttons */}
+          {phase === 'input' && (
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
+              {/* Main tap buttons */}
+              <div style={{ display:'flex', gap:16, justifyContent:'center' }}>
+                {/* Normal beat */}
+                <button onClick={() => handleTap(false)}
+                  style={{
+                    ...btnBase, width:110, height:110, borderRadius:'50%',
+                    background: tapFlash ? '#FF8F5E' : '#FF6B35',
+                    border:'none', color:'white',
+                    fontSize:16, fontWeight:900,
+                    boxShadow: tapFlash ? '0 0 40px rgba(255,107,53,0.6)' : '0 6px 24px rgba(255,107,53,0.3)',
+                    transform: tapFlash ? 'scale(0.95)' : 'scale(1)',
+                    display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4,
+                  }}>
+                  <span style={{ fontSize:28 }}>🥁</span>
+                  <span>タン</span>
+                </button>
+
+                {/* Accent beat */}
+                <button onClick={() => handleTap(true)}
+                  style={{
+                    ...btnBase, width:110, height:110, borderRadius:'50%',
+                    background: accentFlash ? '#9C27B0' : '#7B1FA2',
+                    border:'none', color:'white',
+                    fontSize:16, fontWeight:900,
+                    boxShadow: accentFlash ? '0 0 40px rgba(123,31,162,0.6)' : '0 6px 24px rgba(123,31,162,0.3)',
+                    transform: accentFlash ? 'scale(0.95)' : 'scale(1)',
+                    display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4,
+                  }}>
+                  <span style={{ fontSize:28 }}>💥</span>
+                  <span>タン！</span>
+                </button>
+              </div>
+
+              {/* Rest button */}
+              <button onClick={handleRest}
+                style={{
+                  ...btnBase, padding:'12px 32px', borderRadius:50,
+                  background:'white', border:'2px dashed #BDBDBD',
+                  color:'#9E9E9E', fontSize:14, fontWeight:700,
+                  display:'flex', alignItems:'center', gap:8,
+                }}>
+                <span style={{ fontSize:18 }}>🤫</span> ウン（休符）
+              </button>
+
+              {/* Replay button */}
+              <button onClick={replayPattern}
+                style={{
+                  ...btnBase, padding:'10px 24px', borderRadius:50,
+                  background:'#FFF3E0', border:'none',
+                  color:'#FF6B35', fontSize:13, fontWeight:700,
+                  display:'flex', alignItems:'center', gap:6,
+                }}>
+                🔄 もう一度聴く
+              </button>
+            </div>
+          )}
+
+          <div style={{ height:24 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const h = history[0] || {};
+        const maxPossible = DIFF[difficulty].maxLen;
+        const pct = (h.maxLen || seqLength) / maxPossible;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = h.perfect ? '全クリア！🏆' : pct >= 0.7 ? 'すばらしい！' : pct >= 0.4 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'calc(100vh - 56px)', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>
+              {cfg.label}モード・ラウンド{round}まで到達
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[
+                { v:(h.maxLen||seqLength)+'拍', l:'最大リズム長' },
+                { v:h.score||0, l:'スコア' },
+                { v:formatTime(h.time||0), l:'プレイ時間' },
+              ].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:26, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Rhythm span bar */}
+            <div style={{ width:'100%', maxWidth:360, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.35s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8 }}>📊 リズム記憶スパン</div>
+              <div style={{ background:'white', borderRadius:16, padding:'16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+                <div style={{ display:'flex', gap:4, alignItems:'flex-end', justifyContent:'center', height:80 }}>
+                  {Array.from({ length: maxPossible }, (_, i) => {
+                    const reached = i < (h.maxLen || seqLength);
+                    return (
+                      <div key={i} style={{
+                        width:28, borderRadius:'6px 6px 0 0',
+                        height: ((i+1)/maxPossible*100)+'%',
+                        background: reached ? 'linear-gradient(180deg, #FF6B35, #FF8F5E)' : '#E8E8E8',
+                        display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:4,
+                      }}>
+                        <span style={{ fontSize:9, fontWeight:700, color:reached?'white':'#9E9E9E' }}>{i+1}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ textAlign:'center', marginTop:10, fontSize:12, color:'#6B6B6B' }}>
+                  最大 <strong style={{ color:'#FF6B35' }}>{h.maxLen||seqLength}拍</strong> のリズムを再現できました
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

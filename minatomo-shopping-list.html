@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>おかいものリスト | みなともPlay</title>
+<meta name="description" content="買い物リストを覚えて探す - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+const SECTIONS = [
+  { id:'veg', name:'やさいコーナー', emoji:'🥬', color:'#43A047', bg:'#E8F5E9',
+    items:[
+      {emoji:'🥕',name:'にんじん'},{emoji:'🥬',name:'キャベツ'},{emoji:'🍅',name:'トマト'},
+      {emoji:'🧅',name:'たまねぎ'},{emoji:'🥒',name:'きゅうり'},{emoji:'🫑',name:'ピーマン'},
+      {emoji:'🍆',name:'なす'},{emoji:'🥦',name:'ブロッコリー'},
+    ]},
+  { id:'fruit', name:'くだものコーナー', emoji:'🍎', color:'#E53935', bg:'#FFEBEE',
+    items:[
+      {emoji:'🍎',name:'りんご'},{emoji:'🍌',name:'バナナ'},{emoji:'🍊',name:'みかん'},
+      {emoji:'🍇',name:'ぶどう'},{emoji:'🍓',name:'いちご'},{emoji:'🥝',name:'キウイ'},
+      {emoji:'🍑',name:'もも'},{emoji:'🍈',name:'メロン'},
+    ]},
+  { id:'meat', name:'にく・さかなコーナー', emoji:'🥩', color:'#795548', bg:'#EFEBE9',
+    items:[
+      {emoji:'🥩',name:'ぶたにく'},{emoji:'🍗',name:'とりにく'},{emoji:'🥓',name:'ベーコン'},
+      {emoji:'🐟',name:'さけ'},{emoji:'🦐',name:'えび'},{emoji:'🐡',name:'たら'},
+      {emoji:'🥚',name:'たまご'},{emoji:'🧈',name:'バター'},
+    ]},
+  { id:'bread', name:'パンコーナー', emoji:'🍞', color:'#FF8F00', bg:'#FFF3E0',
+    items:[
+      {emoji:'🍞',name:'しょくパン'},{emoji:'🥐',name:'クロワッサン'},{emoji:'🥖',name:'フランスパン'},
+      {emoji:'🧁',name:'カップケーキ'},{emoji:'🍩',name:'ドーナツ'},{emoji:'🥯',name:'ベーグル'},
+    ]},
+  { id:'drink', name:'のみものコーナー', emoji:'🥛', color:'#1E88E5', bg:'#E3F2FD',
+    items:[
+      {emoji:'🥛',name:'ぎゅうにゅう'},{emoji:'🍵',name:'おちゃ'},{emoji:'☕',name:'コーヒー'},
+      {emoji:'🧃',name:'ジュース'},{emoji:'🫖',name:'こうちゃ'},{emoji:'🥤',name:'サイダー'},
+    ]},
+  { id:'snack', name:'おかしコーナー', emoji:'🍪', color:'#AB47BC', bg:'#F3E5F5',
+    items:[
+      {emoji:'🍪',name:'クッキー'},{emoji:'🍫',name:'チョコレート'},{emoji:'🍦',name:'アイス'},
+      {emoji:'🍿',name:'ポップコーン'},{emoji:'🍬',name:'キャンディ'},{emoji:'🍘',name:'おせんべい'},
+    ]},
+  { id:'daily', name:'にちようひんコーナー', emoji:'🧻', color:'#607D8B', bg:'#ECEFF1',
+    items:[
+      {emoji:'🧻',name:'ティッシュ'},{emoji:'🧴',name:'シャンプー'},{emoji:'🪥',name:'はブラシ'},
+      {emoji:'🧽',name:'スポンジ'},{emoji:'🧹',name:'ほうき'},{emoji:'💊',name:'のどあめ'},
+    ]},
+];
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'3品・覚える時間たっぷり', listCount:3, viewTime:12, rounds:4 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'5品・いろんな売り場', listCount:5, viewTime:10, rounds:4 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'7品・短い時間', listCount:7, viewTime:8, rounds:4 },
+};
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+function generateRound(diff) {
+  const cfg = DIFF[diff];
+  // Pick items from different sections
+  const allItems = SECTIONS.flatMap(sec => sec.items.map(it => ({ ...it, sectionId: sec.id, sectionName: sec.name })));
+  const shuffled = shuffle(allItems);
+
+  // Ensure items come from at least 2 different sections
+  const list = [];
+  const usedSections = new Set();
+  for (const item of shuffled) {
+    if (list.length >= cfg.listCount) break;
+    list.push(item);
+    usedSections.add(item.sectionId);
+  }
+
+  return { list, listCount: cfg.listCount };
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    rounds: [],
+    currentR: 0,
+    score: 0,
+    correct: 0,
+    pickedItems: [],      // [{name, emoji, sectionId}]
+    currentSection: null, // which section user is browsing
+    viewTimeLeft: 0,
+    results: [],
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => clearInterval(timerRef.current), []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff));
+    g.rounds = rounds;
+    g.currentR = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.results = [];
+    setShowConfetti(false);
+    setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    const cfg = DIFF[diff || difficulty];
+    g.currentR = idx;
+    g.pickedItems = [];
+    g.currentSection = null;
+    g.viewTimeLeft = cfg.viewTime;
+    g.phase = 'viewing';
+    rerender();
+
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      g.viewTimeLeft--;
+      rerender();
+      if (g.viewTimeLeft <= 0) {
+        clearInterval(timerRef.current);
+        g.phase = 'map';
+        rerender();
+      }
+    }, 1000);
+  };
+
+  const skipToMap = () => {
+    clearInterval(timerRef.current);
+    g.phase = 'map';
+    rerender();
+  };
+
+  const enterSection = (sectionId) => {
+    g.currentSection = sectionId;
+    g.phase = 'section';
+    rerender();
+  };
+
+  const backToMap = () => {
+    g.currentSection = null;
+    g.phase = 'map';
+    rerender();
+  };
+
+  const pickItem = (item) => {
+    if (g.pickedItems.some(p => p.name === item.name)) return;
+    g.pickedItems.push({ ...item, sectionId: g.currentSection });
+    rerender();
+  };
+
+  const unpickItem = (name) => {
+    g.pickedItems = g.pickedItems.filter(p => p.name !== name);
+    rerender();
+  };
+
+  const finishShopping = () => {
+    const round = g.rounds[g.currentR];
+    const listNames = new Set(round.list.map(it => it.name));
+    const pickedNames = new Set(g.pickedItems.map(p => p.name));
+
+    const hits = [...pickedNames].filter(n => listNames.has(n)).length;
+    const misses = [...listNames].filter(n => !pickedNames.has(n)).length;
+    const wrongs = [...pickedNames].filter(n => !listNames.has(n)).length;
+    const perfect = hits === listNames.size && wrongs === 0;
+
+    if (perfect) { g.score += round.listCount * 10; g.correct++; }
+    else { g.score += Math.max(0, hits * 5 - wrongs * 3); }
+
+    g.results.push({ round, hits, misses, wrongs, perfect, picked: [...g.pickedItems] });
+    g.phase = 'feedback';
+    g.currentSection = null;
+    rerender();
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    clearInterval(timerRef.current);
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.rounds.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.rounds.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearInterval(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🛒 おかいものリスト</span>
+        </div>
+        {screen === 'game' && g.phase !== 'idle' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🛒</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>おかいものリスト</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>買い物リストを覚えて<br/>スーパーの売り場をまわろう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 日常記憶・計画力のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 買い物リストを覚えます<br/>
+              ② スーパーの店内マップが表示されます<br/>
+              ③ 売り場をタップして商品を見る<br/>
+              ④ リストにある商品をピックアップ！<br/>
+              ⑤ 全部集めたら「レジへ」で答え合わせ
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}パーフェクト</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'10px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+              {[{v:g.score,l:'スコア',c:'#FF6B35'},{v:g.pickedItems.length+'品',l:'カゴの中',c:'#2EC4B6'},{v:(g.currentR+1)+'/'+g.rounds.length,l:'ラウンド',c:'#7B1FA2'}].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:8, color:'#9E9E9E', marginTop:1 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Progress */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', gap:3, marginBottom:8 }}>
+              {g.rounds.map((_,i) => (
+                <div key={i} style={{ flex:1, height:5, borderRadius:3, background: i < g.results.length ? (g.results[i].perfect ? '#66BB6A' : '#EF5350') : i === g.currentR ? '#FFB74D' : '#E8E8E8' }} />
+              ))}
+            </div>
+          )}
+
+          {/* VIEWING - memorize list */}
+          {g.phase === 'viewing' && (() => {
+            const round = g.rounds[g.currentR];
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                  <span style={{ fontSize:14, fontWeight:700, color:'#FF6B35' }}>📝 買い物リストを覚えてね</span>
+                  <span style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:g.viewTimeLeft<=3?'#E53935':'#FF6B35', animation:g.viewTimeLeft<=3?'pulse 0.5s infinite':undefined }}>{g.viewTimeLeft}秒</span>
+                </div>
+                <div style={{ width:'100%', height:6, background:'#E8E8E8', borderRadius:3, marginBottom:14, overflow:'hidden' }}>
+                  <div style={{ width:(g.viewTimeLeft/cfg.viewTime*100)+'%', height:'100%', background:g.viewTimeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:3, transition:'width 1s linear' }} />
+                </div>
+
+                <div style={{ background:'#FFF9C4', borderRadius:16, padding:'18px', boxShadow:'0 4px 20px rgba(0,0,0,0.08)', border:'2px solid #FFF176' }}>
+                  <div style={{ fontSize:16, fontWeight:900, color:'#F57F17', textAlign:'center', marginBottom:14 }}>🛒 おかいものリスト</div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {round.list.map((item, i) => {
+                      const sec = SECTIONS.find(s => s.id === item.sectionId);
+                      return (
+                        <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', background:'rgba(255,255,255,0.6)', borderRadius:12, animation:`fadeUp 0.3s ease-out ${i*0.08}s both` }}>
+                          <span style={{ fontSize:26 }}>{item.emoji}</span>
+                          <span style={{ fontSize:15, fontWeight:700, flex:1 }}>{item.name}</span>
+                          <span style={{ fontSize:10, color:sec?.color, fontWeight:700, background:sec?.bg, padding:'2px 8px', borderRadius:50 }}>{sec?.name.replace('コーナー','')}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button onClick={skipToMap} style={{...btnBase, marginTop:14, width:'100%', fontSize:14, fontWeight:700, padding:'14px', borderRadius:50, border:'2px solid #E0E0E0', background:'white', color:'#6B6B6B'}}>
+                  覚えた！お店へ行く 🏪
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* MAP - store floor map */}
+          {g.phase === 'map' && (
+            <div style={{ animation:'fadeUp 0.3s ease-out' }}>
+              <div style={{ textAlign:'center', marginBottom:10 }}>
+                <span style={{ fontSize:14, fontWeight:900, color:'#FF6B35' }}>🏪 売り場をタップして商品を探そう</span>
+              </div>
+
+              {/* Cart preview */}
+              {g.pickedItems.length > 0 && (
+                <div style={{ background:'white', borderRadius:12, padding:'8px 12px', marginBottom:10, display:'flex', alignItems:'center', gap:6, boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+                  <span style={{ fontSize:14 }}>🧺</span>
+                  <div style={{ display:'flex', gap:4, flex:1, flexWrap:'wrap' }}>
+                    {g.pickedItems.map((it,i) => (
+                      <span key={i} style={{ fontSize:18 }}>{it.emoji}</span>
+                    ))}
+                  </div>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#2EC4B6' }}>{g.pickedItems.length}品</span>
+                </div>
+              )}
+
+              {/* Store map */}
+              <div style={{ background:'#F5F5F5', borderRadius:16, padding:'12px', boxShadow:'inset 0 2px 8px rgba(0,0,0,0.06)' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                  {SECTIONS.map(sec => {
+                    const hasPickedFromHere = g.pickedItems.some(p => p.sectionId === sec.id);
+                    return (
+                      <button key={sec.id} onClick={() => enterSection(sec.id)}
+                        style={{
+                          ...btnBase, padding:'14px 10px', borderRadius:14, textAlign:'center',
+                          background: sec.bg, border:`3px solid ${hasPickedFromHere ? sec.color : 'transparent'}`,
+                          position:'relative',
+                        }}>
+                        <div style={{ fontSize:30, marginBottom:4 }}>{sec.emoji}</div>
+                        <div style={{ fontSize:12, fontWeight:700, color:sec.color }}>{sec.name}</div>
+                        {hasPickedFromHere && (
+                          <div style={{ position:'absolute', top:4, right:4, background:sec.color, color:'white', fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:50 }}>
+                            {g.pickedItems.filter(p => p.sectionId === sec.id).length}品
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Entrance label */}
+                <div style={{ textAlign:'center', marginTop:8, fontSize:11, color:'#9E9E9E', fontWeight:700 }}>🚪 入口</div>
+              </div>
+
+              <button onClick={finishShopping} style={{...btnBase, marginTop:14, width:'100%', fontSize:16, fontWeight:700, padding:'16px', borderRadius:50, border:'none', background:'linear-gradient(135deg,#FF6B35,#FF8F5E)', color:'white', boxShadow:'0 4px 16px rgba(255,107,53,0.3)'}}>
+                🧾 レジへ行く（{g.pickedItems.length}品）
+              </button>
+            </div>
+          )}
+
+          {/* SECTION - browsing a section */}
+          {g.phase === 'section' && (() => {
+            const sec = SECTIONS.find(s => s.id === g.currentSection);
+            if (!sec) return null;
+
+            return (
+              <div style={{ animation:'fadeUp 0.3s ease-out' }}>
+                {/* Section header */}
+                <div style={{ background:sec.bg, borderRadius:16, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:28 }}>{sec.emoji}</span>
+                    <span style={{ fontSize:16, fontWeight:900, color:sec.color }}>{sec.name}</span>
+                  </div>
+                  <button onClick={backToMap} style={{...btnBase, fontSize:12, fontWeight:700, padding:'6px 14px', borderRadius:50, border:`2px solid ${sec.color}`, background:'white', color:sec.color}}>
+                    ← マップへ戻る
+                  </button>
+                </div>
+
+                {/* Items on shelf */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
+                  {sec.items.map((item, i) => {
+                    const isPicked = g.pickedItems.some(p => p.name === item.name);
+                    return (
+                      <button key={i} onClick={() => isPicked ? unpickItem(item.name) : pickItem(item)}
+                        style={{
+                          ...btnBase, padding:'14px 6px', borderRadius:14, textAlign:'center',
+                          background: isPicked ? '#E8F5E9' : 'white',
+                          border: `3px solid ${isPicked ? '#66BB6A' : '#E8E8E8'}`,
+                          transform: isPicked ? 'scale(0.95)' : 'scale(1)',
+                        }}>
+                        <div style={{ fontSize:32, marginBottom:4 }}>{item.emoji}</div>
+                        <div style={{ fontSize:11, fontWeight:700, color: isPicked ? '#2E7D32' : '#2D2D2D' }}>{item.name}</div>
+                        {isPicked && <div style={{ fontSize:10, color:'#66BB6A', marginTop:2 }}>🧺 カゴに入れた</div>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Cart summary */}
+                {g.pickedItems.length > 0 && (
+                  <div style={{ marginTop:12, background:'white', borderRadius:12, padding:'10px 14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>🧺 カゴの中身（{g.pickedItems.length}品）</div>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                      {g.pickedItems.map((it,i) => (
+                        <span key={i} style={{ fontSize:11, fontWeight:700, padding:'4px 8px', borderRadius:50, background:'#E8F5E9', color:'#2E7D32' }}>
+                          {it.emoji} {it.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={backToMap} style={{...btnBase, marginTop:12, width:'100%', fontSize:14, fontWeight:700, padding:'14px', borderRadius:50, border:`2px solid ${sec.color}`, background:sec.bg, color:sec.color}}>
+                  ← マップに戻って他の売り場へ
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* FEEDBACK */}
+          {g.phase === 'feedback' && (() => {
+            const round = g.rounds[g.currentR];
+            const result = g.results[g.results.length - 1];
+            const listNames = new Set(round.list.map(it => it.name));
+
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ textAlign:'center', marginBottom:14 }}>
+                  <div style={{ fontSize:42, marginBottom:6 }}>{result.perfect ? '🎉' : '🤔'}</div>
+                  <div style={{ fontSize:20, fontWeight:900, color:result.perfect?'#2E7D32':'#E65100' }}>
+                    {result.perfect ? 'パーフェクト！' : `${result.hits}/${round.listCount}品 正解`}
+                  </div>
+                </div>
+
+                {/* Original list with results */}
+                <div style={{ background:'#FFF9C4', borderRadius:14, padding:'14px 16px', marginBottom:10, border:'1px solid #FFF176' }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'#F57F17', marginBottom:8 }}>📝 買い物リスト</div>
+                  {round.list.map((item, i) => {
+                    const picked = result.picked.some(p => p.name === item.name);
+                    return (
+                      <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 0' }}>
+                        <span style={{ fontSize:20 }}>{item.emoji}</span>
+                        <span style={{ fontSize:13, fontWeight:700, flex:1 }}>{item.name}</span>
+                        <span style={{ fontSize:12, fontWeight:700, color:picked?'#2E7D32':'#C62828' }}>
+                          {picked ? '✅ 買えた！' : '❌ 買い忘れ'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Wrong items */}
+                {result.wrongs > 0 && (
+                  <div style={{ background:'#FFEBEE', borderRadius:12, padding:'10px 14px', marginBottom:10, border:'1px solid #EF9A9A' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#C62828', marginBottom:4 }}>❌ リストにない商品</div>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                      {result.picked.filter(p => !listNames.has(p.name)).map((p,i) => (
+                        <span key={i} style={{ fontSize:11, padding:'3px 8px', borderRadius:50, background:'#FFCDD2', color:'#C62828', fontWeight:700 }}>{p.emoji} {p.name}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={nextRound} style={{...btnBase, width:'100%', fontSize:15, fontWeight:700, padding:'16px', borderRadius:50, background:result.perfect?'#66BB6A':'#FF6B35', border:'none', color:'white'}}>
+                  {g.currentR+1 >= g.rounds.length ? '結果を見る →' : '次のリストへ →'}
+                </button>
+              </div>
+            );
+          })()}
+
+          <div style={{ height:24 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.75 ? '⭐⭐⭐' : pct >= 0.5 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.75 ? 'お買い物名人！' : pct >= 0.5 ? 'よくできました！' : 'もう一度挑戦！';
+        const totalHits = g.results.reduce((s,r) => s + r.hits, 0);
+        const totalItems = g.results.reduce((s,r) => s + r.round.listCount, 0);
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'パーフェクト'},{v:`${totalHits}/${totalItems}`,l:'買えた品'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 結果の振り返り</div>
+              {g.results.map((r, i) => (
+                <div key={i} style={{ background:r.perfect?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:6, borderLeft:`4px solid ${r.perfect?'#66BB6A':'#FF6B35'}`, textAlign:'left' }}>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:4 }}>
+                    {r.perfect ? '✅' : '❌'} ラウンド{i+1} — {r.hits}/{r.round.listCount}品
+                    {r.wrongs > 0 && <span style={{ color:'#C62828', marginLeft:6 }}>（余計{r.wrongs}品）</span>}
+                  </div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
+                    {r.round.list.map((item, j) => (
+                      <span key={j} style={{ fontSize:11, padding:'2px 6px', borderRadius:50, background:r.picked.some(p=>p.name===item.name)?'#C8E6C9':'#FFCDD2' }}>
+                        {item.emoji}{item.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 覚えるコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                売り場ごとにまとめて覚えると効果的です。「やさいコーナー→にんじんとトマト、のみもの→牛乳」のように、お店のルートに沿ってイメージすると記憶に残りやすくなります。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

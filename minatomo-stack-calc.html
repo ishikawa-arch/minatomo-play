@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>つみき計算 | みなともPlay</title>
+<meta name="description" content="積み上がる数を暗算 - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+const BLOCK_COLORS = ['#FF6B35','#1E88E5','#43A047','#7B1FA2','#00ACC1','#E53935','#EC407A','#F9A825'];
+
+const DIFF = {
+  easy: {
+    label:'かんたん', emoji:'🌱', desc:'3つのブロック・足し算だけ',
+    blockCount:3, numRange:[1,9], ops:['+'], showTime:2.5, qCount:2, rounds:5,
+  },
+  normal: {
+    label:'ふつう', emoji:'🌿', desc:'4つのブロック・引き算も登場',
+    blockCount:4, numRange:[2,15], ops:['+','+','+','-'], showTime:2, qCount:3, rounds:5,
+  },
+  hard: {
+    label:'むずかしい', emoji:'🌳', desc:'5つのブロック・大きい数・速い',
+    blockCount:5, numRange:[3,25], ops:['+','+','-'], showTime:1.5, qCount:4, rounds:5,
+  },
+};
+
+function generateRound(diff) {
+  const cfg = DIFF[diff];
+  const blocks = [];
+  let running = 0;
+
+  for (let i = 0; i < cfg.blockCount; i++) {
+    const op = i === 0 ? '+' : cfg.ops[Math.floor(Math.random() * cfg.ops.length)];
+    let num;
+    if (op === '-') {
+      // Don't go below 1
+      const maxSub = Math.min(cfg.numRange[1], running - 1);
+      if (maxSub < cfg.numRange[0]) {
+        // Can't subtract, force add
+        num = cfg.numRange[0] + Math.floor(Math.random() * (cfg.numRange[1] - cfg.numRange[0] + 1));
+        blocks.push({ num, op: '+', color: BLOCK_COLORS[i % BLOCK_COLORS.length] });
+        running += num;
+        continue;
+      }
+      num = cfg.numRange[0] + Math.floor(Math.random() * (maxSub - cfg.numRange[0] + 1));
+      running -= num;
+    } else {
+      num = cfg.numRange[0] + Math.floor(Math.random() * (cfg.numRange[1] - cfg.numRange[0] + 1));
+      running += num;
+    }
+    blocks.push({ num, op, color: BLOCK_COLORS[i % BLOCK_COLORS.length] });
+  }
+
+  // Running totals at each step
+  let rt = 0;
+  blocks.forEach((b, i) => {
+    rt = b.op === '+' ? rt + b.num : rt - b.num;
+    b.runningTotal = rt;
+  });
+  const total = rt;
+
+  // Generate questions
+  const allQ = [];
+
+  // Q1: What's the total?
+  allQ.push({
+    question: '全部合わせるといくつ？',
+    answer: String(total),
+    type: 'total',
+    wrongs: [String(total + 2), String(total - 2), String(total + 5)].filter(w => w !== String(total) && parseInt(w) > 0),
+  });
+
+  // Q2: What was the Nth number?
+  for (let i = 0; i < blocks.length; i++) {
+    const ordinal = ['1つ目','2つ目','3つ目','4つ目','5つ目','6つ目'][i];
+    allQ.push({
+      question: `${ordinal}のブロックの数は？`,
+      answer: String(blocks[i].num),
+      type: 'recall',
+      wrongs: [String(blocks[i].num + 1), String(blocks[i].num - 1), String(blocks[i].num + 3)].filter(w => w !== String(blocks[i].num) && parseInt(w) > 0),
+    });
+  }
+
+  // Q3: How many blocks were there?
+  allQ.push({
+    question: 'ブロックは全部でいくつあった？',
+    answer: String(blocks.length),
+    type: 'count',
+    wrongs: [String(blocks.length - 1), String(blocks.length + 1), String(blocks.length + 2)].filter(w => w !== String(blocks.length) && parseInt(w) > 0),
+  });
+
+  // Q4: What was the running total after Nth block?
+  if (blocks.length >= 3) {
+    const midIdx = Math.floor(blocks.length / 2);
+    const ordinal = ['1つ目','2つ目','3つ目','4つ目','5つ目'][midIdx];
+    allQ.push({
+      question: `${ordinal}まで足すといくつ？`,
+      answer: String(blocks[midIdx].runningTotal),
+      type: 'mid_total',
+      wrongs: [String(blocks[midIdx].runningTotal + 3), String(blocks[midIdx].runningTotal - 2), String(blocks[midIdx].runningTotal + 1)].filter(w => w !== String(blocks[midIdx].runningTotal) && parseInt(w) > 0),
+    });
+  }
+
+  // Q5: Was there a subtraction?
+  const hasMinus = blocks.some(b => b.op === '-');
+  if (diff !== 'easy') {
+    allQ.push({
+      question: '引き算のブロックはあった？',
+      answer: hasMinus ? 'あった' : 'なかった',
+      type: 'yesno',
+      wrongs: hasMinus ? ['なかった','覚えていない','2つあった'] : ['あった','1つあった','覚えていない'],
+    });
+  }
+
+  // Q6: What was the largest number?
+  const maxNum = Math.max(...blocks.map(b => b.num));
+  allQ.push({
+    question: 'いちばん大きい数は？',
+    answer: String(maxNum),
+    type: 'max',
+    wrongs: [String(maxNum - 1), String(maxNum + 1), String(maxNum - 2)].filter(w => w !== String(maxNum) && parseInt(w) > 0),
+  });
+
+  // Always include total, then pick random others
+  const totalQ = allQ.find(q => q.type === 'total');
+  const others = shuffle(allQ.filter(q => q.type !== 'total')).slice(0, cfg.qCount - 1);
+  const questions = shuffle([totalQ, ...others]).map(q => ({
+    ...q,
+    opts: shuffle([q.answer, ...q.wrongs.slice(0, 3)]).filter((v,i,a) => a.indexOf(v) === i).slice(0, 4),
+  }));
+
+  return { blocks, total, questions };
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle', // stacking, questioning, round-end, result
+    rounds: [],
+    currentR: 0,
+    visibleBlocks: 0,
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    perfectRounds: 0,
+    roundCorrect: 0,
+    selected: null,
+    feedback: null,
+    results: [],
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(timerRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff));
+    g.rounds = rounds;
+    g.currentR = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.perfectRounds = 0;
+    g.results = [];
+    setShowConfetti(false);
+    setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    const d = diff || difficulty;
+    const cfg = DIFF[d];
+    g.currentR = idx;
+    g.currentQ = 0;
+    g.selected = null;
+    g.feedback = null;
+    g.roundCorrect = 0;
+    g.visibleBlocks = 0;
+    g.phase = 'stacking';
+    rerender();
+
+    // Show blocks one by one
+    let blockIdx = 0;
+    const showNext = () => {
+      blockIdx++;
+      g.visibleBlocks = blockIdx;
+      rerender();
+      if (blockIdx < g.rounds[idx].blocks.length) {
+        timerRef.current = setTimeout(showNext, cfg.showTime * 1000);
+      } else {
+        // All blocks shown, wait a moment then go to questions
+        timerRef.current = setTimeout(() => {
+          g.phase = 'questioning';
+          rerender();
+        }, cfg.showTime * 1000);
+      }
+    };
+    timerRef.current = setTimeout(showNext, 800);
+  };
+
+  const handleAnswer = (opt) => {
+    if (g.selected !== null) return;
+    const round = g.rounds[g.currentR];
+    const q = round.questions[g.currentQ];
+    g.selected = opt;
+    const isCorrect = opt === q.answer;
+    if (isCorrect) { g.score += 10; g.correct++; g.roundCorrect++; g.feedback = 'correct'; }
+    else { g.feedback = 'wrong'; }
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.selected = null;
+      g.feedback = null;
+      g.currentQ++;
+      if (g.currentQ >= round.questions.length) {
+        const perfect = g.roundCorrect === round.questions.length;
+        if (perfect) { g.perfectRounds++; g.score += 15; }
+        g.results.push({ round, roundCorrect: g.roundCorrect, roundTotal: round.questions.length, perfect });
+        g.phase = 'round-end';
+      }
+      rerender();
+    }, isCorrect ? 600 : 1500);
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.perfectRounds / g.rounds.length;
+    if (pct >= 0.5) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.perfectRounds, total: g.rounds.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily: "'Zen Maru Gothic',sans-serif", cursor: 'pointer', transition: 'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 999, overflow: 'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({ length: 50 }, (_, i) => (
+        <div key={i} style={{ position: 'absolute', top: -10, left: Math.random() * 100 + '%', width: 6 + Math.random() * 8, height: 6 + Math.random() * 8, background: ['#FF6B35', '#2EC4B6', '#F9A825', '#AB47BC', '#66BB6A', '#FF8F5E'][i % 6], borderRadius: Math.random() > 0.5 ? '50%' : 2, animation: `cf ${2 + Math.random() * 2}s linear ${Math.random() * 1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  // Block visual component
+  const BlockStack = ({ blocks, visible, showAll }) => (
+    <div style={{ display: 'flex', flexDirection: 'column-reverse', alignItems: 'center', gap: 6, padding: '16px 0' }}>
+      {blocks.map((b, i) => {
+        const show = showAll || i < visible;
+        if (!show) return null;
+        return (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            animation: !showAll ? 'fadeUp 0.4s ease-out' : undefined,
+          }}>
+            {/* Op label */}
+            <div style={{ width: 28, textAlign: 'right', fontSize: 18, fontWeight: 900, color: b.op === '-' ? '#E53935' : '#43A047' }}>
+              {i === 0 ? '' : b.op === '-' ? '−' : '+'}
+            </div>
+            {/* Block */}
+            <div style={{
+              width: 80 + b.num * 2, height: 44, borderRadius: 10,
+              background: b.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: `0 3px 0 ${b.color}88, 0 4px 12px rgba(0,0,0,0.1)`,
+              border: '2px solid rgba(255,255,255,0.3)',
+            }}>
+              <span style={{ fontFamily: 'Outfit', fontSize: 24, fontWeight: 900, color: 'white', textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
+                {b.num}
+              </span>
+            </div>
+            {/* Running total (only in review) */}
+            {showAll && (
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', width: 30, textAlign: 'left' }}>
+                ={b.runningTotal}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div style={{ fontFamily: "'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background: '#FAFAF7', minHeight: '100vh', color: '#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background: 'white', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{ ...btnBase, fontSize: 20, background: 'none', border: 'none', color: '#6B6B6B', padding: '4px 8px' }}>←</button>}
+          <span style={{ fontSize: 16, fontWeight: 900, color: '#FF6B35' }}>📦 つみき計算</span>
+        </div>
+        {screen === 'game' && g.phase !== 'idle' && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'white', background: '#2EC4B6', padding: '3px 10px', borderRadius: 50 }}>{g.currentR + 1}/{g.rounds.length}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'white', background: '#FF6B35', padding: '3px 10px', borderRadius: 50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', textAlign: 'center' }}>
+          <div style={{ fontSize: 64, marginBottom: 16, animation: 'bounce 2s infinite' }}>📦</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#FF6B35', marginBottom: 6 }}>つみき計算</div>
+          <div style={{ fontSize: 14, color: '#6B6B6B', marginBottom: 8, lineHeight: 1.7 }}>ブロックが積み重なる数を<br />頭の中で計算しよう！</div>
+          <div style={{ fontSize: 12, color: '#9E9E9E', marginBottom: 28, background: '#FFF3E0', padding: '8px 16px', borderRadius: 12 }}>🧠 暗算力・ワーキングメモリのトレーニングです</div>
+
+          <div style={{ width: '100%', maxWidth: 420, marginBottom: 24, background: 'white', borderRadius: 16, padding: '18px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', textAlign: 'left' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🎯 遊び方</div>
+            <div style={{ fontSize: 13, color: '#6B6B6B', lineHeight: 2 }}>
+              ① 数字のブロックが1つずつ積み上がります<br />
+              ② 頭の中で合計を計算してください<br />
+              ③ ブロックが消えた後、質問に答えます<br />
+              ④ 合計は？何番目の数は？など
+            </div>
+          </div>
+
+          {/* Example */}
+          <div style={{ width: '100%', maxWidth: 420, marginBottom: 24, background: 'white', borderRadius: 16, padding: '14px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', marginBottom: 10, textAlign: 'left' }}>💡 例えば…</div>
+            <div style={{ display: 'flex', flexDirection: 'column-reverse', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+              {[{ n: 5, c: '#FF6B35', op: '' }, { n: 3, c: '#1E88E5', op: '+' }, { n: 7, c: '#43A047', op: '+' }].map((b, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 20, textAlign: 'right', fontSize: 14, fontWeight: 900, color: '#43A047' }}>{b.op}</span>
+                  <div style={{ width: 60, height: 32, borderRadius: 8, background: b.c, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontFamily: 'Outfit', fontSize: 18, fontWeight: 900, color: 'white' }}>{b.n}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 900, color: '#FF6B35' }}>→ 合計は 15！</div>
+          </div>
+
+          <div style={{ width: '100%', maxWidth: 420 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#6B6B6B', marginBottom: 10, textAlign: 'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {Object.entries(DIFF).map(([k, d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{ ...btnBase, fontSize: 15, fontWeight: 700, padding: '18px 20px', borderRadius: 16, border: '3px solid #E8E8E8', background: 'white', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left' }}>
+                  <span style={{ fontSize: 26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize: 15, fontWeight: 700 }}>{d.label}</div><div style={{ fontSize: 11, color: '#6B6B6B', marginTop: 2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width: '100%', maxWidth: 420, marginTop: 28, textAlign: 'left' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#6B6B6B', marginBottom: 10 }}>📊 プレイ履歴</div>
+              {history.slice(0, 5).map((h, i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background: 'white', borderRadius: 16, padding: '12px 14px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, background: h.diff === 'easy' ? '#E8F5E9' : h.diff === 'normal' ? '#FFF3E0' : '#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{ fontSize: 12, fontWeight: 700 }}>{hc.label}・{h.correct}/{h.total}パーフェクト</div><div style={{ fontSize: 10, color: '#9E9E9E' }}>{d.getMonth() + 1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2, '0')}</div></div>
+                    </div>
+                    <div style={{ fontFamily: 'Outfit', fontSize: 16, fontWeight: 800, color: '#FF6B35' }}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding: '0 16px', maxWidth: 500, margin: '0 auto' }}>
+          {/* Status */}
+          {g.phase !== 'idle' && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 16, padding: '8px 14px', background: 'white', borderBottom: '1px solid #F0F0F0', borderRadius: '0 0 12px 12px', marginBottom: 6 }}>
+              {[{ v: g.score, l: 'スコア', c: '#FF6B35' }, { v: g.correct + '/' + g.results.reduce((s, r) => s + r.roundTotal, 0) + (g.phase === 'questioning' ? '+' + g.currentQ : ''), l: '正解', c: '#2EC4B6' }, { v: (g.currentR + 1) + '/' + g.rounds.length, l: 'ラウンド', c: '#7B1FA2' }].map((s, i) => (
+                <div key={i} style={{ textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Outfit', fontSize: 18, fontWeight: 800, color: s.c }}>{s.v}</div>
+                  <div style={{ fontSize: 10, color: '#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Progress */}
+          {g.phase !== 'idle' && (
+            <div style={{ display: 'flex', gap: 3, marginBottom: 8 }}>
+              {g.rounds.map((_, i) => (
+                <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < g.results.length ? (g.results[i].perfect ? '#66BB6A' : '#EF5350') : i === g.currentR ? '#FFB74D' : '#E8E8E8' }} />
+              ))}
+            </div>
+          )}
+
+          {/* STACKING PHASE */}
+          {g.phase === 'stacking' && (() => {
+            const round = g.rounds[g.currentR];
+            return (
+              <div>
+                <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 900, color: '#FF6B35', background: '#FFF3E0', padding: '6px 18px', borderRadius: 50 }}>
+                    🧮 頭の中で計算しよう
+                  </span>
+                </div>
+
+                {/* Block stacking display */}
+                <div style={{ background: 'white', borderRadius: 16, padding: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', minHeight: 200, display: 'flex', justifyContent: 'center' }}>
+                  <BlockStack blocks={round.blocks} visible={g.visibleBlocks} />
+                </div>
+
+                {/* Block counter */}
+                <div style={{ textAlign: 'center', marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                    {round.blocks.map((_, i) => (
+                      <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: i < g.visibleBlocks ? BLOCK_COLORS[i % BLOCK_COLORS.length] : '#E0E0E0', transition: 'all 0.3s' }} />
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9E9E9E', marginTop: 4 }}>
+                    {g.visibleBlocks}/{round.blocks.length} ブロック
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* QUESTIONING PHASE */}
+          {g.phase === 'questioning' && (() => {
+            const round = g.rounds[g.currentR];
+            const q = round.questions[g.currentQ];
+            if (!q) return null;
+            const answered = g.selected !== null;
+
+            return (
+              <div style={{ animation: 'fadeUp 0.3s ease-out' }} key={`${g.currentR}-${g.currentQ}`}>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 10, justifyContent: 'center' }}>
+                  {round.questions.map((_, i) => (
+                    <div key={i} style={{ width: 28, height: 6, borderRadius: 3, background: i < g.currentQ ? '#66BB6A' : i === g.currentQ ? '#FF6B35' : '#E0E0E0' }} />
+                  ))}
+                </div>
+
+                <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#7B1FA2', background: '#F3E5F5', padding: '5px 14px', borderRadius: 50 }}>
+                    質問 {g.currentQ + 1} / {round.questions.length}
+                  </span>
+                </div>
+
+                <div style={{ background: 'white', borderRadius: 18, padding: '24px 18px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: 14, textAlign: 'center' }}>
+                  <div style={{ fontSize:24, fontWeight:900, color: '#2D2D2D', lineHeight: 1.5 }}>{q.question}</div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+                  {q.opts.map((opt, i) => {
+                    const isSelected = g.selected === opt;
+                    const isCorrect = opt === q.answer;
+                    return (
+                      <button key={i} onClick={() => handleAnswer(opt)} disabled={answered}
+                        style={{
+                          ...btnBase, fontSize: 18, fontWeight: 900, fontFamily: q.type === 'yesno' ? "'Zen Maru Gothic',sans-serif" : 'Outfit',
+                          padding: '16px 10px', borderRadius: 14, textAlign: 'center',
+                          border: `3px solid ${answered && isCorrect ? '#66BB6A' : answered && isSelected && !isCorrect ? '#EF5350' : '#E8E8E8'}`,
+                          background: answered && isCorrect ? '#E8F5E9' : answered && isSelected && !isCorrect ? '#FFEBEE' : 'white',
+                          opacity: answered && !isCorrect && !isSelected ? 0.3 : 1,
+                          color: answered && isCorrect ? '#2E7D32' : answered && isSelected && !isCorrect ? '#C62828' : '#2D2D2D',
+                        }}>
+                        {opt} {answered && isCorrect ? '✅' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {g.feedback === 'wrong' && (
+                  <div style={{ textAlign: 'center', marginTop: 10, fontSize: 16, fontWeight: 700, color: '#C62828' }}>❌ 正解は「{q.answer}」</div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ROUND END */}
+          {g.phase === 'round-end' && (() => {
+            const result = g.results[g.results.length - 1];
+            const round = result.round;
+            return (
+              <div style={{ animation: 'fadeUp 0.4s ease-out' }}>
+                <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                  <div style={{ fontSize: 42, marginBottom: 6 }}>{result.perfect ? '🎉' : '🤔'}</div>
+                  <div style={{ fontSize:24, fontWeight:900, color: result.perfect ? '#2E7D32' : '#E65100' }}>
+                    {result.perfect ? 'パーフェクト！' : `${result.roundCorrect}/${result.roundTotal}問 正解`}
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', marginBottom: 4 }}>📦 このラウンドのつみき</div>
+                <div style={{ background: 'white', borderRadius: 16, padding: '10px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', display: 'flex', justifyContent: 'center' }}>
+                  <BlockStack blocks={round.blocks} visible={round.blocks.length} showAll />
+                </div>
+                <div style={{ textAlign: 'center', marginTop: 6, fontFamily: 'Outfit', fontSize:24, fontWeight:900, color: '#FF6B35' }}>
+                  合計 = {round.total}
+                </div>
+
+                <button onClick={nextRound} style={{ ...btnBase, marginTop: 12, width: '100%', fontSize: 15, fontWeight: 700, padding: '14px', borderRadius: 50, background: result.perfect ? '#66BB6A' : '#FF6B35', border: 'none', color: 'white' }}>
+                  {g.currentR + 1 >= g.rounds.length ? '結果を見る →' : '次のつみきへ →'}
+                </button>
+              </div>
+            );
+          })()}
+
+          <div style={{ height: 16 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const totalQ = g.results.reduce((s, r) => s + r.roundTotal, 0);
+        const pct = totalQ > 0 ? g.correct / totalQ : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? '暗算名人！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '30px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 16, animation: 'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#FF6B35', marginBottom: 4 }}>{msg}</div>
+            <div style={{ fontSize: 14, color: '#6B6B6B', marginBottom: 24 }}>{cfg.label}モード</div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, width: '100%', maxWidth: 360, marginBottom: 24 }}>
+              {[{ v: `${g.perfectRounds}/${total}`, l: 'パーフェクト' }, { v: `${g.correct}/${totalQ}`, l: '正解数' }, { v: g.score, l: 'スコア' }].map((s, i) =>
+                <div key={i} style={{ background: 'white', borderRadius: 16, padding: '14px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Outfit', fontSize: 24, fontWeight: 800, color: '#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize: 10, color: '#9E9E9E', marginTop: 4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width: '100%', maxWidth: 420, marginBottom: 28 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#6B6B6B', marginBottom: 10, textAlign: 'left' }}>📋 結果の振り返り</div>
+              {g.results.map((r, i) => (
+                <div key={i} style={{ background: r.perfect ? '#F1F8E9' : '#FFF3E0', borderRadius: 12, padding: '10px 14px', marginBottom: 6, borderLeft: `4px solid ${r.perfect ? '#66BB6A' : '#FF6B35'}`, textAlign: 'left' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>
+                    {r.perfect ? '✅' : '❌'} ラウンド{i + 1} — {r.roundCorrect}/{r.roundTotal}問正解
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                    {r.round.blocks.map((b, j) => (
+                      <span key={j} style={{ fontFamily: 'Outfit', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: b.color, color: 'white' }}>
+                        {b.op === '-' ? '−' : j > 0 ? '+' : ''}{b.num}
+                      </span>
+                    ))}
+                    <span style={{ fontSize: 12, fontWeight: 900, color: '#FF6B35' }}>={r.round.total}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width: '100%', maxWidth: 420, marginBottom: 24, padding: '14px 16px', background: '#F5F5F5', borderRadius: 12, textAlign: 'left' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', marginBottom: 6 }}>💡 計算のコツ</div>
+              <div style={{ fontSize: 11, color: '#9E9E9E', lineHeight: 1.8 }}>
+                数字を見たらすぐに頭の中で足し算しましょう。「5→5、＋3→8、＋7→15」のように声に出して数えるとやりやすくなります。引き算が混ざったら特に集中！
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 300 }}>
+              <button onClick={() => startGame(difficulty)} style={{ ...btnBase, fontSize: 16, fontWeight: 700, color: 'white', background: '#FF6B35', border: 'none', padding: '16px 32px', borderRadius: 60 }}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{ ...btnBase, fontSize: 14, fontWeight: 700, color: '#6B6B6B', background: 'white', border: '2px solid #E0E0E0', padding: '14px 32px', borderRadius: 60 }}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>くらべてランキング | みなともPlay</title>
+<meta name="description" content="大きさ・速さを比較 - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+// Categories with items that have a clear ordering - 20 categories
+const CATEGORIES = [
+  { name:'動物の大きさ', icon:'🐾', attribute:'大きい',
+    items:[{name:'アリ',emoji:'🐜',value:1},{name:'テントウムシ',emoji:'🐞',value:2},{name:'カエル',emoji:'🐸',value:3},{name:'ハト',emoji:'🕊️',value:4},{name:'ネコ',emoji:'🐱',value:5},{name:'イヌ',emoji:'🐕',value:6},{name:'ヒツジ',emoji:'🐑',value:7},{name:'ウマ',emoji:'🐴',value:8},{name:'ウシ',emoji:'🐄',value:9},{name:'ゾウ',emoji:'🐘',value:10},{name:'クジラ',emoji:'🐋',value:11}]},
+  { name:'くだものの大きさ', icon:'🍎', attribute:'大きい',
+    items:[{name:'ブルーベリー',emoji:'🫐',value:1},{name:'さくらんぼ',emoji:'🍒',value:2},{name:'うめ',emoji:'🟢',value:3},{name:'いちご',emoji:'🍓',value:4},{name:'もも',emoji:'🍑',value:5},{name:'みかん',emoji:'🍊',value:6},{name:'りんご',emoji:'🍎',value:7},{name:'グレープフルーツ',emoji:'🍊',value:8},{name:'パイナップル',emoji:'🍍',value:9},{name:'メロン',emoji:'🍈',value:10},{name:'スイカ',emoji:'🍉',value:11}]},
+  { name:'野菜の大きさ', icon:'🥬', attribute:'大きい',
+    items:[{name:'えだまめ1粒',emoji:'🫛',value:1},{name:'ミニトマト',emoji:'🍅',value:2},{name:'にんじん',emoji:'🥕',value:3},{name:'じゃがいも',emoji:'🥔',value:4},{name:'なす',emoji:'🍆',value:5},{name:'さつまいも',emoji:'🍠',value:6},{name:'キャベツ',emoji:'🥬',value:7},{name:'だいこん',emoji:'🥢',value:8},{name:'かぼちゃ',emoji:'🎃',value:9}]},
+  { name:'のりものの速さ', icon:'🚗', attribute:'速い',
+    items:[{name:'歩き',emoji:'🚶',value:1},{name:'自転車',emoji:'🚲',value:2},{name:'船',emoji:'⛵',value:3},{name:'自動車',emoji:'🚗',value:4},{name:'ヘリコプター',emoji:'🚁',value:5},{name:'新幹線',emoji:'🚄',value:6},{name:'飛行機',emoji:'✈️',value:7},{name:'ロケット',emoji:'🚀',value:8}]},
+  { name:'たかさくらべ', icon:'🏗️', attribute:'高い',
+    items:[{name:'イス',emoji:'🪑',value:1},{name:'大人の身長',emoji:'🧑',value:2},{name:'冷蔵庫',emoji:'🧊',value:3},{name:'電柱',emoji:'🔌',value:4},{name:'5階のビル',emoji:'🏢',value:5},{name:'観覧車',emoji:'🎡',value:6},{name:'東京タワー',emoji:'🗼',value:7},{name:'スカイツリー',emoji:'🏙️',value:8},{name:'富士山',emoji:'🗻',value:9}]},
+  { name:'時間の長さ', icon:'⏰', attribute:'長い',
+    items:[{name:'1秒',emoji:'⚡',value:1},{name:'1分',emoji:'⏱️',value:2},{name:'1時間',emoji:'🕐',value:3},{name:'半日',emoji:'🌤️',value:4},{name:'1日',emoji:'📅',value:5},{name:'1週間',emoji:'🗓️',value:6},{name:'1か月',emoji:'📆',value:7},{name:'1年',emoji:'🎊',value:8},{name:'100年',emoji:'💯',value:9}]},
+  { name:'温度', icon:'🌡️', attribute:'あつい',
+    items:[{name:'南極の氷',emoji:'🏔️',value:1},{name:'かき氷',emoji:'🍧',value:2},{name:'冷蔵庫の中',emoji:'❄️',value:3},{name:'秋の気温',emoji:'🍂',value:4},{name:'体温',emoji:'🤒',value:5},{name:'お風呂',emoji:'🛁',value:6},{name:'やかんのお湯',emoji:'🫖',value:7},{name:'てんぷら油',emoji:'🍳',value:8},{name:'溶岩',emoji:'🌋',value:9}]},
+  { name:'重さ', icon:'⚖️', attribute:'重い',
+    items:[{name:'羽根1枚',emoji:'🪶',value:1},{name:'はがき',emoji:'📮',value:2},{name:'たまご',emoji:'🥚',value:3},{name:'スマホ',emoji:'📱',value:4},{name:'辞書',emoji:'📕',value:5},{name:'すいか',emoji:'🍉',value:6},{name:'人間',emoji:'🧑',value:7},{name:'自転車',emoji:'🚲',value:8},{name:'冷蔵庫',emoji:'🧊',value:9},{name:'自動車',emoji:'🚗',value:10}]},
+  { name:'長さ', icon:'📏', attribute:'長い',
+    items:[{name:'1円玉',emoji:'🪙',value:1},{name:'消しゴム',emoji:'🧽',value:2},{name:'えんぴつ',emoji:'✏️',value:3},{name:'ものさし',emoji:'📏',value:4},{name:'かさ',emoji:'☂️',value:5},{name:'たたみ',emoji:'🟫',value:6},{name:'ベッド',emoji:'🛏️',value:7},{name:'電車1両',emoji:'🚃',value:8},{name:'プール',emoji:'🏊',value:9},{name:'校庭のトラック',emoji:'🏟️',value:10}]},
+  { name:'鳥の大きさ', icon:'🐦', attribute:'大きい',
+    items:[{name:'ハチドリ',emoji:'🐦',value:1},{name:'スズメ',emoji:'🐦',value:2},{name:'インコ',emoji:'🦜',value:3},{name:'ハト',emoji:'🕊️',value:4},{name:'カラス',emoji:'🐦‍⬛',value:5},{name:'ニワトリ',emoji:'🐓',value:6},{name:'白鳥',emoji:'🦢',value:7},{name:'ペンギン',emoji:'🐧',value:8},{name:'ダチョウ',emoji:'🦩',value:9}]},
+  { name:'水の量', icon:'💧', attribute:'多い',
+    items:[{name:'スプーン1杯',emoji:'🥄',value:1},{name:'コップ1杯',emoji:'🥛',value:2},{name:'ペットボトル',emoji:'🧴',value:3},{name:'やかん',emoji:'🫖',value:4},{name:'バケツ',emoji:'🪣',value:5},{name:'お風呂',emoji:'🛁',value:6},{name:'プール',emoji:'🏊',value:7},{name:'湖',emoji:'🏞️',value:8},{name:'海',emoji:'🌊',value:9}]},
+  { name:'音の大きさ', icon:'🔊', attribute:'うるさい',
+    items:[{name:'ささやき声',emoji:'🤫',value:1},{name:'ふつうの会話',emoji:'🗣️',value:2},{name:'テレビの音',emoji:'📺',value:3},{name:'掃除機',emoji:'🧹',value:4},{name:'電車の中',emoji:'🚃',value:5},{name:'工事現場',emoji:'🏗️',value:6},{name:'花火',emoji:'🎆',value:7},{name:'雷',emoji:'⚡',value:8}]},
+  { name:'広さ', icon:'📐', attribute:'広い',
+    items:[{name:'ハンカチ',emoji:'🟦',value:1},{name:'新聞紙',emoji:'📰',value:2},{name:'たたみ1枚',emoji:'🟫',value:3},{name:'6畳の部屋',emoji:'🚪',value:4},{name:'教室',emoji:'🏫',value:5},{name:'体育館',emoji:'🏟️',value:6},{name:'サッカー場',emoji:'⚽',value:7},{name:'東京ドーム',emoji:'🏟️',value:8}]},
+  { name:'人数', icon:'👥', attribute:'多い',
+    items:[{name:'ひとり',emoji:'🧑',value:1},{name:'家族',emoji:'👨‍👩‍👧',value:2},{name:'クラスの人数',emoji:'🏫',value:3},{name:'映画館',emoji:'🎬',value:4},{name:'飛行機の乗客',emoji:'✈️',value:5},{name:'コンサート会場',emoji:'🎵',value:6},{name:'野球場の観客',emoji:'⚾',value:7},{name:'町の人口',emoji:'🏘️',value:8}]},
+  { name:'虫の大きさ', icon:'🐛', attribute:'大きい',
+    items:[{name:'ダニ',emoji:'🔬',value:1},{name:'アリ',emoji:'🐜',value:2},{name:'テントウムシ',emoji:'🐞',value:3},{name:'ハチ',emoji:'🐝',value:4},{name:'チョウ',emoji:'🦋',value:5},{name:'トンボ',emoji:'🪰',value:6},{name:'セミ',emoji:'🦗',value:7},{name:'カブトムシ',emoji:'🪲',value:8}]},
+  { name:'深さ', icon:'🌊', attribute:'深い',
+    items:[{name:'水たまり',emoji:'💧',value:1},{name:'お風呂',emoji:'🛁',value:2},{name:'子どもプール',emoji:'🏊',value:3},{name:'大人のプール',emoji:'🏊',value:4},{name:'川',emoji:'🏞️',value:5},{name:'湖',emoji:'🏞️',value:6},{name:'海',emoji:'🌊',value:7},{name:'深海',emoji:'🐙',value:8}]},
+  { name:'明るさ', icon:'💡', attribute:'明るい',
+    items:[{name:'月あかり',emoji:'🌙',value:1},{name:'ろうそく',emoji:'🕯️',value:2},{name:'懐中電灯',emoji:'🔦',value:3},{name:'デスクライト',emoji:'💡',value:4},{name:'部屋の電気',emoji:'🏠',value:5},{name:'車のライト',emoji:'🚗',value:6},{name:'野球場のライト',emoji:'🏟️',value:7},{name:'太陽',emoji:'☀️',value:8}]},
+  { name:'かかる時間', icon:'⌛', attribute:'長い',
+    items:[{name:'まばたき',emoji:'👁️',value:1},{name:'歯みがき',emoji:'🪥',value:2},{name:'シャワー',emoji:'🚿',value:3},{name:'食事',emoji:'🍽️',value:4},{name:'映画1本',emoji:'🎬',value:5},{name:'学校の1日',emoji:'🏫',value:6},{name:'東京→大阪',emoji:'🚄',value:7},{name:'東京→ハワイ',emoji:'✈️',value:8}]},
+  { name:'容器の大きさ', icon:'🫙', attribute:'大きい',
+    items:[{name:'おちょこ',emoji:'🍶',value:1},{name:'湯呑み',emoji:'🍵',value:2},{name:'マグカップ',emoji:'☕',value:3},{name:'お茶碗',emoji:'🍚',value:4},{name:'どんぶり',emoji:'🍜',value:5},{name:'なべ',emoji:'🍲',value:6},{name:'バケツ',emoji:'🪣',value:7},{name:'ドラム缶',emoji:'🛢️',value:8}]},
+  { name:'年れい', icon:'👶', attribute:'年上',
+    items:[{name:'赤ちゃん',emoji:'👶',value:1},{name:'園児',emoji:'🧒',value:2},{name:'小学生',emoji:'🎒',value:3},{name:'中学生',emoji:'👦',value:4},{name:'高校生',emoji:'🧑',value:5},{name:'大学生',emoji:'🎓',value:6},{name:'お父さん世代',emoji:'👨',value:7},{name:'おじいちゃん世代',emoji:'👴',value:8}]},
+];
+
+// Question types
+const Q_TYPES = {
+  biggest: { q:(attr)=>`いちばん${attr}のは？`, pick:'max' },
+  smallest: { q:(attr,items)=>`いちばん${attr === '大きい' ? '小さい' : attr === '速い' ? '遅い' : attr === '高い' ? '低い' : attr === '重い' ? '軽い' : attr === 'あつい' ? 'つめたい' : attr === '長い' ? '短い' : attr === 'かたい' ? 'やわらかい' : '小さい'}のは？`, pick:'min' },
+  compare: { q:(attr, items)=>`${items[0].name}と${items[1].name}、${attr}のはどっち？`, pick:'compare' },
+  rank: { q:(attr)=>`${attr}い順にならべよう`, pick:'rank' },
+};
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'3つから選ぶ・大小のみ', itemCount:3, modes:['biggest','smallest','compare'], rounds:12 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'4つから選ぶ・ならべかえも', itemCount:4, modes:['biggest','smallest','compare','rank'], rounds:14 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'5つから・全モード・4秒', itemCount:5, modes:['biggest','smallest','compare','rank'], rounds:16, timeLimit:6 },
+};
+
+function generateQ(diff) {
+  const cfg = DIFF[diff];
+  const cat = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+  const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+  const picked = shuffle(cat.items).slice(0, cfg.itemCount);
+
+  if (mode === 'biggest') {
+    const answer = picked.reduce((a,b) => a.value > b.value ? a : b);
+    return {
+      mode, category:cat, items:picked,
+      question: `いちばん${cat.attribute}のは？`,
+      answer: answer.name,
+      opts: shuffle(picked).map(p => ({ label:p.name, emoji:p.emoji })),
+    };
+  }
+  if (mode === 'smallest') {
+    const opposite = cat.attribute === '大きい' ? '小さい' : cat.attribute === '速い' ? 'おそい' : cat.attribute === '高い' ? '低い' : cat.attribute === '重い' ? '軽い' : cat.attribute === 'あつい' ? 'つめたい' : cat.attribute === '長い' ? '短い' : cat.attribute === '多い' ? '少ない' : cat.attribute === 'うるさい' ? '静か' : cat.attribute === '広い' ? 'せまい' : cat.attribute === '深い' ? '浅い' : cat.attribute === '明るい' ? '暗い' : cat.attribute === '年上' ? '年下' : '小さい';
+    const answer = picked.reduce((a,b) => a.value < b.value ? a : b);
+    return {
+      mode, category:cat, items:picked,
+      question: `いちばん${opposite}のは？`,
+      answer: answer.name,
+      opts: shuffle(picked).map(p => ({ label:p.name, emoji:p.emoji })),
+    };
+  }
+  if (mode === 'compare') {
+    const two = shuffle(picked).slice(0, 2);
+    const answer = two[0].value > two[1].value ? two[0] : two[1];
+    return {
+      mode, category:cat, items:two,
+      question: `${two[0].emoji}${two[0].name} と ${two[1].emoji}${two[1].name}、${cat.attribute}のは？`,
+      answer: answer.name,
+      opts: two.map(p => ({ label:p.name, emoji:p.emoji })),
+    };
+  }
+  if (mode === 'rank') {
+    const correctOrder = [...picked].sort((a,b) => b.value - a.value); // biggest first
+    return {
+      mode:'rank', category:cat, items:picked,
+      question: `${cat.attribute}順にならべよう`,
+      correctOrder,
+      shuffledItems: shuffle([...picked]),
+    };
+  }
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase:'idle',
+    questions:[], currentQ:0,
+    score:0, correct:0,
+    selected:null, feedback:null,
+    results:[],
+    // Rank mode state
+    placed:[], remaining:[],
+    timeLeft:0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const questions = [];
+    for (let i = 0; i < cfg.rounds; i++) questions.push(generateQ(diff));
+    g.questions = questions; g.currentQ = 0; g.score = 0; g.correct = 0;
+    g.selected = null; g.feedback = null; g.results = [];
+    g.phase = 'playing';
+    setShowConfetti(false); setScreen('game');
+    setupQ(questions[0], diff);
+    rerender();
+  };
+
+  const setupQ = (q, diff) => {
+    const cfg = DIFF[diff || difficulty];
+    if (q.mode === 'rank') { g.placed = []; g.remaining = [...q.shuffledItems]; }
+    g.timeLeft = cfg.timeLimit || 0;
+    if (cfg.timeLimit) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => {
+        g.timeLeft--; rerender();
+        if (g.timeLeft <= 0) {
+          clearInterval(intervalRef.current);
+          if (!g.feedback) {
+            g.feedback = 'timeout';
+            g.results.push({ q:g.questions[g.currentQ], correct:false });
+            rerender();
+            timerRef.current = setTimeout(() => nextQ(), 1500);
+          }
+        }
+      }, 1000);
+    }
+  };
+
+  const handleAnswer = (opt) => {
+    if (g.selected !== null || g.feedback) return;
+    clearInterval(intervalRef.current);
+    const q = g.questions[g.currentQ];
+    g.selected = opt;
+    const isCorrect = opt === q.answer;
+    if (isCorrect) { g.score += 10; g.correct++; g.feedback = 'correct'; }
+    else { g.feedback = 'wrong'; }
+    g.results.push({ q, correct:isCorrect });
+    rerender();
+    timerRef.current = setTimeout(() => nextQ(), isCorrect ? 600 : 1500);
+  };
+
+  // Rank mode: tap to place
+  const placeItem = (item, idx) => {
+    if (g.feedback) return;
+    g.placed.push(item);
+    g.remaining.splice(idx, 1);
+    rerender();
+
+    if (g.remaining.length === 0) {
+      clearInterval(intervalRef.current);
+      const q = g.questions[g.currentQ];
+      const isCorrect = g.placed.every((p, i) => p.name === q.correctOrder[i].name);
+      if (isCorrect) { g.score += 20; g.correct++; g.feedback = 'correct'; }
+      else { g.feedback = 'wrong'; }
+      g.results.push({ q, placed:[...g.placed], correct:isCorrect });
+      rerender();
+      timerRef.current = setTimeout(() => nextQ(), isCorrect ? 800 : 2000);
+    }
+  };
+
+  const undoRank = () => {
+    if (g.feedback || g.placed.length === 0) return;
+    const item = g.placed.pop();
+    g.remaining.push(item);
+    rerender();
+  };
+
+  const nextQ = () => {
+    if (g.currentQ + 1 >= g.questions.length) { finishGame(); return; }
+    g.currentQ++; g.selected = null; g.feedback = null;
+    setupQ(g.questions[g.currentQ], difficulty);
+    rerender();
+  };
+
+  const finishGame = () => {
+    clearInterval(intervalRef.current);
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, correct:g.correct, total:g.questions.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>📊 くらべてランキング</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentQ+1}/{g.questions.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>📊</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>くらべてランキング</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>大きい・速い・重い…<br/>くらべて順番にならべよう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 判断力・概念理解のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① いろんなものが出てきます<br/>
+              ② 「いちばん大きいのは？」などの質問に答えます<br/>
+              ③ ならべかえモードもあります！<br/>
+              ④ 身の回りのものの感覚をきたえよう
+            </div>
+          </div>
+
+          {/* Categories preview */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📏 こんなカテゴリが出ます</div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'center' }}>
+              {CATEGORIES.slice(0,10).map((c,i) => (
+                <span key={i} style={{ fontSize:11, fontWeight:700, padding:'5px 10px', borderRadius:50, background:'#F5F5F5' }}>
+                  {c.icon} {c.name}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const q = g.questions[g.currentQ];
+        if (!q) return null;
+        const answered = g.selected !== null || g.feedback !== null;
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status */}
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+              {[
+                {v:g.score,l:'スコア',c:'#FF6B35'},
+                {v:g.correct+'/'+(g.currentQ+(answered?1:0)),l:'正解',c:'#2EC4B6'},
+                {v:(g.currentQ+1)+'/'+g.questions.length,l:'問題',c:'#7B1FA2'},
+                ...(cfg.timeLimit && !answered ? [{v:g.timeLeft+'秒',l:'残り',c:g.timeLeft<=2?'#E53935':'#6B6B6B'}] : []),
+              ].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c, animation:s.l==='残り'&&g.timeLeft<=2?'pulse 0.3s infinite':undefined }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display:'flex', gap:2, marginBottom:8 }}>
+              {g.questions.map((_,i) => (
+                <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].correct?'#66BB6A':'#EF5350'):i===g.currentQ?'#FFB74D':'#E8E8E8' }} />
+              ))}
+            </div>
+
+            {/* Timer */}
+            {cfg.timeLimit > 0 && !answered && (
+              <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:8, overflow:'hidden' }}>
+                <div style={{ width:(g.timeLeft/cfg.timeLimit*100)+'%', height:'100%', background:g.timeLeft<=2?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:2, transition:'width 1s linear' }} />
+              </div>
+            )}
+
+            <div style={{ animation:'fadeUp 0.25s ease-out' }} key={g.currentQ}>
+              {/* Category badge */}
+              <div style={{ textAlign:'center', marginBottom:8 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', background:'#F5F5F5', padding:'4px 14px', borderRadius:50 }}>
+                  {q.category.icon} {q.category.name}
+                </span>
+              </div>
+
+              {/* Question */}
+              <div style={{ background:'white', borderRadius:18, padding:'20px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:14, textAlign:'center' }}>
+                <div style={{ fontSize:24, fontWeight:900, color:'#2D2D2D', lineHeight:1.5 }}>{q.question}</div>
+              </div>
+
+              {/* SELECT MODE (biggest/smallest/compare) */}
+              {q.mode !== 'rank' && (
+                <div style={{ display:'grid', gridTemplateColumns: q.mode === 'compare' ? 'repeat(2,1fr)' : 'repeat(2,1fr)', gap:8 }}>
+                  {q.opts.map((opt,i) => {
+                    const isSelected = g.selected === opt.label;
+                    const isCorrect = opt.label === q.answer;
+                    return (
+                      <button key={i} onClick={() => handleAnswer(opt.label)} disabled={answered}
+                        style={{
+                          ...btnBase, padding:'16px 10px', borderRadius:16, textAlign:'center',
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                          opacity:answered&&!isCorrect&&!isSelected?0.3:1,
+                          display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+                        }}>
+                        <span style={{ fontSize:36 }}>{opt.emoji}</span>
+                        <span style={{ fontSize:14, fontWeight:700, color:answered&&isCorrect?'#2E7D32':answered&&isSelected&&!isCorrect?'#C62828':'#2D2D2D' }}>
+                          {opt.label} {answered && isCorrect ? '✅' : ''}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* RANK MODE */}
+              {q.mode === 'rank' && (
+                <>
+                  {/* Placed items */}
+                  <div style={{ background:'white', borderRadius:16, padding:'14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:10, minHeight:50 }}>
+                    <div style={{ fontSize:11, color:'#9E9E9E', marginBottom:6 }}>
+                      ↓ {q.category.attribute}順にタップ（1番目から）
+                    </div>
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                      {g.placed.map((p,i) => {
+                        const isCorrect = g.feedback && q.correctOrder[i]?.name === p.name;
+                        const isWrong = g.feedback && q.correctOrder[i]?.name !== p.name;
+                        return (
+                          <div key={i} style={{ display:'flex', alignItems:'center', gap:4, padding:'6px 12px', borderRadius:10,
+                            background:isCorrect?'#C8E6C9':isWrong?'#FFCDD2':'#E3F2FD',
+                            color:isCorrect?'#2E7D32':isWrong?'#C62828':'#1E88E5' }}>
+                            <span style={{ fontFamily:'Outfit', fontSize:12, fontWeight:900 }}>{i+1}.</span>
+                            <span style={{ fontSize:18 }}>{p.emoji}</span>
+                            <span style={{ fontSize:12, fontWeight:700 }}>{p.name}</span>
+                          </div>
+                        );
+                      })}
+                      {!g.feedback && g.placed.length > 0 && (
+                        <button onClick={undoRank} style={{...btnBase, fontSize:11, fontWeight:700, padding:'6px 10px', borderRadius:10, background:'#FFF3E0', border:'none', color:'#E65100'}}>
+                          ← 戻す
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Remaining items to place */}
+                  {!g.feedback && (
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center' }}>
+                      {g.remaining.map((item,i) => (
+                        <button key={i} onClick={() => placeItem(item,i)}
+                          style={{...btnBase, padding:'12px 16px', borderRadius:14, border:'3px solid #E8E8E8', background:'white',
+                            display:'flex', flexDirection:'column', alignItems:'center', gap:4}}>
+                          <span style={{ fontSize:28 }}>{item.emoji}</span>
+                          <span style={{ fontSize:12, fontWeight:700 }}>{item.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Show correct order */}
+                  {g.feedback === 'wrong' && (
+                    <div style={{ textAlign:'center', marginTop:10 }}>
+                      <div style={{ fontSize:16, fontWeight:700, color:'#C62828', marginBottom:6 }}>❌ 正しい順番：</div>
+                      <div style={{ display:'flex', gap:4, justifyContent:'center', flexWrap:'wrap' }}>
+                        {q.correctOrder.map((p,i) => (
+                          <span key={i} style={{ fontSize:12, fontWeight:700, padding:'4px 8px', borderRadius:8, background:'#E8F5E9', color:'#2E7D32' }}>
+                            {i+1}.{p.emoji}{p.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {g.feedback === 'correct' && (
+                    <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:900, color:'#2E7D32' }}>✅ パーフェクト！</div>
+                  )}
+                  {g.feedback === 'timeout' && (
+                    <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#E65100' }}>⏰ 時間切れ！</div>
+                  )}
+                </>
+              )}
+
+              {/* Feedback for select modes */}
+              {q.mode !== 'rank' && g.feedback === 'wrong' && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#C62828' }}>❌ 正解は「{q.answer}」</div>
+              )}
+              {q.mode !== 'rank' && g.feedback === 'timeout' && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#E65100' }}>⏰ 時間切れ！正解は「{q.answer}」</div>
+              )}
+            </div>
+            <div style={{ height:20 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.questions.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'ランキング名人！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Wrong answers review */}
+            {g.results.filter(r => !r.correct).length > 0 && (
+              <div style={{ width:'100%', maxWidth:420, marginBottom:24 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📋 まちがえた問題</div>
+                {g.results.filter(r => !r.correct).slice(0,8).map((r,i) => (
+                  <div key={i} style={{ background:'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:4, borderLeft:'4px solid #FF6B35', textAlign:'left' }}>
+                    <div style={{ fontSize:12, fontWeight:700 }}>{r.q.category.icon} {r.q.question}</div>
+                    {r.q.mode !== 'rank' && <div style={{ fontSize:11, color:'#2E7D32', marginTop:2 }}>→ 正解：{r.q.answer}</div>}
+                    {r.q.mode === 'rank' && <div style={{ fontSize:11, color:'#2E7D32', marginTop:2 }}>→ {r.q.correctOrder.map(p => p.emoji+p.name).join(' > ')}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 比較のコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                身の回りのものの大きさ・重さ・速さの感覚は、日常生活でとても大切です。「スイカとりんご、どっちが大きい？」のように、普段から意識してくらべる習慣をつけましょう。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>Minatomo Memory Game | みなともPlay</title>
+<meta name="description" content="Minatomo Memory Game - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="memory">
+<meta name="minatomo-category" content="">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+const EMOJI_SETS = ['🍎','🍊','🍋','🍇','🍓','🍑','🍒','🥝','🌻','🌹','🌷','🌸','🍀','🌈','⭐','🌙','🐶','🐱','🐰','🐼','🦊','🐸','🐧','🦋','🚗','🚂','✈️','🚀','⛵','🎈'];
+const SHAPE_COLORS = ['#E53935','#1E88E5','#43A047','#FB8C00','#8E24AA','#00ACC1','#F4511E','#3949AB','#C0CA33','#6D4C41'];
+const SHAPE_TYPES = ['circle','square','diamond','star','heart','cross','hexagon','oval'];
+
+// SVG Landscape definitions
+const LANDSCAPES = [
+  { id:'sunset-mount', label:'夕焼けの山', sky:['#FF6B35','#FFB74D','#FFF8E1'], mountains:'#5D4037', ground:'#2E7D32', sun:true, sunColor:'#FFF176', trees:false },
+  { id:'ocean-beach', label:'青い海', sky:['#1565C0','#42A5F5','#90CAF9'], mountains:null, ground:'#FFCC80', sun:true, sunColor:'#FFF9C4', trees:false, waves:true },
+  { id:'deep-forest', label:'深い森', sky:['#388E3C','#66BB6A','#A5D6A7'], mountains:null, ground:'#1B5E20', sun:false, trees:true },
+  { id:'hot-desert', label:'砂漠', sky:['#FF8F00','#FFB74D','#FFF8E1'], mountains:null, ground:'#E65100', sun:true, sunColor:'#FFEE58', trees:false, cactus:true },
+  { id:'snow-peak', label:'雪山', sky:['#78909C','#B0BEC5','#ECEFF1'], mountains:'#FAFAFA', ground:'#E0E0E0', sun:false, snow:true },
+  { id:'starry-night', label:'星空', sky:['#0D1B2A','#1B2838','#1A237E'], mountains:'#1B2838', ground:'#263238', sun:false, stars:true, moon:true },
+  { id:'cherry-blossom', label:'桜並木', sky:['#F48FB1','#F8BBD0','#FCE4EC'], mountains:null, ground:'#4CAF50', sun:false, cherry:true },
+  { id:'autumn-leaves', label:'紅葉', sky:['#E65100','#FF8F00','#FFCC80'], mountains:null, ground:'#BF360C', sun:false, autumn:true },
+  { id:'calm-lake', label:'湖', sky:['#42A5F5','#64B5F6','#BBDEFB'], mountains:'#5D4037', ground:'#2196F3', sun:true, sunColor:'#FFF9C4', lake:true },
+  { id:'rainbow-field', label:'虹の空', sky:['#64B5F6','#90CAF9','#BBDEFB'], mountains:null, ground:'#388E3C', sun:false, rainbow:true },
+];
+
+// SVG Face definitions
+const FACES = [
+  { id:'p1', skin:'#FFCC80', hair:'#3E2723', hairStyle:'short', eyes:'round', eyeColor:'#1B5E20', mouth:'smile', blush:false },
+  { id:'p2', skin:'#D7CCC8', hair:'#212121', hairStyle:'long', eyes:'round', eyeColor:'#3E2723', mouth:'smile', blush:true },
+  { id:'p3', skin:'#FFAB91', hair:'#BF360C', hairStyle:'curly', eyes:'narrow', eyeColor:'#1565C0', mouth:'grin', blush:false },
+  { id:'p4', skin:'#FFE0B2', hair:'#F9A825', hairStyle:'bob', eyes:'big', eyeColor:'#2E7D32', mouth:'small', blush:true },
+  { id:'p5', skin:'#8D6E63', hair:'#1B1B1B', hairStyle:'short', eyes:'round', eyeColor:'#3E2723', mouth:'grin', blush:false },
+  { id:'p6', skin:'#FFCCBC', hair:'#4E342E', hairStyle:'ponytail', eyes:'big', eyeColor:'#4A148C', mouth:'smile', blush:true },
+  { id:'p7', skin:'#D7CCC8', hair:'#616161', hairStyle:'bald', eyes:'narrow', eyeColor:'#1B5E20', mouth:'flat', blush:false, glasses:true },
+  { id:'p8', skin:'#FFE0B2', hair:'#E65100', hairStyle:'long', eyes:'round', eyeColor:'#01579B', mouth:'smile', blush:false },
+  { id:'p9', skin:'#BCAAA4', hair:'#263238', hairStyle:'spiky', eyes:'big', eyeColor:'#3E2723', mouth:'grin', blush:false },
+  { id:'p10', skin:'#FFAB91', hair:'#1B1B1B', hairStyle:'bob', eyes:'narrow', eyeColor:'#1B5E20', mouth:'small', blush:true, glasses:true },
+];
+
+const DIFF = {
+  easy:   { pairs: 2, cols: 2, label: 'かんたん', emoji: '🌱', desc: '4枚（2ペア）・はじめての方に' },
+  normal: { pairs: 6, cols: 4, label: 'ふつう',   emoji: '🌿', desc: '12枚（6ペア）・ちょうどいい挑戦' },
+  hard:   { pairs: 10, cols: 5, label: 'むずかしい', emoji: '🌳', desc: '20枚（10ペア）・記憶力の限界へ' },
+};
+const TYPE_INFO = {
+  emoji:     { label: 'イラスト', icon: '🍎', desc: 'たべもの・どうぶつなど' },
+  color:     { label: 'いろ×かたち', icon: '🔴🟦', desc: '同じ色と形を見つけよう' },
+  landscape: { label: 'けしき', icon: '🏔️', desc: '風景イラストで記憶力UP' },
+  face:      { label: 'かお・ひと', icon: '👤', desc: '人物イラストを覚えよう' },
+};
+const MSGS = ['いいね！👏','その調子！💪','すごい！✨','ナイス！🎉','いい感じ！😊','覚えてた！🧠','お見事！👍','バッチリ！⭐'];
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function formatTime(s){return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60);}
+
+// ========== SVG LANDSCAPE RENDERER ==========
+function LandscapeCard({ data }) {
+  const { sky, mountains, ground, sun, sunColor, trees, waves, cactus, snow, stars, moon, cherry, autumn, lake, rainbow, label } = data;
+  return (
+    <div style={{ width:'100%', height:'100%', borderRadius:13, overflow:'hidden', position:'relative' }}>
+      <svg viewBox="0 0 200 200" width="100%" height="100%" style={{ display:'block' }}>
+        <defs>
+          <linearGradient id={`sky-${data.id}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={sky[0]} />
+            <stop offset="50%" stopColor={sky[1]} />
+            <stop offset="100%" stopColor={sky[2]} />
+          </linearGradient>
+        </defs>
+        {/* Sky */}
+        <rect width="200" height="200" fill={`url(#sky-${data.id})`} />
+
+        {/* Stars */}
+        {stars && [30,60,90,120,150,45,75,135,165,20,110,170,55,85,140].map((x,i) => (
+          <circle key={i} cx={x} cy={15+i*6%60} r={1+i%2} fill="white" opacity={0.5+i%3*0.2} />
+        ))}
+
+        {/* Moon */}
+        {moon && <circle cx="160" cy="35" r="18" fill="#FFF9C4" />}
+        {moon && <circle cx="168" cy="30" r="15" fill={sky[1]} />}
+
+        {/* Sun */}
+        {sun && <circle cx="150" cy="40" r="22" fill={sunColor} opacity="0.9" />}
+
+        {/* Rainbow */}
+        {rainbow && <>
+          <path d="M 20 160 Q 100 20 180 160" fill="none" stroke="#E53935" strokeWidth="5" opacity="0.5" />
+          <path d="M 25 160 Q 100 30 175 160" fill="none" stroke="#FF9800" strokeWidth="5" opacity="0.5" />
+          <path d="M 30 160 Q 100 40 170 160" fill="none" stroke="#FFEB3B" strokeWidth="5" opacity="0.5" />
+          <path d="M 35 160 Q 100 50 165 160" fill="none" stroke="#4CAF50" strokeWidth="5" opacity="0.5" />
+          <path d="M 40 160 Q 100 60 160 160" fill="none" stroke="#2196F3" strokeWidth="5" opacity="0.5" />
+        </>}
+
+        {/* Mountains */}
+        {mountains && <>
+          <polygon points="0,160 50,80 100,160" fill={mountains} opacity="0.7" />
+          <polygon points="60,160 120,60 180,160" fill={mountains} opacity="0.85" />
+          <polygon points="130,160 180,90 200,130 200,160" fill={mountains} opacity="0.6" />
+        </>}
+
+        {/* Snow caps */}
+        {snow && <>
+          <polygon points="40,88 50,80 60,88" fill="white" />
+          <polygon points="110,68 120,60 130,68" fill="white" />
+        </>}
+
+        {/* Ground */}
+        <ellipse cx="100" cy="210" rx="140" ry="60" fill={ground} />
+
+        {/* Lake reflection */}
+        {lake && <ellipse cx="100" cy="175" rx="60" ry="18" fill="#1565C0" opacity="0.5" />}
+
+        {/* Waves */}
+        {waves && <>
+          <path d="M 0 155 Q 25 148 50 155 Q 75 162 100 155 Q 125 148 150 155 Q 175 162 200 155 L 200 200 L 0 200 Z" fill="#0D47A1" opacity="0.3" />
+          <path d="M 0 165 Q 30 158 60 165 Q 90 172 120 165 Q 150 158 180 165 Q 200 170 200 165 L 200 200 L 0 200 Z" fill="#1565C0" opacity="0.3" />
+        </>}
+
+        {/* Trees */}
+        {trees && [30,55,80,110,140,165].map((x,i) => (
+          <g key={i}>
+            <rect x={x-2} y={130-i*3} width="4" height={30+i*3} fill="#4E342E" />
+            <polygon points={`${x-14},${140-i*3} ${x},${100-i*5} ${x+14},${140-i*3}`} fill={i%2===0?'#1B5E20':'#2E7D32'} />
+            <polygon points={`${x-11},${128-i*3} ${x},${95-i*5} ${x+11},${128-i*3}`} fill={i%2===0?'#2E7D32':'#388E3C'} />
+          </g>
+        ))}
+
+        {/* Cherry trees */}
+        {cherry && [40,80,120,160].map((x,i) => (
+          <g key={i}>
+            <rect x={x-3} y={125} width="6" height="35" fill="#5D4037" rx="2" />
+            <circle cx={x} cy={115} r={22} fill="#F48FB1" opacity="0.8" />
+            <circle cx={x-8} cy={110} r={12} fill="#F8BBD0" opacity="0.7" />
+            <circle cx={x+10} cy={108} r={10} fill="#FCE4EC" opacity="0.6" />
+          </g>
+        ))}
+
+        {/* Autumn trees */}
+        {autumn && [35,70,105,140,175].map((x,i) => {
+          const colors = ['#E65100','#FF6F00','#F9A825','#D84315','#FF8F00'];
+          return (
+            <g key={i}>
+              <rect x={x-2} y={128} width="5" height="32" fill="#4E342E" />
+              <circle cx={x} cy={118} r={18} fill={colors[i]} opacity="0.85" />
+              <circle cx={x-7} cy={112} r={10} fill={colors[(i+1)%5]} opacity="0.7" />
+              <circle cx={x+8} cy={114} r={8} fill={colors[(i+2)%5]} opacity="0.6" />
+            </g>
+          );
+        })}
+
+        {/* Cactus */}
+        {cactus && [60,130].map((x,i) => (
+          <g key={i}>
+            <rect x={x-4} y={120} width="8" height="40" fill="#2E7D32" rx="4" />
+            <rect x={x-16} y={128} width="12" height="6" fill="#2E7D32" rx="3" />
+            <rect x={x-16} y={118} width="6" height="16" fill="#2E7D32" rx="3" />
+            <rect x={x+4} y={125} width="12" height="6" fill="#2E7D32" rx="3" />
+            <rect x={x+10} y={115} width="6" height="16" fill="#2E7D32" rx="3" />
+          </g>
+        ))}
+      </svg>
+      <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'4px 8px', fontSize:10, fontWeight:700, color:'white', textAlign:'center', background:'linear-gradient(transparent, rgba(0,0,0,0.5))' }}>{label}</div>
+    </div>
+  );
+}
+
+// ========== SVG FACE RENDERER ==========
+function FaceCard({ data }) {
+  const { skin, hair, hairStyle, eyes, eyeColor, mouth, blush, glasses } = data;
+  return (
+    <div style={{ width:'100%', height:'100%', borderRadius:13, overflow:'hidden', background:'#F5F0EB' }}>
+      <svg viewBox="0 0 200 200" width="100%" height="100%" style={{ display:'block' }}>
+        {/* Neck */}
+        <rect x="85" y="140" width="30" height="30" fill={skin} />
+
+        {/* Body/Shoulders */}
+        <ellipse cx="100" cy="195" rx="55" ry="30" fill={hair} opacity="0.8" />
+
+        {/* Head */}
+        <ellipse cx="100" cy="100" rx="52" ry="60" fill={skin} />
+
+        {/* Hair */}
+        {hairStyle === 'short' && <>
+          <ellipse cx="100" cy="62" rx="50" ry="30" fill={hair} />
+          <rect x="50" y="55" width="100" height="20" fill={hair} rx="5" />
+        </>}
+        {hairStyle === 'long' && <>
+          <ellipse cx="100" cy="62" rx="52" ry="32" fill={hair} />
+          <rect x="48" y="55" width="20" height="90" fill={hair} rx="8" />
+          <rect x="132" y="55" width="20" height="90" fill={hair} rx="8" />
+        </>}
+        {hairStyle === 'curly' && <>
+          <ellipse cx="100" cy="58" rx="52" ry="30" fill={hair} />
+          {[55,70,85,100,115,130,145].map((x,i) => <circle key={i} cx={x} cy={48+i%2*5} r="10" fill={hair} />)}
+        </>}
+        {hairStyle === 'bob' && <>
+          <ellipse cx="100" cy="62" rx="54" ry="32" fill={hair} />
+          <rect x="46" y="55" width="22" height="55" fill={hair} rx="10" />
+          <rect x="132" y="55" width="22" height="55" fill={hair} rx="10" />
+        </>}
+        {hairStyle === 'ponytail' && <>
+          <ellipse cx="100" cy="62" rx="50" ry="30" fill={hair} />
+          <rect x="125" y="40" width="16" height="70" fill={hair} rx="7" />
+          <circle cx="133" cy="110" r="10" fill={hair} />
+        </>}
+        {hairStyle === 'bald' && <ellipse cx="100" cy="68" rx="48" ry="24" fill={skin} />}
+        {hairStyle === 'spiky' && <>
+          <ellipse cx="100" cy="62" rx="48" ry="28" fill={hair} />
+          {[65,80,95,110,125].map((x,i) => <polygon key={i} points={`${x-6},55 ${x},${30-i%2*8} ${x+6},55`} fill={hair} />)}
+        </>}
+
+        {/* Ears */}
+        <ellipse cx="48" cy="100" rx="8" ry="12" fill={skin} />
+        <ellipse cx="152" cy="100" rx="8" ry="12" fill={skin} />
+
+        {/* Blush */}
+        {blush && <>
+          <ellipse cx="68" cy="112" rx="10" ry="6" fill="#F48FB1" opacity="0.3" />
+          <ellipse cx="132" cy="112" rx="10" ry="6" fill="#F48FB1" opacity="0.3" />
+        </>}
+
+        {/* Eyes */}
+        {eyes === 'round' && <>
+          <ellipse cx="80" cy="95" rx="8" ry="9" fill="white" />
+          <ellipse cx="120" cy="95" rx="8" ry="9" fill="white" />
+          <circle cx="82" cy="96" r="5" fill={eyeColor} />
+          <circle cx="122" cy="96" r="5" fill={eyeColor} />
+          <circle cx="83" cy="94" r="2" fill="white" />
+          <circle cx="123" cy="94" r="2" fill="white" />
+        </>}
+        {eyes === 'big' && <>
+          <ellipse cx="80" cy="95" rx="11" ry="12" fill="white" />
+          <ellipse cx="120" cy="95" rx="11" ry="12" fill="white" />
+          <circle cx="82" cy="96" r="7" fill={eyeColor} />
+          <circle cx="122" cy="96" r="7" fill={eyeColor} />
+          <circle cx="84" cy="93" r="3" fill="white" />
+          <circle cx="124" cy="93" r="3" fill="white" />
+        </>}
+        {eyes === 'narrow' && <>
+          <ellipse cx="80" cy="95" rx="10" ry="5" fill="white" />
+          <ellipse cx="120" cy="95" rx="10" ry="5" fill="white" />
+          <ellipse cx="82" cy="95" rx="4" ry="4" fill={eyeColor} />
+          <ellipse cx="122" cy="95" rx="4" ry="4" fill={eyeColor} />
+          <circle cx="83" cy="94" r="1.5" fill="white" />
+          <circle cx="123" cy="94" r="1.5" fill="white" />
+        </>}
+
+        {/* Eyebrows */}
+        <line x1="68" y1="80" x2="90" y2="82" stroke={hair} strokeWidth="3" strokeLinecap="round" />
+        <line x1="110" y1="82" x2="132" y2="80" stroke={hair} strokeWidth="3" strokeLinecap="round" />
+
+        {/* Glasses */}
+        {glasses && <>
+          <circle cx="80" cy="95" r="16" fill="none" stroke="#37474F" strokeWidth="2.5" />
+          <circle cx="120" cy="95" r="16" fill="none" stroke="#37474F" strokeWidth="2.5" />
+          <line x1="96" y1="95" x2="104" y2="95" stroke="#37474F" strokeWidth="2.5" />
+          <line x1="48" y1="92" x2="64" y2="93" stroke="#37474F" strokeWidth="2" />
+          <line x1="136" y1="93" x2="152" y2="92" stroke="#37474F" strokeWidth="2" />
+        </>}
+
+        {/* Nose */}
+        <path d="M 97 100 Q 100 112 103 108" fill="none" stroke={skin} strokeWidth="2" opacity="0.4" />
+
+        {/* Mouth */}
+        {mouth === 'smile' && <path d="M 85 120 Q 100 135 115 120" fill="none" stroke="#D32F2F" strokeWidth="2.5" strokeLinecap="round" />}
+        {mouth === 'grin' && <>
+          <path d="M 82 118 Q 100 138 118 118" fill="white" stroke="#D32F2F" strokeWidth="2" />
+          <path d="M 85 118 Q 100 125 115 118" fill="none" stroke="#D32F2F" strokeWidth="0" />
+        </>}
+        {mouth === 'small' && <path d="M 92 122 Q 100 128 108 122" fill="none" stroke="#D32F2F" strokeWidth="2" strokeLinecap="round" />}
+        {mouth === 'flat' && <line x1="88" y1="122" x2="112" y2="122" stroke="#D32F2F" strokeWidth="2.5" strokeLinecap="round" />}
+      </svg>
+    </div>
+  );
+}
+
+// Card content dispatcher
+function CardContent({ card }) {
+  if (card.type === 'emoji') return <span>{card.content}</span>;
+  if (card.type === 'shape') return <ShapeCard shape={card.shape} color={card.color} />;
+  if (card.type === 'landscape') return <LandscapeCard data={card.data} />;
+  if (card.type === 'face') return <FaceCard data={card.data} />;
+  return null;
+}
+
+function ShapeCard({ shape, color }) {
+  const clips = { star:'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)', heart:'polygon(50% 85%,5% 40%,5% 20%,25% 0%,50% 15%,75% 0%,95% 20%,95% 40%)', cross:'polygon(35% 0%,65% 0%,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0% 65%,0% 35%,35% 35%)', hexagon:'polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%)' };
+  const styles = { circle:{width:'60%',height:'60%',borderRadius:'50%',background:color}, square:{width:'60%',height:'60%',borderRadius:'16%',background:color}, diamond:{width:'48%',height:'48%',borderRadius:'12%',background:color,transform:'rotate(45deg)'}, oval:{width:'48%',height:'68%',borderRadius:'50%',background:color}, triangle:{width:0,height:0,borderLeft:'28px solid transparent',borderRight:'28px solid transparent',borderBottom:`48px solid ${color}`,background:'none'}, moon:{width:44,height:44,borderRadius:'50%',boxShadow:`inset 12px 0 0 0 ${color}`} };
+  if (clips[shape]) return <div style={{width:'60%',height:'60%',background:color,clipPath:clips[shape]}} />;
+  return <div style={styles[shape]||styles.circle} />;
+}
+
+function generateDeck(type, pairCount) {
+  let items = [];
+  if (type === 'emoji') {
+    items = shuffle(EMOJI_SETS).slice(0,pairCount).map(e => ({key:e, type:'emoji', content:e}));
+  } else if (type === 'color') {
+    const colors = shuffle(SHAPE_COLORS).slice(0,pairCount);
+    const shapes = shuffle(SHAPE_TYPES);
+    items = colors.map((c,i) => ({key:c+shapes[i%shapes.length], type:'shape', shape:shapes[i%shapes.length], color:c}));
+  } else if (type === 'landscape') {
+    items = shuffle(LANDSCAPES).slice(0,pairCount).map(ls => ({key:ls.id, type:'landscape', data:ls}));
+  } else if (type === 'face') {
+    items = shuffle(FACES).slice(0,pairCount).map(f => ({key:f.id, type:'face', data:f}));
+  }
+  const deck = [];
+  items.forEach((item, idx) => { deck.push({...item, uid:idx+'a'}); deck.push({...item, uid:idx+'b'}); });
+  return shuffle(deck);
+}
+
+function Confetti({ active }) {
+  if (!active) return null;
+  const p = Array.from({length:50},(_,i) => ({id:i, left:Math.random()*100, color:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], delay:Math.random()*1.5, dur:2+Math.random()*2, size:6+Math.random()*8, round:Math.random()>0.5}));
+  return <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:999,overflow:'hidden'}}>
+    <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+        @media (min-width: 768px) {
+          #root { zoom: 1.25; }
+        }
+        @media (min-width: 1200px) {
+          #root { zoom: 1.8; }
+        }
+        @media (min-width: 1920px) {
+          #root { zoom: 2.4; }
+        }
+`}</style>
+    {p.map(x=><div key={x.id} style={{position:'absolute',top:-10,left:x.left+'%',width:x.size,height:x.size,background:x.color,borderRadius:x.round?'50%':2,animation:`cf ${x.dur}s linear ${x.delay}s forwards`}}/>)}
+  </div>;
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [cardType, setCardType] = React.useState('emoji');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [deck, setDeck] = React.useState([]);
+  const [flipped, setFlipped] = React.useState([]);
+  const [matched, setMatched] = React.useState(new Set());
+  const [moves, setMoves] = React.useState(0);
+  const [seconds, setSeconds] = React.useState(0);
+  const [locked, setLocked] = React.useState(false);
+  const [progressMsg, setProgressMsg] = React.useState('');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [score, setScore] = React.useState(0);
+  const [stars, setStars] = React.useState('');
+  const [history, setHistory] = React.useState([]);
+  const [previewing, setPreviewing] = React.useState(false);
+  const timerRef = React.useRef(null);
+  const movesRef = React.useRef(0);
+  const secondsRef = React.useRef(0);
+
+  React.useEffect(() => { movesRef.current = moves; }, [moves]);
+  React.useEffect(() => { secondsRef.current = seconds; }, [seconds]);
+
+  React.useEffect(() => {
+    if (screen === 'game' && !previewing) {
+      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+      return () => clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [screen, previewing]);
+
+  const totalPairs = DIFF[difficulty]?.pairs || 6;
+
+  const startGame = React.useCallback((diff) => {
+    setDifficulty(diff);
+    const d = generateDeck(cardType, DIFF[diff].pairs);
+    setDeck(d); setFlipped([]); setMatched(new Set()); setMoves(0); setSeconds(0);
+    setLocked(false); setProgressMsg(''); setShowConfetti(false); setScreen('game');
+    if (diff === 'easy') {
+      setPreviewing(true); setLocked(true);
+      setTimeout(() => { setPreviewing(false); setLocked(false); }, 2000);
+    }
+  }, [cardType]);
+
+  const handleFlip = React.useCallback((index) => {
+    if (locked || flipped.includes(index) || matched.has(deck[index]?.key)) return;
+    const nf = [...flipped, index];
+    setFlipped(nf);
+    if (nf.length === 2) {
+      setMoves(m => m + 1);
+      setLocked(true);
+      const [a, b] = nf;
+      if (deck[a].key === deck[b].key) {
+        setTimeout(() => {
+          setMatched(prev => {
+            const next = new Set(prev); next.add(deck[a].key);
+            if (next.size === DIFF[difficulty].pairs) setTimeout(() => completeGame(), 400);
+            return next;
+          });
+          setProgressMsg(MSGS[Math.floor(Math.random() * MSGS.length)]);
+          setTimeout(() => setProgressMsg(''), 1500);
+          setFlipped([]); setLocked(false);
+        }, 400);
+      } else {
+        setTimeout(() => { setFlipped([]); setLocked(false); }, 1000);
+      }
+    }
+  }, [locked, flipped, matched, deck, difficulty]);
+
+  const completeGame = React.useCallback(() => {
+    clearInterval(timerRef.current);
+    const m = movesRef.current, s = secondsRef.current;
+    const pairs = DIFF[difficulty].pairs;
+    const ratio = pairs / Math.max(m, 1);
+    const tb = Math.max(0, 300 - s * 2);
+    const dm = difficulty === 'hard' ? 1.5 : difficulty === 'normal' ? 1 : 0.7;
+    const sc = Math.round((ratio * 800 + tb) * dm);
+    const st = ratio >= 0.8 ? '⭐⭐⭐' : ratio >= 0.5 ? '⭐⭐' : '⭐';
+    setScore(sc); setStars(st); setShowConfetti(true); setScreen('result');
+    setTimeout(() => setShowConfetti(false), 4000);
+    setHistory(prev => [{ diff:difficulty, type:cardType, moves:m, time:s, score:sc, stars:st, date:new Date().toISOString() }, ...prev].slice(0,20));
+  }, [difficulty, cardType]);
+
+  const goBack = () => { clearInterval(timerRef.current); setScreen('select'); };
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const typeInfo = TYPE_INFO[cardType];
+
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes matchPop{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8 }}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🃏 記憶マッチング</span>
+        </div>
+        {screen === 'game' && <div style={{ display:'flex', gap:6 }}>
+          <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#888', padding:'3px 10px', borderRadius:50 }}>{typeInfo.label}</span>
+          <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#888', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+        </div>}
+      </div>
+
+      {/* STATUS */}
+      {screen === 'game' && <div style={{ display:'flex', justifyContent:'center', gap:24, padding:'14px 20px', background:'white', borderBottom:'1px solid #F0F0F0' }}>
+        {[{v:matched.size+'/'+totalPairs, l:'マッチ', c:'#FF6B35'}, {v:moves, l:'タップ数', c:'#2EC4B6'}, {v:formatTime(seconds), l:'時間', c:'#FF6B35'}].map((s,i) =>
+          <div key={i} style={{textAlign:'center'}}><div style={{fontFamily:'Outfit',fontSize:24,fontWeight:800,color:s.c}}>{s.v}</div><div style={{fontSize:10,color:'#9E9E9E',marginTop:2}}>{s.l}</div></div>
+        )}
+      </div>}
+
+      {/* SELECT */}
+      {screen === 'select' && <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+        <div style={{ fontSize:64, marginBottom:16, animation:'bounce 3s ease-in-out infinite' }}>🃏</div>
+        <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:6 }}>記憶マッチング</div>
+        <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:28, lineHeight:1.9 }}>カードをめくって同じペアを見つけよう！<br/>カードの種類と難易度を選んでスタート。</div>
+
+        <div style={{ width:'100%', maxWidth:480, marginBottom:28 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>🎴 カードの種類</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+            {Object.entries(TYPE_INFO).map(([k,info]) => (
+              <button key={k} onClick={() => setCardType(k)} style={{...btnBase, padding:'14px 10px', borderRadius:16, border:`3px solid ${cardType===k?'#2EC4B6':'#E8E8E8'}`, background:cardType===k?'#E0F7FA':'white', textAlign:'center' }}>
+                <div style={{ fontSize:28, marginBottom:4 }}>{info.icon}</div>
+                <div style={{ fontSize:16, fontWeight:700 }}>{info.label}</div>
+                <div style={{ fontSize:10, color:'#6B6B6B', marginTop:2 }}>{info.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ width:'100%', maxWidth:480 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {Object.entries(DIFF).map(([k,d]) => (
+              <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'2px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left' }}>
+                <span style={{ fontSize:26 }}>{d.emoji}</span>
+                <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {history.length > 0 && <div style={{ width:'100%', maxWidth:480, marginTop:32, textAlign:'left' }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+          {history.slice(0,5).map((h,i) => {
+            const hc = DIFF[h.diff], ht = TYPE_INFO[h.type]||{label:'?'};
+            const d = new Date(h.date);
+            return <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                <div><div style={{fontSize:12,fontWeight:700}}>{ht.label}・{hc.label}</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+              </div>
+              <div style={{textAlign:'right'}}><div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#E8652E'}}>{h.score}pt</div><div style={{fontSize:10,color:'#9E9E9E'}}>{h.stars} {formatTime(h.time)}</div></div>
+            </div>;
+          })}
+        </div>}
+      </div>}
+
+      {/* GAME */}
+      {screen === 'game' && <div>
+        <div style={{ textAlign:'center', padding:6, fontSize:14, fontWeight:700, color:'#2EC4B6', minHeight:32, opacity:progressMsg?1:0, transition:'opacity 0.3s' }}>{progressMsg||'\u00A0'}</div>
+        <div style={{ padding:12, maxWidth:600, margin:'0 auto' }}>
+          <div style={{ display:'grid', gridTemplateColumns:`repeat(${cfg.cols},1fr)`, gap:cfg.cols<=2?12:cfg.cols>=5?6:10, maxWidth:cfg.cols===2?280:undefined, margin:cfg.cols===2?'0 auto':undefined }}>
+            {deck.map((card, i) => {
+              const isFlipped = flipped.includes(i) || matched.has(card.key) || previewing;
+              const isMatched = matched.has(card.key);
+              return <div key={card.uid+i} onClick={() => handleFlip(i)} style={{ aspectRatio:'1', borderRadius:16, cursor:'pointer', perspective:800, WebkitTapHighlightColor:'transparent' }}>
+                <div style={{ width:'100%', height:'100%', transition:'transform 0.5s cubic-bezier(0.4,0,0.2,1)', transformStyle:'preserve-3d', position:'relative', transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)', animation:isMatched?'matchPop 0.4s ease-out':undefined }}>
+                  <div style={{ position:'absolute', inset:0, borderRadius:16, display:'flex', alignItems:'center', justifyContent:'center', backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden', background:'linear-gradient(135deg,#FF6B35,#FF8F5E)', boxShadow:'0 4px 16px rgba(255,107,53,0.2)', fontFamily:'Outfit', fontWeight:800, fontSize:cfg.cols===2?36:28, color:'rgba(255,255,255,0.5)' }}>?</div>
+                  <div style={{ position:'absolute', inset:0, borderRadius:16, display:'flex', alignItems:'center', justifyContent:'center', backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden', transform:'rotateY(180deg)', background:isMatched?'#F1F8E9':'white', border:`3px solid ${isMatched?'#66BB6A':'#E8E8E8'}`, boxShadow:'0 4px 16px rgba(0,0,0,0.06)', fontSize:cfg.cols===2?52:40, overflow:'hidden' }}>
+                    <CardContent card={card} />
+                  </div>
+                </div>
+              </div>;
+            })}
+          </div>
+        </div>
+      </div>}
+
+      {/* RESULT */}
+      {screen === 'result' && <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'calc(100vh - 56px)', padding:'30px 20px', textAlign:'center' }}>
+        <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+        <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:8, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{stars==='⭐⭐⭐'?'すばらしい！':stars==='⭐⭐'?'よくできました！':'クリア！'}</div>
+        <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:28, animation:'fadeUp 0.6s ease-out 0.2s both' }}>{typeInfo.label}・{cfg.label}モード・全{totalPairs}ペアクリア</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:32, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+          {[{v:moves,l:'タップ数'},{v:formatTime(seconds),l:'クリアタイム'},{v:score,l:'スコア'}].map((s,i) =>
+            <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+              <div style={{ fontFamily:'Outfit', fontSize:26, fontWeight:800, color:'#E8652E' }}>{s.v}</div>
+              <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+            </div>
+          )}
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+          <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60 }}>もう一度プレイ 🔄</button>
+          <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60 }}>設定を変える</button>
+        </div>
+      </div>}
+
+      <Confetti active={showConfetti} />
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

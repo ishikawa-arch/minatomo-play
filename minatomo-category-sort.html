@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>カテゴリ分け | みなともPlay</title>
+<meta name="description" content="ことばを正しく分類 - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+const CATEGORIES = [
+  { id:'animal', name:'どうぶつ', emoji:'🐾', color:'#FF6D00', bg:'#FFF3E0',
+    items:['いぬ','ねこ','うさぎ','さる','ぞう','きりん','くま','うま','ひつじ','ぶた','たぬき','りす'] },
+  { id:'fruit', name:'くだもの', emoji:'🍎', color:'#E53935', bg:'#FFEBEE',
+    items:['りんご','みかん','バナナ','ぶどう','いちご','もも','すいか','メロン','かき','なし','キウイ','さくらんぼ'] },
+  { id:'veg', name:'やさい', emoji:'🥬', color:'#43A047', bg:'#E8F5E9',
+    items:['にんじん','キャベツ','トマト','たまねぎ','きゅうり','なす','ピーマン','だいこん','ほうれんそう','ブロッコリー','レタス','かぼちゃ'] },
+  { id:'vehicle', name:'のりもの', emoji:'🚗', color:'#1E88E5', bg:'#E3F2FD',
+    items:['くるま','でんしゃ','ひこうき','ふね','バス','じてんしゃ','タクシー','しんかんせん','バイク','ヘリコプター','トラック','ロケット'] },
+  { id:'body', name:'からだ', emoji:'🦴', color:'#7B1FA2', bg:'#F3E5F5',
+    items:['あたま','て','あし','め','みみ','はな','くち','ゆび','ひざ','かた','せなか','おなか'] },
+  { id:'weather', name:'てんき', emoji:'🌤️', color:'#00ACC1', bg:'#E0F7FA',
+    items:['はれ','くもり','あめ','ゆき','かぜ','かみなり','にじ','きり','たいふう','ひょう','あられ','つゆ'] },
+  { id:'clothes', name:'ふく', emoji:'👕', color:'#EC407A', bg:'#FCE4EC',
+    items:['シャツ','ズボン','スカート','くつした','ぼうし','てぶくろ','コート','セーター','マフラー','ネクタイ','ワンピース','くつ'] },
+  { id:'furniture', name:'かぐ', emoji:'🪑', color:'#795548', bg:'#EFEBE9',
+    items:['いす','つくえ','ベッド','たんす','ソファ','ほんだな','テーブル','れいぞうこ','せんたくき','テレビ','とけい','かがみ'] },
+  { id:'job', name:'おしごと', emoji:'👨‍⚕️', color:'#5C6BC0', bg:'#E8EAF6',
+    items:['いしゃ','かんごし','せんせい','けいさつ','しょうぼうし','コック','うんてんしゅ','のうか','びようし','やきゅうせんしゅ','うたがしゅ','だいく'] },
+  { id:'instrument', name:'がっき', emoji:'🎵', color:'#F4511E', bg:'#FBE9E7',
+    items:['ピアノ','ギター','たいこ','バイオリン','フルート','トランペット','ハーモニカ','ウクレレ','てっきん','カスタネット','リコーダー','すず'] },
+];
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'2カテゴリ・4個ずつ', catCount:2, itemsPerCat:4, rounds:5, itemTime:0 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'3カテゴリ・5個ずつ', catCount:3, itemsPerCat:5, rounds:5, itemTime:0 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'4カテゴリ・5個・1問3秒', catCount:4, itemsPerCat:5, rounds:5, itemTime:3 },
+};
+
+// Pairs of confusing categories (tend to appear together in hard mode)
+const CONFUSING_PAIRS = [
+  ['fruit','veg'],       // りんご vs トマト
+  ['animal','body'],     // うま vs あし
+  ['clothes','furniture'], // ネクタイ vs かがみ
+  ['weather','body'],    // かぜ vs はな
+  ['job','instrument'],  // うたがしゅ vs ギター
+];
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+function generateRound(diff) {
+  const cfg = DIFF[diff];
+  let cats;
+
+  if (diff === 'hard' && Math.random() < 0.7) {
+    // Force at least one confusing pair
+    const pair = CONFUSING_PAIRS[Math.floor(Math.random() * CONFUSING_PAIRS.length)];
+    const pairCats = pair.map(id => CATEGORIES.find(c => c.id === id)).filter(Boolean);
+    const remaining = shuffle(CATEGORIES.filter(c => !pair.includes(c.id))).slice(0, cfg.catCount - pairCats.length);
+    cats = shuffle([...pairCats, ...remaining]);
+  } else {
+    cats = shuffle(CATEGORIES).slice(0, cfg.catCount);
+  }
+
+  const items = [];
+  cats.forEach(cat => {
+    const selected = shuffle(cat.items).slice(0, cfg.itemsPerCat);
+    selected.forEach(name => items.push({ name, catId: cat.id }));
+  });
+  return { cats, items: shuffle(items), totalItems: items.length };
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    rounds: [],
+    currentR: 0,
+    score: 0,
+    correct: 0,
+    // Current item index in queue
+    currentItem: 0,
+    // Sorted results per bin: { catId: [items] }
+    bins: {},
+    feedback: null, // null | 'correct' | 'wrong'
+    feedbackCat: null,
+    results: [],
+    timeLeft: 0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => { clearInterval(timerRef.current); clearTimeout(timerRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff));
+    g.rounds = rounds;
+    g.currentR = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.results = [];
+    setShowConfetti(false);
+    setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    const cfg = DIFF[diff || difficulty];
+    g.currentR = idx;
+    g.currentItem = 0;
+    g.bins = {};
+    g.rounds[idx].cats.forEach(c => g.bins[c.id] = []);
+    g.feedback = null;
+    g.feedbackCat = null;
+    g.timeLeft = cfg.itemTime || 0;
+    g.phase = 'sorting';
+    rerender();
+    if (cfg.itemTime > 0) startItemTimer(cfg.itemTime);
+  };
+
+  const startItemTimer = (seconds) => {
+    g.timeLeft = seconds;
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      g.timeLeft--;
+      rerender();
+      if (g.timeLeft <= 0) {
+        clearInterval(timerRef.current);
+        // Time's up for this item - count as wrong, move on
+        const round = g.rounds[g.currentR];
+        const item = round.items[g.currentItem];
+        if (item && !g.feedback) {
+          g.feedback = 'timeout';
+          g.feedbackCat = round.cats.find(c => c.id === item.catId)?.name;
+          g.score = Math.max(0, g.score - 3);
+          rerender();
+          timerRef.current = setTimeout(() => {
+            g.feedback = null;
+            g.feedbackCat = null;
+            g.currentItem++;
+            if (g.currentItem >= round.items.length) endRound();
+            else { startItemTimer(seconds); rerender(); }
+          }, 1000);
+        }
+      }
+    }, 1000);
+  };
+
+  const cfg_ref = React.useRef(null);
+  cfg_ref.current = DIFF[difficulty];
+
+  const sortItem = (catId) => {
+    if (g.feedback || g.currentItem >= g.rounds[g.currentR].items.length) return;
+    clearInterval(timerRef.current);
+    const round = g.rounds[g.currentR];
+    const item = round.items[g.currentItem];
+    const isCorrect = item.catId === catId;
+
+    g.bins[catId].push({ ...item, correct: isCorrect });
+
+    if (isCorrect) {
+      g.score += 10;
+      g.feedback = 'correct';
+    } else {
+      g.score = Math.max(0, g.score - 3);
+      g.feedback = 'wrong';
+      g.feedbackCat = round.cats.find(c => c.id === item.catId)?.name;
+    }
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.feedback = null;
+      g.feedbackCat = null;
+      g.currentItem++;
+      if (g.currentItem >= round.items.length) {
+        endRound();
+      } else {
+        const itemTime = cfg_ref.current?.itemTime || 0;
+        if (itemTime > 0) startItemTimer(itemTime);
+        rerender();
+      }
+    }, isCorrect ? 400 : 1000);
+  };
+
+  const endRound = () => {
+    clearInterval(timerRef.current);
+    const round = g.rounds[g.currentR];
+    const sorted = Object.values(g.bins).flat();
+    const correctCount = sorted.filter(it => it.correct).length;
+    const perfect = correctCount === round.totalItems && g.currentItem >= round.items.length;
+    if (perfect) g.correct++;
+    g.results.push({ round, bins: { ...g.bins }, correctCount, total: round.totalItems, perfect, itemsSorted: g.currentItem });
+    g.phase = 'round-end';
+    rerender();
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    clearInterval(timerRef.current);
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.rounds.length;
+    if (pct >= 0.6) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.rounds.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearInterval(timerRef.current); clearTimeout(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes slideIn{from{opacity:0;transform:translateY(-20px) scale(0.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🗂️ カテゴリ分け</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🗂️</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>カテゴリ分け</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>ことばを正しいグループに<br/>すばやく分けよう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 意味記憶・カテゴリ流暢性のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 画面上にことばが1つずつ出てきます<br/>
+              ② 下のカテゴリボタンをタップして分類<br/>
+              ③ 「りんご」→ くだもの？やさい？<br/>
+              ④ 正しいグループにすばやく入れよう！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📝 10種類のカテゴリからランダムに出題</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center' }}>
+              {CATEGORIES.map(c => (
+                <span key={c.id} style={{ fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:50, background:c.bg, color:c.color }}>{c.emoji} {c.name}</span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}パーフェクト</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'10px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+              {[
+                {v:g.score,l:'スコア',c:'#FF6B35'},
+                {v:(g.currentR+1)+'/'+g.rounds.length,l:'ラウンド',c:'#7B1FA2'},
+                ...(cfg.itemTime > 0 && g.phase === 'sorting' && !g.feedback ? [{v:g.timeLeft+'秒',l:'残り',c:g.timeLeft<=1?'#E53935':'#6B6B6B'}] : []),
+              ].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:s.c, animation:s.l==='残り'&&g.timeLeft<=1?'pulse 0.3s infinite':undefined }}>{s.v}</div>
+                  <div style={{ fontSize:8, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Progress */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', gap:3, marginBottom:8 }}>
+              {g.rounds.map((_,i) => (
+                <div key={i} style={{ flex:1, height:5, borderRadius:3, background: i < g.results.length ? (g.results[i].perfect ? '#66BB6A' : '#EF5350') : i === g.currentR ? '#FFB74D' : '#E8E8E8' }} />
+              ))}
+            </div>
+          )}
+
+          {/* SORTING */}
+          {g.phase === 'sorting' && (() => {
+            const round = g.rounds[g.currentR];
+            const currentItemData = g.currentItem < round.items.length ? round.items[g.currentItem] : null;
+            const remaining = round.items.length - g.currentItem;
+
+            return (
+              <div>
+                {/* Timer bar */}
+                {cfg.itemTime > 0 && !g.feedback && (
+                  <div style={{ width:'100%', height:5, background:'#E8E8E8', borderRadius:3, marginBottom:8, overflow:'hidden' }}>
+                    <div style={{ width:(g.timeLeft/cfg.itemTime*100)+'%', height:'100%', background:g.timeLeft<=1?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:3, transition:'width 0.3s linear' }} />
+                  </div>
+                )}
+
+                {/* Item counter */}
+                <div style={{ textAlign:'center', marginBottom:6 }}>
+                  <span style={{ fontSize:11, color:'#9E9E9E' }}>のこり {remaining}個</span>
+                </div>
+
+                {/* Current item to sort */}
+                {currentItemData && (
+                  <div style={{ background:'white', borderRadius:20, padding:'24px 20px', boxShadow:'0 4px 24px rgba(0,0,0,0.08)', marginBottom:16, textAlign:'center', animation:'slideIn 0.3s ease-out' }} key={g.currentItem}>
+                    <div style={{ fontSize:36, fontWeight:900, color:'#2D2D2D', letterSpacing:4 }}>
+                      {currentItemData.name}
+                    </div>
+                    <div style={{ fontSize:12, color:'#9E9E9E', marginTop:6 }}>↓ どのカテゴリ？</div>
+                  </div>
+                )}
+
+                {/* Feedback overlay */}
+                {g.feedback && (
+                  <div style={{ textAlign:'center', marginBottom:10, animation:'fadeUp 0.2s ease-out' }}>
+                    {g.feedback === 'correct' ? (
+                      <span style={{ fontSize:14, fontWeight:900, color:'#2E7D32' }}>✅</span>
+                    ) : g.feedback === 'timeout' ? (
+                      <span style={{ fontSize:16, fontWeight:700, color:'#E65100' }}>
+                        ⏰ 時間切れ！→「{g.feedbackCat}」
+                      </span>
+                    ) : (
+                      <span style={{ fontSize:16, fontWeight:700, color:'#C62828' }}>
+                        ❌ 「{g.feedbackCat}」でした
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Category bins */}
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  {round.cats.map(cat => {
+                    const binItems = g.bins[cat.id] || [];
+                    return (
+                      <button key={cat.id} onClick={() => sortItem(cat.id)} disabled={!!g.feedback}
+                        style={{
+                          ...btnBase, padding:'16px', borderRadius:16, textAlign:'left',
+                          background:cat.bg, border:`3px solid ${cat.color}22`,
+                          display:'flex', alignItems:'center', gap:12,
+                          opacity: g.feedback ? 0.6 : 1,
+                        }}>
+                        <div style={{ fontSize:28, flexShrink:0 }}>{cat.emoji}</div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:16, fontWeight:900, color:cat.color }}>{cat.name}</div>
+                          {binItems.length > 0 && (
+                            <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:4 }}>
+                              {binItems.map((it,j) => (
+                                <span key={j} style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:50, background:it.correct?'#C8E6C9':'#FFCDD2', color:it.correct?'#2E7D32':'#C62828' }}>
+                                  {it.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:cat.color, flexShrink:0 }}>
+                          {binItems.length}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ROUND END */}
+          {g.phase === 'round-end' && (() => {
+            const result = g.results[g.results.length - 1];
+            const round = g.rounds[g.currentR];
+
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ textAlign:'center', marginBottom:14 }}>
+                  <div style={{ fontSize:42, marginBottom:6 }}>{result.perfect ? '🎉' : '🤔'}</div>
+                  <div style={{ fontSize:20, fontWeight:900, color:result.perfect?'#2E7D32':'#E65100' }}>
+                    {result.perfect ? 'パーフェクト！' : `${result.correctCount}/${result.total} 正解`}
+                  </div>
+                </div>
+
+                {/* Show bins with results */}
+                {round.cats.map(cat => {
+                  const binItems = result.bins[cat.id] || [];
+                  const correctItems = round.items.filter(it => it.catId === cat.id);
+                  return (
+                    <div key={cat.id} style={{ background:cat.bg, borderRadius:14, padding:'12px 14px', marginBottom:8, border:`2px solid ${cat.color}33` }}>
+                      <div style={{ fontSize:14, fontWeight:900, color:cat.color, marginBottom:6 }}>{cat.emoji} {cat.name}</div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                        {correctItems.map((it,j) => {
+                          const wasSorted = binItems.some(b => b.name === it.name && b.correct);
+                          const wronglySorted = binItems.some(b => b.name === it.name && !b.correct);
+                          return (
+                            <span key={j} style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:50, background:wasSorted?'#C8E6C9':wronglySorted?'#FFCDD2':'#FFF3E0', color:wasSorted?'#2E7D32':wronglySorted?'#C62828':'#E65100' }}>
+                              {it.name} {wasSorted ? '✅' : '✗'}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      {/* Show wrongly placed items */}
+                      {binItems.filter(b => !b.correct).length > 0 && (
+                        <div style={{ marginTop:4, display:'flex', flexWrap:'wrap', gap:4 }}>
+                          {binItems.filter(b => !b.correct).map((b,j) => (
+                            <span key={j} style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:50, background:'#FFCDD2', color:'#C62828' }}>
+                              ❌{b.name}（ここじゃない）
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                <button onClick={nextRound} style={{...btnBase, marginTop:12, width:'100%', fontSize:15, fontWeight:700, padding:'16px', borderRadius:50, background:result.perfect?'#66BB6A':'#FF6B35', border:'none', color:'white'}}>
+                  {g.currentR+1 >= g.rounds.length ? '結果を見る →' : '次のラウンドへ →'}
+                </button>
+              </div>
+            );
+          })()}
+
+          <div style={{ height:24 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.8 ? '⭐⭐⭐' : pct >= 0.4 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.8 ? 'すばらしい分類力！' : pct >= 0.4 ? 'よくできました！' : 'もう一度挑戦！';
+        const totalCorrect = g.results.reduce((s,r) => s + r.correctCount, 0);
+        const totalItems = g.results.reduce((s,r) => s + r.total, 0);
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'パーフェクト'},{v:`${totalCorrect}/${totalItems}`,l:'正しく分類'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 結果の振り返り</div>
+              {g.results.map((r, i) => (
+                <div key={i} style={{ background:r.perfect?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:6, borderLeft:`4px solid ${r.perfect?'#66BB6A':'#FF6B35'}`, textAlign:'left' }}>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:4 }}>
+                    {r.perfect ? '✅' : '❌'} ラウンド{i+1} — {r.correctCount}/{r.total}正解
+                  </div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                    {r.round.cats.map(c => (
+                      <span key={c.id} style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:50, background:c.bg, color:c.color }}>
+                        {c.emoji}{c.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 カテゴリ分けのコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                ことばを聞いたらまず「食べられる？」「生きてる？」「使うもの？」と大きなグループから絞り込むと、素早く正しいカテゴリにたどり着けます。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

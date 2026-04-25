@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>かたちパズル | みなともPlay</title>
+<meta name="description" content="形の識別・合成・パターン - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+// Shape definitions with CSS rendering
+const SHAPES = {
+  circle:    { name:'まる', sides:0, color:'#E53935' },
+  triangle:  { name:'さんかく', sides:3, color:'#FF6B35' },
+  square:    { name:'しかく', sides:4, color:'#1E88E5' },
+  diamond:   { name:'ひしがた', sides:4, color:'#7B1FA2' },
+  pentagon:  { name:'ごかく', sides:5, color:'#00ACC1' },
+  hexagon:   { name:'ろっかく', sides:6, color:'#43A047' },
+  star:      { name:'ほし', sides:10, color:'#F9A825' },
+  heart:     { name:'ハート', sides:0, color:'#EC407A' },
+  cross:     { name:'じゅうじ', sides:12, color:'#5D4037' },
+  semicircle:{ name:'はんえん', sides:0, color:'#FF7043' },
+};
+
+function ShapeView({ shape, size, color, rotation, opacity }) {
+  const s = size || 60;
+  const c = color || SHAPES[shape]?.color || '#999';
+  const r = rotation || 0;
+  const o = opacity !== undefined ? opacity : 1;
+  const common = { width:s, height:s, display:'inline-flex', alignItems:'center', justifyContent:'center', transform:`rotate(${r}deg)`, opacity:o, transition:'all 0.3s' };
+
+  if (shape === 'circle') return (
+    <div style={{ ...common, borderRadius:'50%', background:c }} />
+  );
+  if (shape === 'triangle') return (
+    <div style={{ ...common, background:'transparent' }}>
+      <div style={{ width:0, height:0, borderLeft:`${s/2}px solid transparent`, borderRight:`${s/2}px solid transparent`, borderBottom:`${s*0.87}px solid ${c}` }} />
+    </div>
+  );
+  if (shape === 'square') return (
+    <div style={{ ...common, borderRadius:s*0.08, background:c }} />
+  );
+  if (shape === 'diamond') return (
+    <div style={{ ...common, transform:`rotate(${r+45}deg)`, borderRadius:s*0.08, background:c, width:s*0.7, height:s*0.7 }} />
+  );
+  if (shape === 'pentagon') {
+    const pts = Array.from({length:5},(_,i)=>{const a=Math.PI*2*i/5-Math.PI/2;return `${50+48*Math.cos(a)}% ${50+48*Math.sin(a)}%`;}).join(',');
+    return <div style={{ ...common, background:c, clipPath:`polygon(${pts})` }} />;
+  }
+  if (shape === 'hexagon') {
+    const pts = Array.from({length:6},(_,i)=>{const a=Math.PI*2*i/6-Math.PI/2;return `${50+48*Math.cos(a)}% ${50+48*Math.sin(a)}%`;}).join(',');
+    return <div style={{ ...common, background:c, clipPath:`polygon(${pts})` }} />;
+  }
+  if (shape === 'star') {
+    const pts = Array.from({length:10},(_,i)=>{const a=Math.PI*2*i/10-Math.PI/2;const r2=i%2===0?48:20;return `${50+r2*Math.cos(a)}% ${50+r2*Math.sin(a)}%`;}).join(',');
+    return <div style={{ ...common, background:c, clipPath:`polygon(${pts})` }} />;
+  }
+  if (shape === 'heart') return (
+    <div style={{ ...common, fontSize:s*0.8, lineHeight:1 }}>
+      <span style={{ color:c }}>♥</span>
+    </div>
+  );
+  if (shape === 'cross') return (
+    <div style={{ ...common, background:'transparent', position:'relative' }}>
+      <div style={{ position:'absolute', width:s*0.3, height:s*0.85, background:c, borderRadius:s*0.05, left:'50%', top:'50%', transform:'translate(-50%,-50%)' }} />
+      <div style={{ position:'absolute', width:s*0.85, height:s*0.3, background:c, borderRadius:s*0.05, left:'50%', top:'50%', transform:'translate(-50%,-50%)' }} />
+    </div>
+  );
+  if (shape === 'semicircle') return (
+    <div style={{ ...common, width:s, height:s/2, borderRadius:`${s}px ${s}px 0 0`, background:c }} />
+  );
+  return <div style={{ ...common, background:'#ccc', borderRadius:4 }} />;
+}
+
+// ========== QUESTION GENERATORS ==========
+
+const BASIC_SHAPES = ['circle','triangle','square','diamond','star','heart'];
+const ALL_SHAPES = Object.keys(SHAPES);
+
+// Mode 1: Name this shape
+function genNameShape() {
+  const shape = BASIC_SHAPES[Math.floor(Math.random() * BASIC_SHAPES.length)];
+  const wrongs = shuffle(BASIC_SHAPES.filter(s => s !== shape)).slice(0,3).map(s => SHAPES[s].name);
+  const color = shuffle(['#5C6BC0','#26A69A','#EF5350','#FF7043','#AB47BC'])[0];
+  return {
+    mode:'name', question:'このかたちの名前は？',
+    visual:{ shapes:[{ shape, size:90, color }] },
+    answer:SHAPES[shape].name,
+    opts:shuffle([SHAPES[shape].name, ...wrongs]).map(n => ({ label:n })),
+  };
+}
+
+// Mode 2: Find the same shape
+function genFindSame() {
+  const target = ALL_SHAPES[Math.floor(Math.random() * ALL_SHAPES.length)];
+  const wrongs = shuffle(ALL_SHAPES.filter(s => s !== target)).slice(0,3);
+  // All same color so you must judge by shape alone
+  const uniformColor = shuffle(['#5C6BC0','#26A69A','#EF5350','#FF7043','#AB47BC'])[0];
+  const opts = shuffle([target, ...wrongs]).map(s => ({ shape:s, color:uniformColor }));
+  return {
+    mode:'same', question:'上と同じかたちはどれ？',
+    visual:{ shapes:[{ shape:target, size:80, color:uniformColor }] },
+    answer:target,
+    shapeOpts:opts,
+  };
+}
+
+// Mode 3: Count shapes - all same color, identify by shape
+function genCountShapes() {
+  const targetShape = BASIC_SHAPES[Math.floor(Math.random() * BASIC_SHAPES.length)];
+  const targetCount = 2 + Math.floor(Math.random() * 4); // 2-5
+  const otherShapes = shuffle(BASIC_SHAPES.filter(s => s !== targetShape)).slice(0,2);
+  const allItems = [];
+  for (let i = 0; i < targetCount; i++) allItems.push(targetShape);
+  const otherCount = 3 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < otherCount; i++) allItems.push(otherShapes[i % otherShapes.length]);
+
+  // All same color - must count by shape
+  const uniformColor = shuffle(['#5C6BC0','#26A69A','#EF5350','#FF7043','#AB47BC'])[0];
+  const wrongs = [targetCount-1, targetCount+1, targetCount+2].filter(v=>v>=1&&v!==targetCount);
+  return {
+    mode:'count', question:`${SHAPES[targetShape].name}はいくつある？`,
+    visual:{ shapes:shuffle(allItems).map(s => ({ shape:s, size:36, color:uniformColor })) },
+    answer:targetCount+'こ',
+    opts:shuffle([String(targetCount), ...wrongs.map(String)].slice(0,4)).map(n => ({ label:n+'こ' })),
+  };
+}
+
+// Mode 4: Odd one out - all same color
+function genOddOneOut() {
+  const mainShape = ALL_SHAPES[Math.floor(Math.random() * ALL_SHAPES.length)];
+  let oddShape;
+  do { oddShape = ALL_SHAPES[Math.floor(Math.random() * ALL_SHAPES.length)]; } while (oddShape === mainShape);
+
+  const count = 3 + Math.floor(Math.random() * 2); // 3-4 same
+  const items = [];
+  const uniformColor = shuffle(['#5C6BC0','#26A69A','#EF5350','#FF7043','#AB47BC'])[0];
+  for (let i = 0; i < count; i++) items.push({ shape:mainShape, id:i });
+  const oddIdx = Math.floor(Math.random() * (count + 1));
+  items.splice(oddIdx, 0, { shape:oddShape, id:'odd' });
+
+  return {
+    mode:'odd', question:'ひとつだけ違うのはどれ？',
+    visual:{ shapes:items.map(it => ({ shape:it.shape, size:50, color:uniformColor })) },
+    answer:oddShape,
+    oddIdx,
+    items,
+    uniformColor,
+  };
+}
+
+// Mode 5: How many sides?
+function genCountSides() {
+  const candidates = ['triangle','square','pentagon','hexagon'];
+  const shape = candidates[Math.floor(Math.random() * candidates.length)];
+  const correct = SHAPES[shape].sides;
+  const color = shuffle(['#5C6BC0','#26A69A','#EF5350','#FF7043','#AB47BC'])[0];
+  const wrongs = [correct-1, correct+1, correct+2].filter(v=>v>=2&&v!==correct);
+  return {
+    mode:'sides', question:'このかたちの辺はいくつ？',
+    visual:{ shapes:[{ shape, size:90, color }] },
+    answer:correct+'本',
+    opts:shuffle([String(correct), ...wrongs.map(String)].slice(0,4)).map(n => ({ label:n+'本' })),
+  };
+}
+
+// Mode 6: What's missing in the pattern? All same color
+function genPattern() {
+  const pool = shuffle([...BASIC_SHAPES]).slice(0,3);
+  const pattern = [...pool, ...pool, pool[0], pool[1]];
+  const answer = pool[2];
+  const wrongs = shuffle(BASIC_SHAPES.filter(s => s !== answer)).slice(0,3);
+  const uniformColor = shuffle(['#5C6BC0','#26A69A','#EF5350','#FF7043','#AB47BC'])[0];
+  return {
+    mode:'pattern', question:'？に入るかたちは？',
+    visual:{ shapes:pattern.map(s => ({ shape:s, size:34, color:uniformColor })), showQ:true },
+    answer,
+    shapeOpts:shuffle([answer, ...wrongs]).map(s => ({ shape:s, color:uniformColor })),
+  };
+}
+
+// Mode 7: Rotation - same or different? Same color for both
+function genRotation() {
+  const shape = shuffle(['triangle','diamond','heart','star','cross','semicircle'])[0];
+  const isSame = Math.random() < 0.5;
+  let compareShape = shape;
+  if (!isSame) {
+    const others = ALL_SHAPES.filter(s => s !== shape);
+    compareShape = others[Math.floor(Math.random() * others.length)];
+  }
+  const rot = [90, 180, 270][Math.floor(Math.random() * 3)];
+  const uniformColor = shuffle(['#5C6BC0','#26A69A','#EF5350','#FF7043','#AB47BC'])[0];
+  return {
+    mode:'rotation', question:'回転させたら同じかたち？',
+    visual:{ shapes:[
+      { shape, size:70, color:uniformColor },
+      { shape:compareShape, size:70, color:uniformColor, rotation:rot },
+    ]},
+    answer:isSame ? '同じ' : '違う',
+    opts:[{ label:'同じ', emoji:'⭕' }, { label:'違う', emoji:'❌' }],
+  };
+}
+
+// Mode 8: Big + small combination - neutral colors
+function genCombine() {
+  const outer = shuffle(['circle','square'])[0];
+  const inner = shuffle(BASIC_SHAPES.filter(s => s !== outer))[0];
+  const wrongs = shuffle(BASIC_SHAPES.filter(s => s !== inner && s !== outer)).slice(0,3);
+  return {
+    mode:'combine', question:`${SHAPES[outer].name}の中にあるかたちは？`,
+    visual:{ type:'nested', outer, inner, outerColor:'#B0BEC5', innerColor:'#455A64' },
+    answer:SHAPES[inner].name,
+    opts:shuffle([SHAPES[inner].name, ...wrongs.map(s => SHAPES[s].name)]).map(n => ({ label:n })),
+  };
+}
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'名前あて・数える', rounds:10, modes:['name','findSame','count'] },
+  normal: { label:'ふつう', emoji:'🌿', desc:'仲間はずれ・辺の数', rounds:12, modes:['name','findSame','count','odd','sides','combine'] },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'パターン・回転・8秒', rounds:14, modes:['findSame','count','odd','sides','pattern','rotation','combine'], timeLimit:8 },
+};
+
+function generateQ(diff) {
+  const cfg = DIFF[diff];
+  const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+  switch(mode) {
+    case 'name': return genNameShape();
+    case 'findSame': return genFindSame();
+    case 'count': return genCountShapes();
+    case 'odd': return genOddOneOut();
+    case 'sides': return genCountSides();
+    case 'pattern': return genPattern();
+    case 'rotation': return genRotation();
+    case 'combine': return genCombine();
+    default: return genNameShape();
+  }
+}
+
+const MODE_LABELS = {
+  name:{ icon:'🏷️', name:'名前あて' },
+  findSame:{ icon:'🔍', name:'同じかたち' },
+  count:{ icon:'🔢', name:'かぞえて' },
+  odd:{ icon:'🤔', name:'仲間はずれ' },
+  sides:{ icon:'📐', name:'辺の数' },
+  pattern:{ icon:'🔄', name:'パターン' },
+  rotation:{ icon:'🔀', name:'回転' },
+  combine:{ icon:'🎯', name:'組み合わせ' },
+};
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase:'idle',
+    questions:[], currentQ:0,
+    score:0, correct:0,
+    selected:null, feedback:null,
+    results:[], timeLeft:0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const questions = [];
+    for (let i = 0; i < cfg.rounds; i++) questions.push(generateQ(diff));
+    g.questions = questions; g.currentQ = 0; g.score = 0; g.correct = 0;
+    g.selected = null; g.feedback = null; g.results = [];
+    g.phase = 'playing';
+    setShowConfetti(false); setScreen('game');
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const startTimer = (sec) => {
+    g.timeLeft = sec;
+    clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      g.timeLeft--; rerender();
+      if (g.timeLeft <= 0) {
+        clearInterval(intervalRef.current);
+        if (!g.feedback) {
+          g.feedback = 'timeout';
+          g.results.push({ q:g.questions[g.currentQ], correct:false });
+          rerender();
+          timerRef.current = setTimeout(() => nextQ(), 1500);
+        }
+      }
+    }, 1000);
+  };
+
+  const handleAnswer = (val) => {
+    if (g.selected !== null || g.feedback) return;
+    clearInterval(intervalRef.current);
+    const q = g.questions[g.currentQ];
+    g.selected = val;
+    const isCorrect = val === q.answer;
+    if (isCorrect) { g.score += 10; g.correct++; g.feedback = 'correct'; }
+    else { g.feedback = 'wrong'; }
+    g.results.push({ q, correct:isCorrect });
+    rerender();
+    timerRef.current = setTimeout(() => nextQ(), isCorrect ? 600 : 1500);
+  };
+
+  const nextQ = () => {
+    if (g.currentQ+1 >= g.questions.length) { finishGame(); return; }
+    g.currentQ++; g.selected = null; g.feedback = null;
+    const cfg = DIFF[difficulty];
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const finishGame = () => {
+    clearInterval(intervalRef.current);
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, correct:g.correct, total:g.questions.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🧩 かたちパズル</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentQ+1}/{g.questions.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🧩</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>かたちパズル</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>いろいろな形を見て<br/>考えるパズル！</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 視空間認知・形の識別のトレーニングです</div>
+
+          {/* Shape gallery */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>🎨 こんなかたちが出ます</div>
+            <div style={{ display:'flex', gap:10, flexWrap:'wrap', justifyContent:'center' }}>
+              {BASIC_SHAPES.map(s => (
+                <div key={s} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                  <ShapeView shape={s} size={36} />
+                  <span style={{ fontSize:10, fontWeight:700, color:'#6B6B6B' }}>{SHAPES[s].name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12 }}>🎯 こんな問題が出ます</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {Object.entries(MODE_LABELS).slice(0,6).map(([k,m]) => (
+                <div key={k} style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#6B6B6B' }}>
+                  <span style={{ fontSize:16 }}>{m.icon}</span>
+                  <span style={{ fontWeight:700 }}>{m.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:13,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:11,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:18,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const q = g.questions[g.currentQ];
+        if (!q) return null;
+        const answered = g.selected !== null || g.feedback !== null;
+        const ml = MODE_LABELS[q.mode] || { icon:'🧩', name:'かたち' };
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status */}
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+              {[
+                {v:g.score,l:'スコア',c:'#FF6B35'},
+                {v:g.correct+'/'+(g.currentQ+(answered?1:0)),l:'正解',c:'#2EC4B6'},
+                {v:(g.currentQ+1)+'/'+g.questions.length,l:'問題',c:'#7B1FA2'},
+                ...(cfg.timeLimit && !answered ? [{v:g.timeLeft+'秒',l:'残り',c:g.timeLeft<=3?'#E53935':'#6B6B6B'}] : []),
+              ].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c, animation:s.l==='残り'&&g.timeLeft<=3?'pulse 0.3s infinite':undefined }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display:'flex', gap:2, marginBottom:8 }}>
+              {g.questions.map((_,i) => (
+                <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].correct?'#66BB6A':'#EF5350'):i===g.currentQ?'#FFB74D':'#E8E8E8' }} />
+              ))}
+            </div>
+
+            {cfg.timeLimit > 0 && !answered && (
+              <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:8, overflow:'hidden' }}>
+                <div style={{ width:(g.timeLeft/cfg.timeLimit*100)+'%', height:'100%', background:g.timeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:2, transition:'width 1s linear' }} />
+              </div>
+            )}
+
+            <div style={{ animation:'fadeUp 0.25s ease-out' }} key={g.currentQ}>
+              {/* Mode badge */}
+              <div style={{ textAlign:'center', marginBottom:6 }}>
+                <span style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', background:'#F5F5F5', padding:'4px 14px', borderRadius:50 }}>
+                  {ml.icon} {ml.name}
+                </span>
+              </div>
+
+              {/* Question + Visual */}
+              <div style={{ background:'white', borderRadius:18, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:12, textAlign:'center' }}>
+                <div style={{ fontSize:22, fontWeight:900, color:'#2D2D2D', lineHeight:1.5, marginBottom:12 }}>{q.question}</div>
+
+                {/* Visual display */}
+                {q.visual && q.visual.type === 'nested' && (
+                  <div style={{ display:'flex', justifyContent:'center', padding:'10px 0' }}>
+                    <div style={{ position:'relative', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
+                      <ShapeView shape={q.visual.outer} size={110} color={q.visual.outerColor || '#B0BEC5'} />
+                      <div style={{ position:'absolute' }}>
+                        <ShapeView shape={q.visual.inner} size={50} color={q.visual.innerColor || '#455A64'} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {q.visual && q.visual.shapes && !q.visual.showQ && (
+                  <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap', padding:'10px 0' }}>
+                    {q.visual.shapes.map((s,i) => (
+                      <ShapeView key={i} shape={s.shape} size={s.size} color={s.color} rotation={s.rotation} />
+                    ))}
+                  </div>
+                )}
+
+                {q.visual && q.visual.showQ && (
+                  <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', padding:'10px 0', alignItems:'center' }}>
+                    {q.visual.shapes.map((s,i) => (
+                      <ShapeView key={i} shape={s.shape} size={s.size} color={s.color} />
+                    ))}
+                    <div style={{ width:34, height:34, borderRadius:8, border:'3px dashed #FF6B35', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:900, color:'#FF6B35' }}>？</div>
+                  </div>
+                )}
+
+                {/* Rotation mode: show two shapes side by side */}
+                {q.mode === 'rotation' && (
+                  <div style={{ display:'flex', justifyContent:'center', gap:20, alignItems:'center', padding:'10px 0' }}>
+                    <div style={{ textAlign:'center' }}>
+                      <ShapeView shape={q.visual.shapes[0].shape} size={q.visual.shapes[0].size} color={q.visual.shapes[0].color} />
+                    </div>
+                    <span style={{ fontSize:24, color:'#9E9E9E' }}>＝？</span>
+                    <div style={{ textAlign:'center' }}>
+                      <ShapeView shape={q.visual.shapes[1].shape} size={q.visual.shapes[1].size} color={q.visual.shapes[1].color} rotation={q.visual.shapes[1].rotation} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Text options */}
+              {q.opts && (
+                <div style={{ display:'grid', gridTemplateColumns:`repeat(${q.opts.length <= 2 ? 2 : 2},1fr)`, gap:8 }}>
+                  {q.opts.map((opt,i) => {
+                    const val = opt.label;
+                    const isSelected = g.selected === val;
+                    const isCorrect = val === q.answer;
+                    return (
+                      <button key={i} onClick={() => handleAnswer(val)} disabled={answered}
+                        style={{...btnBase, fontSize:18, fontWeight:700, padding:'16px 10px', borderRadius:14, textAlign:'center',
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                          opacity:answered&&!isCorrect&&!isSelected?0.3:1,
+                          display:'flex', flexDirection:'column', alignItems:'center', gap:4,
+                          color:answered&&isCorrect?'#2E7D32':answered&&isSelected&&!isCorrect?'#C62828':'#2D2D2D'}}>
+                        {opt.emoji && <span style={{ fontSize:22 }}>{opt.emoji}</span>}
+                        {opt.label} {answered && isCorrect ? '✅' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Shape options (for findSame, pattern) */}
+              {q.shapeOpts && (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                  {q.shapeOpts.map((opt,i) => {
+                    const isSelected = g.selected === opt.shape;
+                    const isCorrect = opt.shape === q.answer;
+                    return (
+                      <button key={i} onClick={() => handleAnswer(opt.shape)} disabled={answered}
+                        style={{...btnBase, padding:'16px', borderRadius:14, textAlign:'center',
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                          opacity:answered&&!isCorrect&&!isSelected?0.3:1,
+                          display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                        <ShapeView shape={opt.shape} size={50} color={opt.color} />
+                        <span style={{ fontSize:13, fontWeight:700, color:'#6B6B6B' }}>{SHAPES[opt.shape].name}</span>
+                        {answered && isCorrect && <span>✅</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Odd one out - tap the shapes */}
+              {q.mode === 'odd' && !q.opts && !q.shapeOpts && (
+                <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
+                  {q.items.map((it,i) => {
+                    const isSelected = g.selected === it.shape && i === q.oddIdx;
+                    const isCorrect = i === q.oddIdx;
+                    return (
+                      <button key={i} onClick={() => { if (!answered) handleAnswer(it.shape); }} disabled={answered}
+                        style={{...btnBase, padding:'14px', borderRadius:14,
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':'white',
+                          opacity:answered&&!isCorrect?0.4:1 }}>
+                        <ShapeView shape={it.shape} size={50} color={q.uniformColor || '#5C6BC0'} />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {g.feedback === 'wrong' && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#C62828' }}>
+                  ❌ 正解は「{SHAPES[q.answer]?.name || q.answer}」
+                </div>
+              )}
+              {g.feedback === 'timeout' && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#E65100' }}>
+                  ⏰ 時間切れ！正解は「{SHAPES[q.answer]?.name || q.answer}」
+                </div>
+              )}
+            </div>
+            <div style={{ height:20 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.questions.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'かたち名人！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:11, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 かたちのコツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.8 }}>
+                身の回りのものを「まる、しかく、さんかく」に分けてみましょう。時計はまる、窓はしかく、おにぎりはさんかく。形を意識すると空間の認識力が上がります。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

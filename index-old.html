@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>みなともPlay - 無料リハビリゲーム</title>
+<meta name="description" content="認知症・脳卒中後のリハビリに42種類の無料ゲーム。AI認知チェックで最適なプログラムを提案。">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.8.0/Recharts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+const DOMAINS = [
+  { id:'memory', name:'記憶', icon:'🧠', color:'#FF6B35', bg:'#FFF3E0', desc:'覚えて思い出す力', full:'記憶・学習' },
+  { id:'attention', name:'注意力', icon:'👁️', color:'#1E88E5', bg:'#E3F2FD', desc:'見つける・集中する力' },
+  { id:'executive', name:'遂行', icon:'🔄', color:'#7B1FA2', bg:'#F3E5F5', desc:'判断・切り替え・計画', full:'遂行・抑制' },
+  { id:'orientation', name:'見当識', icon:'📅', color:'#43A047', bg:'#E8F5E9', desc:'日時・場所の把握' },
+  { id:'visuospatial', name:'視空間', icon:'🧩', color:'#00ACC1', bg:'#E0F7FA', desc:'空間を理解する力', full:'視空間認知' },
+  { id:'calculation', name:'計算', icon:'🔢', color:'#E53935', bg:'#FFEBEE', desc:'数を扱う力', full:'計算力' },
+  { id:'language', name:'ことば', icon:'💬', color:'#EC407A', bg:'#FCE4EC', desc:'ことばを使う力' },
+];
+
+const GAMES = [
+  { id:'memory-game', name:'記憶マッチング', domain:'memory', icon:'🃏', desc:'カードをめくって同じペアを探す', file:'games/minatomo-memory-game', diff:'3×3〜5×5' },
+  { id:'story-memory', name:'物語記憶', domain:'memory', icon:'📖', desc:'お話を読んで内容を覚える', file:'games/minatomo-story-memory', diff:'短い〜長いお話' },
+  { id:'corsi-block', name:'順番記憶', domain:'memory', icon:'🔲', desc:'光ったブロックの順番を覚える', file:'games/minatomo-corsi-block', diff:'3〜7個' },
+  { id:'digit-span', name:'数字スパン', domain:'memory', icon:'🔢', desc:'数字を正順・逆順で覚える', file:'games/minatomo-digit-span', diff:'3〜8桁' },
+  { id:'flash-memory', name:'フラッシュ記憶', domain:'memory', icon:'⚡', desc:'一瞬見えたものを記憶する', file:'games/minatomo-flash-memory', diff:'位置・アイテム・数' },
+  { id:'face-name', name:'顔と名前', domain:'memory', icon:'👤', desc:'人の顔と名前を覚える', file:'games/minatomo-face-name', diff:'3〜5人' },
+  { id:'shopping-list', name:'おかいものリスト', domain:'memory', icon:'🛒', desc:'買い物リストを覚えて探す', file:'games/minatomo-shopping-list', diff:'3〜7品' },
+  { id:'phone-memory', name:'でんごんばんごう', domain:'memory', icon:'📞', desc:'伝言の電話番号を覚える', file:'games/minatomo-phone-memory', diff:'4〜11桁' },
+  { id:'message-recall', name:'おぼえておえて', domain:'memory', icon:'💬', desc:'伝言を正確に思い出す', file:'games/minatomo-message-recall', diff:'3〜5問' },
+  { id:'rhythm-memory', name:'リズム記憶', domain:'memory', icon:'🎵', desc:'リズムを覚えて再現', file:'games/minatomo-rhythm-memory', diff:'3〜8拍' },
+  { id:'spot-diff', name:'まちがい探し', domain:'attention', icon:'🎯', desc:'2枚の絵のちがいを探す', file:'games/minatomo-spot-diff', diff:'2〜4箇所' },
+  { id:'letter-search', name:'文字さがし', domain:'attention', icon:'🔠', desc:'ターゲット文字を探す', file:'games/minatomo-letter-search', diff:'5×5〜7×7' },
+  { id:'number-compare', name:'かずくらべ', domain:'attention', icon:'⚖️', desc:'どちらが多いか素早く判断', file:'games/minatomo-number-compare', diff:'ドット〜足し算' },
+  { id:'change-detection', name:'変化検出', domain:'attention', icon:'👀', desc:'画面の変化に気づく', file:'games/minatomo-change-detection', diff:'色・位置・形' },
+  { id:'step-order', name:'手順ならべ', domain:'executive', icon:'📋', desc:'正しい手順に並べ替える', file:'games/minatomo-step-order', diff:'3〜6ステップ' },
+  { id:'stroop', name:'ストループ', domain:'executive', icon:'🔄', desc:'色と意味の矛盾に対応', file:'games/minatomo-stroop', diff:'4〜8色' },
+  { id:'category-sort', name:'カテゴリ分け', domain:'executive', icon:'🗂️', desc:'ことばを正しく分類', file:'games/minatomo-category-sort', diff:'2〜4カテゴリ' },
+  { id:'nback', name:'Nバック', domain:'executive', icon:'🔙', desc:'N個前と同じか判断', file:'games/minatomo-nback', diff:'1〜3バック' },
+  { id:'prospective-memory', name:'展望記憶', domain:'executive', icon:'🔔', desc:'予定を覚えて実行', file:'games/minatomo-prospective-memory', diff:'1〜3つの予定' },
+  { id:'date-quiz', name:'きょうは何日？', domain:'orientation', icon:'📅', desc:'日付・曜日・季節を答える', file:'games/minatomo-date-quiz', diff:'今日〜日付計算' },
+  { id:'clock-quiz', name:'時計よみクイズ', domain:'orientation', icon:'🕐', desc:'時計を読む・時間計算', file:'games/minatomo-clock-quiz', diff:'よみ〜計算' },
+  { id:'map-memory', name:'おつかいナビ', domain:'visuospatial', icon:'🗺️', desc:'地図を覚えて道案内', file:'games/minatomo-map-memory', diff:'道案内・最寄り' },
+  { id:'puzzle-rotation', name:'パズル回転', domain:'visuospatial', icon:'🧩', desc:'形を回転させて判断', file:'games/minatomo-puzzle-rotation', diff:'5〜8マス' },
+  { id:'fragment-id', name:'これなーんだ？', domain:'visuospatial', icon:'🔍', desc:'少しずつ現れる絵を当てる', file:'games/minatomo-fragment-id', diff:'5段階' },
+  { id:'change-calc', name:'おつり計算', domain:'calculation', icon:'💰', desc:'おつりを硬貨で作る', file:'games/minatomo-change-calc', diff:'1〜3品' },
+  { id:'serial-calc', name:'なぞり計算', domain:'calculation', icon:'✒️', desc:'連続計算で答えをつなげる', file:'games/minatomo-serial-calc', diff:'足し引き〜四則' },
+  { id:'word-connect', name:'言葉つなぎ', domain:'language', icon:'🔤', desc:'しりとり・頭文字で探す', file:'games/minatomo-word-connect', diff:'しりとり〜カテゴリ' },
+];
+
+const ASSESSMENT = {
+  self: { label:'本人', emoji:'🙋', color:'#FF6B35', bg:'#FFF3E0',
+    questions: [
+      { q:'物の置き場所を忘れることが増えた？', domain:'memory' },
+      { q:'買い物で買うものを忘れる？', domain:'memory' },
+      { q:'人の名前が思い出せない？', domain:'memory' },
+      { q:'日付や曜日がすぐ出てこない？', domain:'orientation' },
+      { q:'家電の操作で戸惑う？', domain:'executive' },
+      { q:'お金の計算に自信がなくなった？', domain:'calculation' },
+      { q:'読んだ内容が頭に入りにくい？', domain:'attention' },
+      { q:'道に迷うことが増えた？', domain:'visuospatial' },
+      { q:'言いたい言葉がすぐ出てこない？', domain:'language' },
+      { q:'複数のことを同時にしにくい？', domain:'executive' },
+    ], opts:['まったくない','たまにある','ときどきある','よくある'] },
+  family: { label:'家族', emoji:'👨‍👩‍👧', color:'#1E88E5', bg:'#E3F2FD',
+    questions: [
+      { q:'同じことを何度も聞く・話す？', domain:'memory' },
+      { q:'約束や予定を忘れる？', domain:'memory' },
+      { q:'料理の手順を間違える？', domain:'executive' },
+      { q:'お金の管理で困る？', domain:'calculation' },
+      { q:'日付や季節の感覚が曖昧？', domain:'orientation' },
+      { q:'慣れた道で迷う？', domain:'visuospatial' },
+      { q:'会話の内容がわからないことがある？', domain:'attention' },
+      { q:'「あれ」「それ」が増えた？', domain:'language' },
+      { q:'身だしなみに無頓着になった？', domain:'executive' },
+      { q:'意欲や関心が低下した？', domain:'executive' },
+    ], opts:['まったくない','たまにある','ときどきある','よくある'] },
+  professional: { label:'専門職', emoji:'👨‍⚕️', color:'#7B1FA2', bg:'#F3E5F5',
+    questions: [
+      { q:'近時記憶に問題がある？', domain:'memory' },
+      { q:'遠隔記憶に問題がある？', domain:'memory' },
+      { q:'時間の見当識に障害がある？', domain:'orientation' },
+      { q:'場所の見当識に障害がある？', domain:'visuospatial' },
+      { q:'注意の持続・分配に問題がある？', domain:'attention' },
+      { q:'遂行機能に問題がある？', domain:'executive' },
+      { q:'視空間認知に問題がある？', domain:'visuospatial' },
+      { q:'計算能力に低下がある？', domain:'calculation' },
+      { q:'言語機能に問題がある？', domain:'language' },
+      { q:'抑制制御に問題がある？', domain:'executive' },
+    ], opts:['問題なし','軽度','中等度','重度'] },
+};
+
+async function loadData(k, fb) { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : fb; } catch { return fb; } }
+async function saveData(k, v) { try { await window.storage.set(k, JSON.stringify(v)); } catch(e) { console.error(e); } }
+
+function analyzeAssessment(ans, qs) {
+  const ds = {}; DOMAINS.forEach(d => { ds[d.id]={total:0,count:0}; });
+  qs.forEach((q,i) => { if(ds[q.domain]) { ds[q.domain].total+=(ans[i]||0); ds[q.domain].count++; } });
+  return DOMAINS.map(d => { const s=ds[d.id]; const avg=s.count>0?s.total/s.count:0;
+    return {...d, avg, severity:avg<0.5?'normal':avg<1.5?'mild':avg<2.5?'moderate':'severe', count:s.count};
+  }).filter(d=>d.count>0).sort((a,b)=>b.avg-a.avg);
+}
+function getRecommended(dr) {
+  const rec=[]; dr.forEach(d => { if(d.avg>=0.5) { const g=GAMES.filter(g=>g.domain===d.id).slice(0,d.avg>=2?2:1); rec.push(...g.map(gm=>({...gm,priority:d.severity}))); } });
+  return rec.length>0 ? rec.slice(0,7) : GAMES.filter((_,i)=>[0,10,14,19,24].includes(i)).map(g=>({...g,priority:'maintenance'}));
+}
+
+function App() {
+  const [tab, setTab] = React.useState('home');
+  const [screen, setScreen] = React.useState('home');
+  const [aType, setAType] = React.useState(null);
+  const [aStep, setAStep] = React.useState(0);
+  const [ans, setAns] = React.useState([]);
+  const [selDomain, setSelDomain] = React.useState(null);
+  const [selGame, setSelGame] = React.useState(null);
+  const [aHist, setAHist] = React.useState([]);
+  const [gLog, setGLog] = React.useState([]);
+  const [hw, setHw] = React.useState([]);
+  const [loaded, setLoaded] = React.useState(false);
+
+  React.useEffect(() => { (async()=>{ setAHist(await loadData('ah',[])); setGLog(await loadData('gl',[])); setHw(await loadData('hw',[])); setLoaded(true); })(); }, []);
+
+  const saveAssess = React.useCallback(async(result) => {
+    const nh = [{date:new Date().toISOString(),...result},...aHist].slice(0,50);
+    setAHist(nh); await saveData('ah',nh);
+    const nhw = result.recommended.map(g=>({gameId:g.id,gameName:g.name,icon:g.icon,domain:g.domain,done:false}));
+    setHw(nhw); await saveData('hw',nhw);
+  }, [aHist]);
+
+  const toggleHw = React.useCallback(async(i) => {
+    const h=[...hw]; h[i]={...h[i],done:!h[i].done}; setHw(h); await saveData('hw',h);
+  }, [hw]);
+
+  const resetAll = React.useCallback(async() => {
+    setAHist([]); setGLog([]); setHw([]);
+    await saveData('ah',[]); await saveData('gl',[]); await saveData('hw',[]);
+  }, []);
+
+  const startAssess=(t)=>{ setAType(t); setAStep(0); setAns([]); setScreen('assess'); };
+  const answerQ=(s)=>{
+    const na=[...ans,s]; setAns(na); const a=ASSESSMENT[aType];
+    if(aStep+1>=a.questions.length) {
+      const dr=analyzeAssessment(na,a.questions); const rec=getRecommended(dr);
+      saveAssess({type:aType,domainResults:dr,recommended:rec}); setScreen('result');
+    } else setAStep(aStep+1);
+  };
+
+  const radarData = (() => {
+    if(aHist.length>0) return aHist[0].domainResults.map(d=>({domain:d.name,value:Math.round((1-d.avg/3)*100)}));
+    const db={}; DOMAINS.forEach(d=>{db[d.id]={t:0,c:0};}); gLog.slice(0,50).forEach(g=>{if(db[g.domain]){db[g.domain].t+=g.pct;db[g.domain].c++;}});
+    return DOMAINS.map(d=>({domain:d.name,value:db[d.id].c>0?Math.round(db[d.id].t/db[d.id].c):50}));
+  })();
+
+  const trendData = (() => {
+    const bd={}; gLog.slice(0,100).reverse().forEach(g=>{const d=g.date.slice(0,10);if(!bd[d])bd[d]={date:d.slice(5),sc:[],c:0};bd[d].sc.push(g.pct);bd[d].c++;});
+    return Object.values(bd).map(d=>({date:d.date,avg:Math.round(d.sc.reduce((a,b)=>a+b,0)/d.sc.length)})).slice(-14);
+  })();
+
+  const b={fontFamily:"'Zen Maru Gothic',sans-serif",cursor:'pointer',transition:'all 0.15s'};
+  const sl=(s)=>s==='normal'?'良好':s==='mild'?'軽度':s==='moderate'?'中等度':'要注意';
+  const sc=(s)=>s==='normal'?'#43A047':s==='mild'?'#FFB300':s==='moderate'?'#FF6D00':'#E53935';
+  const se=(s)=>s==='normal'?'🟢':s==='mild'?'🟡':s==='moderate'?'🟠':'🔴';
+  const fg=selDomain?GAMES.filter(g=>g.domain===selDomain):GAMES;
+
+  return (
+    <div style={{fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif",background:'#FAFAF7',minHeight:'100vh',color:'#2D2D2D',paddingBottom:70}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+      `}</style>
+
+      {/* HEADER */}
+      <div style={{background:'linear-gradient(135deg,#FF6B35,#FF8F5E)',padding:'12px 20px',display:'flex',alignItems:'center',gap:8,boxShadow:'0 4px 16px rgba(255,107,53,0.15)'}}>
+        {screen!=='home'&&screen!==tab&&<button onClick={()=>setScreen(tab)} style={{...b,fontSize:18,background:'none',border:'none',color:'white',padding:'4px'}}>←</button>}
+        <div><div style={{fontSize:16,fontWeight:900,color:'white'}}>みなともPlay</div><div style={{fontSize:8,color:'rgba(255,255,255,0.7)'}}>無料リハビリゲーム</div></div>
+      </div>
+
+      <div style={{maxWidth:500,margin:'0 auto',padding:'0 16px'}}>
+
+      {/* HOME */}
+      {tab==='home'&&screen==='home'&&(
+        <div style={{paddingTop:20}}>
+          <div style={{textAlign:'center',marginBottom:16}}>
+            <div style={{fontSize:48,animation:'float 3s ease-in-out infinite'}}>🧠</div>
+            <h1 style={{fontSize:24,fontWeight:900,color:'#FF6B35',margin:'8px 0 4px'}}>みなともPlay</h1>
+            <p style={{fontSize:13,color:'#6B6B6B',margin:0}}><strong style={{color:'#FF6B35'}}>27種類</strong>の無料リハビリゲーム</p>
+          </div>
+
+          <div style={{background:'linear-gradient(135deg,#1E88E5,#42A5F5)',borderRadius:18,padding:'18px 16px',marginBottom:14,boxShadow:'0 4px 16px rgba(30,136,229,0.15)'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+              <span style={{fontSize:26}}>🤖</span>
+              <div><div style={{fontSize:14,fontWeight:900,color:'white'}}>AI認知チェック</div><div style={{fontSize:10,color:'rgba(255,255,255,0.8)'}}>問診→AI分析→プログラム提案</div></div>
+            </div>
+            <div style={{display:'flex',gap:6}}>
+              {Object.entries(ASSESSMENT).map(([k,a])=>(
+                <button key={k} onClick={()=>startAssess(k)} style={{...b,flex:1,fontSize:11,fontWeight:700,padding:'10px 4px',borderRadius:10,background:'rgba(255,255,255,0.15)',border:'2px solid rgba(255,255,255,0.3)',color:'white',textAlign:'center'}}>
+                  <div style={{fontSize:18,marginBottom:2}}>{a.emoji}</div>{a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:13,fontWeight:700,color:'#6B6B6B',marginBottom:8}}>🎮 認知領域から探す</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
+              {DOMAINS.map(d=>(
+                <button key={d.id} onClick={()=>{setSelDomain(d.id);setTab('games');setScreen('games');}} style={{...b,padding:'10px 4px',borderRadius:12,textAlign:'center',background:d.bg,border:'none'}}>
+                  <div style={{fontSize:20}}>{d.icon}</div><div style={{fontSize:8,fontWeight:700,color:d.color}}>{d.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {hw.length>0&&(
+            <div style={{background:'#FFF3E0',borderRadius:14,padding:'12px',marginBottom:14,border:'2px solid #FFE0B2'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                <span style={{fontSize:12,fontWeight:900,color:'#E65100'}}>📋 きょうの宿題</span>
+                <span style={{fontSize:11,fontWeight:700,color:'#FF6B35'}}>{hw.filter(h=>h.done).length}/{hw.length}</span>
+              </div>
+              <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                {hw.slice(0,5).map((h,i)=>(<span key={i} style={{fontSize:10,fontWeight:700,padding:'3px 8px',borderRadius:50,background:h.done?'#C8E6C9':'white',color:h.done?'#2E7D32':'#6B6B6B',textDecoration:h.done?'line-through':'none'}}>{h.icon} {h.gameName}</span>))}
+              </div>
+            </div>
+          )}
+
+          {(aHist.length>0||gLog.length>0)&&(
+            <div style={{background:'white',borderRadius:14,padding:'12px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',marginBottom:14}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                <span style={{fontSize:12,fontWeight:700,color:'#6B6B6B'}}>📊 認知プロフィール</span>
+                <button onClick={()=>{setTab('records');setScreen('records');}} style={{...b,fontSize:10,color:'#FF6B35',background:'none',border:'none',fontWeight:700}}>詳しく→</button>
+              </div>
+              <Recharts.ResponsiveContainer width="100%" height={170}>
+                <Recharts.RadarChart data={radarData} margin={{top:10,right:30,bottom:10,left:30}}>
+                  <Recharts.PolarGrid stroke="#E8E8E8"/><Recharts.PolarAngleAxis dataKey="domain" tick={{fontSize:9,fill:'#6B6B6B'}}/>
+                  <Recharts.Radar dataKey="value" stroke="#FF6B35" fill="#FF6B35" fillOpacity={0.2} strokeWidth={2}/>
+                </Recharts.RadarChart>
+              </Recharts.ResponsiveContainer>
+            </div>
+          )}
+
+          <div style={{background:'linear-gradient(135deg,#FFF3E0,#FFECB3)',borderRadius:14,padding:'12px',marginBottom:20,textAlign:'center'}}>
+            <div style={{fontSize:11,fontWeight:900,color:'#E65100'}}>「暮らしに自由を」</div>
+            <div style={{fontSize:9,color:'#795548',marginTop:4}}>Welloop株式会社 / みなとも</div>
+          </div>
+        </div>
+      )}
+
+      {/* ASSESS */}
+      {screen==='assess'&&aType&&(()=>{
+        const a=ASSESSMENT[aType],q=a.questions[aStep],pct=(aStep/a.questions.length)*100;
+        return(
+          <div style={{paddingTop:16}}>
+            <div style={{background:a.bg,borderRadius:14,padding:'10px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:22}}>{a.emoji}</span><div style={{fontSize:13,fontWeight:900,color:a.color}}>{a.label}用チェック</div>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+              <span style={{fontSize:10,color:'#6B6B6B'}}>質問{aStep+1}/{a.questions.length}</span>
+              <span style={{fontSize:10,color:a.color}}>{Math.round(pct)}%</span>
+            </div>
+            <div style={{height:5,background:'#E8E8E8',borderRadius:3,overflow:'hidden',marginBottom:14}}>
+              <div style={{width:pct+'%',height:'100%',background:a.color,borderRadius:3,transition:'width 0.3s'}}/>
+            </div>
+            <div style={{background:'white',borderRadius:18,padding:'24px 18px',boxShadow:'0 4px 20px rgba(0,0,0,0.06)',marginBottom:14,textAlign:'center',animation:'fadeUp 0.3s ease-out'}} key={aStep}>
+              <div style={{fontSize:17,fontWeight:900,lineHeight:1.6}}>{q.q}</div>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              {a.opts.map((opt,i)=>(
+                <button key={i} onClick={()=>answerQ(i)} style={{...b,fontSize:14,fontWeight:700,padding:'14px 16px',borderRadius:12,border:'2px solid #E8E8E8',background:'white',textAlign:'left',display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{width:24,height:24,borderRadius:'50%',border:`3px solid ${['#43A047','#FFB300','#FF6D00','#E53935'][i]}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,color:['#43A047','#FFB300','#FF6D00','#E53935'][i],flexShrink:0}}>{i+1}</div>{opt}
+                </button>
+              ))}
+            </div>
+            <div style={{textAlign:'center',marginTop:14,fontSize:10,color:'#9E9E9E'}}>※簡易スクリーニングであり医学的診断ではありません</div>
+          </div>
+        );
+      })()}
+
+      {/* RESULT */}
+      {screen==='result'&&aHist.length>0&&(()=>{
+        const lt=aHist[0];
+        return(
+          <div style={{paddingTop:16}}>
+            <div style={{textAlign:'center',marginBottom:14}}><div style={{fontSize:40}}>📊</div><div style={{fontSize:20,fontWeight:900,color:'#FF6B35'}}>AI分析レポート</div></div>
+            <div style={{background:'white',borderRadius:14,padding:'12px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',marginBottom:12}}>
+              <Recharts.ResponsiveContainer width="100%" height={200}>
+                <Recharts.RadarChart data={radarData} margin={{top:10,right:30,bottom:10,left:30}}>
+                  <Recharts.PolarGrid stroke="#E8E8E8"/><Recharts.PolarAngleAxis dataKey="domain" tick={{fontSize:9,fill:'#6B6B6B'}}/>
+                  <Recharts.Radar dataKey="value" stroke="#FF6B35" fill="#FF6B35" fillOpacity={0.2} strokeWidth={2} dot={{r:3,fill:'#FF6B35'}}/>
+                </Recharts.RadarChart>
+              </Recharts.ResponsiveContainer>
+            </div>
+            <div style={{background:'white',borderRadius:14,padding:'14px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',marginBottom:12}}>
+              {lt.domainResults.map((d,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:i<lt.domainResults.length-1?'1px solid #F0F0F0':'none'}}>
+                  <span style={{fontSize:16,width:24,textAlign:'center'}}>{d.icon}</span>
+                  <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700}}>{d.name}</div>
+                    <div style={{height:5,background:'#F0F0F0',borderRadius:3,marginTop:3}}><div style={{width:Math.min(d.avg/3*100,100)+'%',height:'100%',background:sc(d.severity),borderRadius:3}}/></div>
+                  </div>
+                  <span style={{fontSize:10,fontWeight:700,color:sc(d.severity)}}>{se(d.severity)} {sl(d.severity)}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{background:'white',borderRadius:14,padding:'14px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',marginBottom:12}}>
+              <div style={{fontSize:12,fontWeight:700,color:'#6B6B6B',marginBottom:8}}>🎯 おすすめプログラム（宿題に設定済み）</div>
+              {lt.recommended.map((g,i)=>{const d=DOMAINS.find(dm=>dm.id===g.domain);return(
+                <button key={i} onClick={()=>setSelGame(GAMES.find(gm=>gm.id===g.id)||g)} style={{...b,display:'flex',alignItems:'center',gap:8,padding:'8px 10px',background:d?.bg,borderRadius:10,border:'none',width:'100%',textAlign:'left',marginBottom:4}}>
+                  <span style={{fontSize:20}}>{g.icon}</span><div style={{flex:1,fontSize:12,fontWeight:900}}>{g.name}</div>
+                  <span style={{fontSize:9,fontWeight:700,color:sc(g.priority)}}>{g.priority==='severe'?'🔴重点':g.priority==='moderate'?'🟠推奨':g.priority==='mild'?'🟡おすすめ':'🟢維持'}</span>
+                </button>
+              );})}
+            </div>
+            <div style={{display:'flex',gap:8,marginBottom:20}}>
+              <button onClick={()=>{setTab('games');setScreen('games');}} style={{...b,flex:1,fontSize:14,fontWeight:700,color:'white',background:'#FF6B35',border:'none',padding:'14px',borderRadius:50}}>🎮 ゲームへ</button>
+              <button onClick={()=>{setTab('homework');setScreen('homework');}} style={{...b,flex:1,fontSize:14,fontWeight:700,color:'#FF6B35',background:'white',border:'2px solid #FF6B35',padding:'14px',borderRadius:50}}>📋 宿題</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* GAMES */}
+      {tab==='games'&&screen==='games'&&(
+        <div style={{paddingTop:14}}>
+          <div style={{fontSize:18,fontWeight:900,color:'#FF6B35',marginBottom:10}}>🎮 ゲーム一覧（{fg.length}）</div>
+          <div style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:8,marginBottom:10}}>
+            <button onClick={()=>setSelDomain(null)} style={{...b,fontSize:10,fontWeight:700,padding:'5px 12px',borderRadius:50,flexShrink:0,background:!selDomain?'#FF6B35':'white',color:!selDomain?'white':'#6B6B6B',border:!selDomain?'none':'2px solid #E0E0E0'}}>すべて</button>
+            {DOMAINS.map(d=>(<button key={d.id} onClick={()=>setSelDomain(selDomain===d.id?null:d.id)} style={{...b,fontSize:10,fontWeight:700,padding:'5px 12px',borderRadius:50,flexShrink:0,background:selDomain===d.id?d.color:'white',color:selDomain===d.id?'white':d.color,border:selDomain===d.id?'none':`2px solid ${d.color}33`}}>{d.icon}{d.name}</button>))}
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {fg.map((g,i)=>{const d=DOMAINS.find(dm=>dm.id===g.domain);return(
+              <button key={g.id} onClick={()=>setSelGame(g)} style={{...b,background:'white',borderRadius:12,padding:'12px 14px',boxShadow:'0 2px 6px rgba(0,0,0,0.03)',display:'flex',alignItems:'center',gap:10,border:'none',textAlign:'left',width:'100%',animation:`fadeUp 0.2s ease-out ${i*0.02}s both`}}>
+                <div style={{width:40,height:40,borderRadius:10,background:d?.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>{g.icon}</div>
+                <div style={{flex:1}}><div style={{fontSize:13,fontWeight:900}}>{g.name}</div><div style={{fontSize:10,color:'#6B6B6B'}}>{g.desc}</div></div>
+                <span style={{fontSize:14,color:'#BDBDBD'}}>▶</span>
+              </button>
+            );})}
+          </div><div style={{height:20}}/>
+        </div>
+      )}
+
+      {/* RECORDS */}
+      {tab==='records'&&screen==='records'&&(
+        <div style={{paddingTop:14}}>
+          <div style={{fontSize:18,fontWeight:900,color:'#FF6B35',marginBottom:14}}>📊 成長の記録</div>
+          <div style={{background:'white',borderRadius:14,padding:'14px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',marginBottom:12}}>
+            <div style={{fontSize:12,fontWeight:700,color:'#6B6B6B',marginBottom:4}}>🧠 認知プロフィール</div>
+            <div style={{fontSize:10,color:'#9E9E9E',marginBottom:8}}>{aHist.length>0?'最新チェック結果':'ゲーム成績から推定'}</div>
+            <Recharts.ResponsiveContainer width="100%" height={220}>
+              <Recharts.RadarChart data={radarData} margin={{top:10,right:30,bottom:10,left:30}}>
+                <Recharts.PolarGrid stroke="#E8E8E8"/><Recharts.PolarAngleAxis dataKey="domain" tick={{fontSize:10,fill:'#6B6B6B'}}/>
+                <Recharts.Radar dataKey="value" stroke="#FF6B35" fill="#FF6B35" fillOpacity={0.2} strokeWidth={2} dot={{r:3,fill:'#FF6B35'}}/>
+              </Recharts.RadarChart>
+            </Recharts.ResponsiveContainer>
+          </div>
+          {trendData.length>1&&(
+            <div style={{background:'white',borderRadius:14,padding:'14px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',marginBottom:12}}>
+              <div style={{fontSize:12,fontWeight:700,color:'#6B6B6B',marginBottom:8}}>📈 正答率のうつりかわり</div>
+              <Recharts.ResponsiveContainer width="100%" height={150}>
+                <Recharts.LineChart data={trendData} margin={{top:5,right:10,bottom:5,left:-20}}>
+                  <Recharts.XAxis dataKey="date" tick={{fontSize:9}}/><Recharts.YAxis domain={[0,100]} tick={{fontSize:9}}/>
+                  <Recharts.Tooltip contentStyle={{fontSize:11}}/><Recharts.Line type="monotone" dataKey="avg" stroke="#FF6B35" strokeWidth={2} dot={{r:3,fill:'#FF6B35'}} name="正答率%"/>
+                </Recharts.LineChart>
+              </Recharts.ResponsiveContainer>
+            </div>
+          )}
+          <div style={{background:'white',borderRadius:14,padding:'14px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',marginBottom:12}}>
+            <div style={{fontSize:12,fontWeight:700,color:'#6B6B6B',marginBottom:8}}>🗂️ チェック履歴</div>
+            {aHist.length===0?<div style={{textAlign:'center',padding:'16px 0',color:'#9E9E9E',fontSize:12}}>まだチェックを受けていません<br/><button onClick={()=>{setTab('home');setScreen('home');}} style={{...b,marginTop:6,fontSize:11,color:'#FF6B35',background:'none',border:'none',fontWeight:700}}>→AIチェックを受ける</button></div>
+            :aHist.slice(0,10).map((h,i)=>{const d=new Date(h.date);const a=ASSESSMENT[h.type];return(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:i<Math.min(aHist.length,10)-1?'1px solid #F5F5F5':'none'}}>
+                <span style={{fontSize:16}}>{a?.emoji}</span>
+                <div style={{flex:1}}><div style={{fontSize:11,fontWeight:700}}>{a?.label}用</div><div style={{fontSize:9,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                <div style={{display:'flex',gap:2}}>{h.domainResults?.slice(0,4).map((dr,j)=>(<span key={j} style={{fontSize:9}}>{se(dr.severity)}</span>))}</div>
+              </div>
+            );})}
+          </div>
+          <div style={{background:'white',borderRadius:14,padding:'14px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',marginBottom:12}}>
+            <div style={{fontSize:12,fontWeight:700,color:'#6B6B6B',marginBottom:8}}>🎮 最近のプレイ</div>
+            {gLog.length===0?<div style={{textAlign:'center',padding:'16px 0',color:'#9E9E9E',fontSize:12}}>まだプレイ記録がありません</div>
+            :gLog.slice(0,15).map((g,i)=>{const gm=GAMES.find(gm=>gm.id===g.gameId);const d=new Date(g.date);return(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:i<Math.min(gLog.length,15)-1?'1px solid #F5F5F5':'none'}}>
+                <span style={{fontSize:14}}>{gm?.icon||'🎮'}</span>
+                <div style={{flex:1}}><div style={{fontSize:11,fontWeight:700}}>{gm?.name||g.gameId}</div><div style={{fontSize:9,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()}</div></div>
+                <div style={{fontFamily:'Outfit',fontSize:13,fontWeight:800,color:g.pct>=80?'#43A047':g.pct>=50?'#FFB300':'#E53935'}}>{g.pct}%</div>
+              </div>
+            );})}
+          </div>
+          <button onClick={resetAll} style={{...b,width:'100%',fontSize:10,color:'#9E9E9E',background:'none',border:'1px solid #E0E0E0',padding:'8px',borderRadius:50,marginBottom:20}}>データをリセット</button>
+        </div>
+      )}
+
+      {/* HOMEWORK */}
+      {tab==='homework'&&screen==='homework'&&(
+        <div style={{paddingTop:14}}>
+          <div style={{fontSize:18,fontWeight:900,color:'#FF6B35',marginBottom:4}}>📋 きょうの宿題</div>
+          <div style={{fontSize:11,color:'#6B6B6B',marginBottom:14}}>AIチェック結果からのおすすめ</div>
+          {hw.length===0?(
+            <div style={{textAlign:'center',padding:'40px 20px'}}>
+              <div style={{fontSize:48,marginBottom:12}}>📝</div>
+              <div style={{fontSize:14,fontWeight:700,color:'#6B6B6B',marginBottom:8}}>まだ宿題がありません</div>
+              <div style={{fontSize:12,color:'#9E9E9E',marginBottom:16}}>AIチェックを受けるとプログラムが提案されます</div>
+              <button onClick={()=>{setTab('home');setScreen('home');}} style={{...b,fontSize:14,fontWeight:700,color:'white',background:'#1E88E5',border:'none',padding:'14px 28px',borderRadius:50}}>🤖 AIチェック</button>
+            </div>
+          ):(
+            <>
+              <div style={{background:'white',borderRadius:14,padding:'14px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',marginBottom:12}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                  <span style={{fontSize:12,fontWeight:700,color:'#6B6B6B'}}>進捗</span>
+                  <span style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{hw.filter(h=>h.done).length}/{hw.length}</span>
+                </div>
+                <div style={{height:10,background:'#F0F0F0',borderRadius:5,overflow:'hidden'}}>
+                  <div style={{width:(hw.filter(h=>h.done).length/hw.length*100)+'%',height:'100%',background:'linear-gradient(90deg,#FF6B35,#FF8F5E)',borderRadius:5,transition:'width 0.3s'}}/>
+                </div>
+                {hw.every(h=>h.done)&&<div style={{textAlign:'center',marginTop:8,fontSize:13,fontWeight:900,color:'#2E7D32'}}>🎉 全部クリア！</div>}
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {hw.map((h,i)=>{const d=DOMAINS.find(dm=>dm.id===h.domain);return(
+                  <div key={i} style={{background:'white',borderRadius:14,padding:'12px',boxShadow:'0 2px 6px rgba(0,0,0,0.03)',display:'flex',alignItems:'center',gap:10,opacity:h.done?0.6:1,border:`2px solid ${h.done?'#C8E6C9':'#E8E8E8'}`}}>
+                    <button onClick={()=>toggleHw(i)} style={{...b,width:30,height:30,borderRadius:'50%',border:`3px solid ${h.done?'#66BB6A':'#E0E0E0'}`,background:h.done?'#E8F5E9':'white',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,flexShrink:0}}>{h.done?'✅':''}</button>
+                    <button onClick={()=>setSelGame(GAMES.find(g=>g.id===h.gameId))} style={{...b,flex:1,background:'none',border:'none',textAlign:'left',padding:0}}>
+                      <div style={{fontSize:13,fontWeight:900,textDecoration:h.done?'line-through':'none'}}>{h.icon} {h.gameName}</div>
+                      <div style={{fontSize:10,color:d?.color,fontWeight:700}}>{d?.icon} {d?.name}</div>
+                    </button>
+                  </div>
+                );})}
+              </div>
+              <div style={{background:'#F3E5F5',borderRadius:14,padding:'12px',marginTop:14,marginBottom:20}}>
+                <div style={{fontSize:11,fontWeight:700,color:'#7B1FA2',marginBottom:4}}>💡 毎日10分でOK</div>
+                <div style={{fontSize:10,color:'#6B6B6B',lineHeight:1.8}}>得意な領域と苦手な領域をバランスよくトレーニング。定期的にAIチェックで変化を確認しましょう。</div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      </div>
+
+      {/* GAME MODAL */}
+      {selGame&&(()=>{const g=selGame;const d=DOMAINS.find(dm=>dm.id===g.domain);return(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:100,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={(e)=>{if(e.target===e.currentTarget)setSelGame(null);}}>
+          <div style={{background:'white',borderRadius:'20px 20px 0 0',padding:'20px',width:'100%',maxWidth:500,maxHeight:'70vh',overflowY:'auto',animation:'fadeUp 0.3s ease-out'}}>
+            <div style={{width:36,height:4,background:'#E0E0E0',borderRadius:2,margin:'0 auto 14px'}}/>
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
+              <div style={{width:50,height:50,borderRadius:14,background:d?.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26}}>{g.icon}</div>
+              <div><div style={{fontSize:18,fontWeight:900}}>{g.name}</div><div style={{fontSize:11,color:'#6B6B6B'}}>{g.desc}</div>
+                <div style={{display:'inline-block',fontSize:9,fontWeight:700,color:d?.color,background:d?.bg,padding:'2px 8px',borderRadius:50,marginTop:3}}>{d?.icon} {d?.full||d?.name}</div>
+              </div>
+            </div>
+            <div style={{background:'#F5F5F5',borderRadius:12,padding:'10px 14px',marginBottom:10}}>
+              <div style={{fontSize:11,fontWeight:700,color:'#6B6B6B'}}>📊 難易度3段階: {g.diff}</div>
+            </div>
+            <div style={{background:'#E3F2FD',borderRadius:12,padding:'10px 14px',marginBottom:14}}>
+              <div style={{fontSize:10,fontWeight:700,color:'#1565C0',marginBottom:2}}>📁 ファイル</div>
+              <div style={{fontFamily:'monospace',fontSize:12,background:'white',padding:'6px 10px',borderRadius:6}}>{g.file}.jsx</div>
+            </div>
+            <button onClick={()=>setSelGame(null)} style={{...b,width:'100%',fontSize:14,fontWeight:700,padding:'14px',borderRadius:50,border:'none',background:'#FF6B35',color:'white'}}>閉じる</button>
+          </div>
+        </div>
+      );})()}
+
+      {/* BOTTOM TAB BAR */}
+      <div style={{position:'fixed',bottom:0,left:0,right:0,background:'white',borderTop:'1px solid #E8E8E8',display:'flex',justifyContent:'center',zIndex:90,boxShadow:'0 -2px 12px rgba(0,0,0,0.04)'}}>
+        <div style={{display:'flex',maxWidth:500,width:'100%'}}>
+          {[{id:'home',icon:'🏠',l:'ホーム'},{id:'games',icon:'🎮',l:'ゲーム'},{id:'records',icon:'📊',l:'記録'},{id:'homework',icon:'📋',l:'宿題'}].map(t=>(
+            <button key={t.id} onClick={()=>{setTab(t.id);setScreen(t.id);setSelDomain(null);}} style={{...b,flex:1,padding:'8px 4px',background:'none',border:'none',textAlign:'center',color:tab===t.id?'#FF6B35':'#9E9E9E'}}>
+              <div style={{fontSize:20}}>{t.icon}</div><div style={{fontSize:9,fontWeight:tab===t.id?900:500,marginTop:1}}>{t.l}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

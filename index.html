@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>みなともPlay - 無料リハビリゲーム 112本</title>
+<meta name="description" content="認知症・脳卒中後のリハビリに112種類の無料ゲーム。記憶・注意・遂行・見当識・視空間・計算の6領域を自宅で。">
+<style>
+:root {
+  --bg: #FAFAF7;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --muted: #6B6B6B;
+  --border: #E0E0E0;
+  --accent: #FF6B35;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --radius: 14px;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { font-size:16px; -webkit-text-size-adjust:100%; }
+body {
+  font-family: 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.6;
+  padding-bottom: 60px;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* Header */
+.hero {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: white; padding: 36px 20px 28px; text-align: center;
+}
+.hero h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
+.hero .tag { display:inline-block; font-size: 10px; letter-spacing: 2px; color: #6ECEB2; margin-bottom: 12px; font-weight: 700; }
+.hero p { font-size: 13px; color: rgba(255,255,255,0.75); max-width: 480px; margin: 0 auto; }
+.hero .stats { margin-top: 18px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.hero .stat { background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); padding: 8px 14px; border-radius: 20px; font-size: 12px; }
+.hero .stat strong { font-size: 16px; font-weight:800; color: #FFB199; margin-right: 4px; }
+
+/* Toolbar */
+.toolbar {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(250,250,247,0.95); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 16px;
+}
+.search {
+  width: 100%; max-width: 720px; margin: 0 auto 12px;
+  display: flex; gap: 8px;
+}
+.search input {
+  flex: 1; padding: 12px 16px;
+  border: 1.5px solid var(--border); border-radius: 24px;
+  font-size: 15px; outline: none;
+  background: white;
+  transition: border-color 0.15s;
+}
+.search input:focus { border-color: var(--accent); }
+.filters {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  max-width: 720px; margin: 0 auto;
+  justify-content: center;
+}
+.filter-btn {
+  padding: 6px 12px; border-radius: 16px;
+  border: 1.5px solid var(--border); background: white;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  display: flex; align-items: center; gap: 4px;
+  transition: all 0.15s;
+}
+.filter-btn:hover { border-color: var(--accent); }
+.filter-btn.active {
+  background: var(--text); color: white; border-color: var(--text);
+}
+.filter-btn .count {
+  font-size: 10px; opacity: 0.7;
+  background: rgba(0,0,0,0.08); padding: 1px 6px; border-radius: 10px;
+}
+.filter-btn.active .count { background: rgba(255,255,255,0.2); }
+
+/* Domain section */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+.domain-section { margin: 28px 0 12px; }
+.domain-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0; cursor: pointer;
+  border-bottom: 2px solid currentColor;
+  margin-bottom: 14px;
+}
+.domain-header .icon { font-size: 28px; line-height: 1; }
+.domain-header .name { font-size: 20px; font-weight: 800; }
+.domain-header .desc { font-size: 12px; color: var(--muted); margin-left: 8px; }
+.domain-header .count { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--muted); }
+.domain-header .toggle { font-size: 18px; color: var(--muted); transition: transform 0.2s; }
+.domain-section.collapsed .toggle { transform: rotate(-90deg); }
+.domain-section.collapsed .grid { display: none; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+.card {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 12px;
+  position: relative;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+  min-height: 90px;
+}
+.card:hover {
+  transform: translateY(-2px); box-shadow: var(--shadow);
+  border-color: var(--accent);
+}
+.card .title { font-size: 14px; font-weight: 700; line-height: 1.35; margin-bottom: 6px; }
+.card .meta { font-size: 11px; color: var(--muted); }
+.card .badge-new {
+  position: absolute; top: 8px; right: 8px;
+  background: #FF6B35; color: white;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
+  padding: 2px 6px; border-radius: 8px;
+}
+.empty {
+  text-align: center; padding: 60px 20px; color: var(--muted);
+}
+
+footer {
+  margin-top: 40px; padding: 20px;
+  text-align: center; color: var(--muted); font-size: 11px;
+}
+footer a { color: var(--accent); }
+
+@media (max-width: 480px) {
+  .hero h1 { font-size: 22px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .domain-header .name { font-size: 17px; }
+  .domain-header .desc { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="tag">MINATOMO PLAY</div>
+  <h1>みなともPlay</h1>
+  <p>認知症・脳卒中後のリハビリに、自宅で続ける無料ゲーム集</p>
+  <div class="stats">
+    <span class="stat"><strong>112</strong>ゲーム</span>
+    <span class="stat"><strong>6</strong>領域</span>
+    <span class="stat"><strong>70</strong>新着</span>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="search">
+    <input id="search" type="search" placeholder="ゲーム名で検索（例：ストループ、記憶、計算）" autocomplete="off">
+  </div>
+  <div class="filters" id="filters"></div>
+</div>
+
+<main class="container" id="main">
+  <div class="empty" id="empty" style="display:none;">該当するゲームがありません</div>
+</main>
+
+<footer>
+  <p>みなともPlay © 2026 株式会社Welloop / みなとも</p>
+  <p style="margin-top:6px; opacity:0.7;">最終ビルド: 2026-04-25 10:09</p>
+</footer>
+
+<script>
+const GAMES = [{"slug": "minatomo-memory-game", "file": "minatomo-memory-game.html", "title": "Minatomo Memory Game", "description": "Minatomo Memory Game - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": true}, {"slug": "minatomo-rehab-delayedrecall", "file": "minatomo-rehab-delayedrecall.html", "title": "あとでおもいだす", "description": "あとでおもいだす - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-shopping-list", "file": "minatomo-shopping-list.html", "title": "おかいものリスト", "description": "買い物リストを覚えて探す - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-map-memory", "file": "minatomo-map-memory.html", "title": "おつかいナビ", "description": "地図を覚えて道案内 - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-message-recall", "file": "minatomo-message-recall.html", "title": "おぼえておえて", "description": "伝言を正確に思い出す - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-simple-memory", "file": "minatomo-simple-memory.html", "title": "おぼえてね", "description": "おぼえてね - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "シンプル", "is_new": true}, {"slug": "minatomo-rehab-digitback", "file": "minatomo-rehab-digitback.html", "title": "ぎゃくからタップ", "description": "ぎゃくからタップ - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-rehab-wordpic", "file": "minatomo-rehab-wordpic.html", "title": "ことばとえ", "description": "ことばとえ - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-simple-appearorder", "file": "minatomo-simple-appearorder.html", "title": "でたじゅん！", "description": "でたじゅん！ - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "シンプル", "is_new": true}, {"slug": "minatomo-phone-memory", "file": "minatomo-phone-memory.html", "title": "でんごんばんごう", "description": "伝言の電話番号を覚える - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-simple-wherewasite", "file": "minatomo-simple-wherewasite.html", "title": "どこだった？", "description": "どこだった？ - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "シンプル", "is_new": true}, {"slug": "minatomo-where-was-it", "file": "minatomo-where-was-it.html", "title": "どこだった？", "description": "物の場所を覚えてタップ - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-simple-whatadded", "file": "minatomo-simple-whatadded.html", "title": "なにがふえた？", "description": "なにがふえた？ - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-simon", "file": "minatomo-simple-simon.html", "title": "まねしてね", "description": "まねしてね - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "シンプル", "is_new": true}, {"slug": "minatomo-rehab-corsi", "file": "minatomo-rehab-corsi.html", "title": "まねしてタップ", "description": "まねしてタップ - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-simple-simon2", "file": "minatomo-simple-simon2.html", "title": "もっとまねして！", "description": "もっとまねして！ - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-simon3", "file": "minatomo-simple-simon3.html", "title": "もっともっとまねして！", "description": "もっともっとまねして！ - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "シンプル", "is_new": true}, {"slug": "minatomo-rehab-prospective", "file": "minatomo-rehab-prospective.html", "title": "やくそくをまもる", "description": "やくそくをまもる - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-flash-memory", "file": "minatomo-flash-memory.html", "title": "フラッシュ記憶", "description": "一瞬見えたものを記憶する - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-pair-search", "file": "minatomo-pair-search.html", "title": "ペアさがし", "description": "関連する2つを結ぶ - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": true}, {"slug": "minatomo-simple-pairs", "file": "minatomo-simple-pairs.html", "title": "ペアをさがそう", "description": "ペアをさがそう - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "シンプル", "is_new": true}, {"slug": "minatomo-rhythm-memory", "file": "minatomo-rhythm-memory.html", "title": "リズム記憶", "description": "リズムを覚えて再現 - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-prospective-memory", "file": "minatomo-prospective-memory.html", "title": "展望記憶", "description": "予定を覚えて実行 - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-digit-span", "file": "minatomo-digit-span.html", "title": "数字スパン", "description": "数字を正順・逆順で覚える - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-story-memory", "file": "minatomo-story-memory.html", "title": "物語記憶", "description": "お話を読んで内容を覚える - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-simple-memory-game", "file": "minatomo-simple-memory-game.html", "title": "記憶マッチング", "description": "カードをめくって同じペアを探す - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-corsi-block", "file": "minatomo-corsi-block.html", "title": "順番記憶", "description": "光ったブロックの順番を覚える - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-face-name", "file": "minatomo-face-name.html", "title": "顔と名前", "description": "人の顔と名前を覚える - 無料リハビリゲーム みなともPlay", "domain": "memory", "category": "", "is_new": false}, {"slug": "minatomo-nback", "file": "minatomo-nback.html", "title": "Nバック", "description": "N個前と同じか判断 - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-voice-challenge", "file": "minatomo-voice-challenge.html", "title": "VOICE TRAINING", "description": "声出しチャレンジ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": true}, {"slug": "minatomo-simple-color", "file": "minatomo-simple-color.html", "title": "いろあわせ", "description": "いろあわせ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-colorchange", "file": "minatomo-simple-colorchange.html", "title": "いろがかわる！", "description": "いろがかわる！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-chasetap", "file": "minatomo-simple-chasetap.html", "title": "おいかけタップ！", "description": "おいかけタップ！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-big-tap", "file": "minatomo-big-tap.html", "title": "おおきくタップ", "description": "おおきくタップ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": true}, {"slug": "minatomo-simple-falling", "file": "minatomo-simple-falling.html", "title": "おちる！タップ！", "description": "おちる！タップ！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-colorconnect", "file": "minatomo-simple-colorconnect.html", "title": "おなじいろつなげ！", "description": "おなじいろつなげ！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-counting", "file": "minatomo-counting.html", "title": "かぞえて", "description": "画面の中のものを数える - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-simple-disappear", "file": "minatomo-simple-disappear.html", "title": "きえたのなに？", "description": "きえたのなに？ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-rehab-emotion", "file": "minatomo-rehab-emotion.html", "title": "きもちをよもう", "description": "きもちをよもう - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-word-builder", "file": "minatomo-word-builder.html", "title": "ことわづくり", "description": "ことわざ・慣用句・反対語 - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-hint-guess", "file": "minatomo-hint-guess.html", "title": "しりとりあて", "description": "ヒントから推理して当てる - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-rehab-cancellation", "file": "minatomo-rehab-cancellation.html", "title": "ぜんぶさがせ！", "description": "ぜんぶさがせ！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-rehab-change", "file": "minatomo-rehab-change.html", "title": "どこがかわった？", "description": "どこがかわった？ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-simple-spotdiff", "file": "minatomo-simple-spotdiff.html", "title": "どこがちがう？", "description": "どこがちがう？ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-shell", "file": "minatomo-simple-shell.html", "title": "どこにいった？", "description": "どこにいった？ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-count", "file": "minatomo-simple-count.html", "title": "どっちがおおい？", "description": "どっちがおおい？ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-odd", "file": "minatomo-simple-odd.html", "title": "なかまはずれ", "description": "なかまはずれ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-tapspeed", "file": "minatomo-simple-tapspeed.html", "title": "はやく！はやく！", "description": "はやく！はやく！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-justone", "file": "minatomo-simple-justone.html", "title": "ひとつだけ！", "description": "ひとつだけ！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-balloon", "file": "minatomo-simple-balloon.html", "title": "ふうせんタップ", "description": "ふうせんタップ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-spot-diff", "file": "minatomo-spot-diff.html", "title": "まちがい探し", "description": "2枚の絵のちがいを探す - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-simple-reaction", "file": "minatomo-simple-reaction.html", "title": "まって…タップ！", "description": "まって…タップ！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-greentap", "file": "minatomo-simple-greentap.html", "title": "みどりでタップ！", "description": "みどりでタップ！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-whack-mole", "file": "minatomo-whack-mole.html", "title": "もぐらたたき", "description": "出てきたもぐらを素早くタップ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-simple-mole", "file": "minatomo-simple-mole.html", "title": "もぐらポン！", "description": "もぐらポン！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-shell2", "file": "minatomo-simple-shell2.html", "title": "もっとさがして！", "description": "もっとさがして！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-shell3", "file": "minatomo-simple-shell3.html", "title": "もっともっとさがして！", "description": "もっともっとさがして！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-tap", "file": "minatomo-simple-tap.html", "title": "タップ！タップ！", "description": "タップ！タップ！ - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "シンプル", "is_new": true}, {"slug": "minatomo-rhythm-tap", "file": "minatomo-rhythm-tap.html", "title": "リズムタップ", "description": "外的リズム手がかり - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": true}, {"slug": "minatomo-change-detection", "file": "minatomo-change-detection.html", "title": "変化検出", "description": "画面の変化に気づく - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-letter-search", "file": "minatomo-letter-search.html", "title": "文字さがし", "description": "ターゲット文字を探す - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-listening-quiz", "file": "minatomo-listening-quiz.html", "title": "聞き取りクイズ", "description": "音声を聞いて内容を答える - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-color-match", "file": "minatomo-color-match.html", "title": "色あわせ", "description": "色の名前・混色・グラデーション - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-word-connect", "file": "minatomo-word-connect.html", "title": "言葉つなぎ", "description": "しりとり・頭文字で探す - 無料リハビリゲーム みなともPlay", "domain": "attention", "category": "", "is_new": false}, {"slug": "minatomo-dual-task", "file": "minatomo-dual-task.html", "title": "Minatomo Dual Task", "description": "Minatomo Dual Task - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "", "is_new": true}, {"slug": "minatomo-go-nogo", "file": "minatomo-go-nogo.html", "title": "Minatomo Go Nogo", "description": "Minatomo Go Nogo - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "", "is_new": true}, {"slug": "minatomo-cooking-steps", "file": "minatomo-cooking-steps.html", "title": "おりょうり手順", "description": "料理の手順を覚える - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "", "is_new": false}, {"slug": "minatomo-compare-ranking", "file": "minatomo-compare-ranking.html", "title": "くらべてランキング", "description": "大きさ・速さを比較 - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "", "is_new": false}, {"slug": "minatomo-rehab-tmtb", "file": "minatomo-rehab-tmtb.html", "title": "こうごにタップ", "description": "こうごにタップ - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-simple-sort", "file": "minatomo-simple-sort.html", "title": "ちいさいじゅん", "description": "ちいさいじゅん - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "シンプル", "is_new": true}, {"slug": "minatomo-rehab-gonogo", "file": "minatomo-rehab-gonogo.html", "title": "とめて！タップ！", "description": "とめて！タップ！ - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-rehab-category", "file": "minatomo-rehab-category.html", "title": "なかまはどれ？", "description": "なかまはどれ？ - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-simple-category", "file": "minatomo-simple-category.html", "title": "なかまはどれ？", "description": "なかまはどれ？ - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "シンプル", "is_new": true}, {"slug": "minatomo-error-finder", "file": "minatomo-error-finder.html", "title": "まちがい直し", "description": "文章の誤りを見つける - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "", "is_new": false}, {"slug": "minatomo-rehab-flanker", "file": "minatomo-rehab-flanker.html", "title": "まんなかのむき", "description": "まんなかのむき - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-category-sort", "file": "minatomo-category-sort.html", "title": "カテゴリ分け", "description": "ことばを正しく分類 - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "", "is_new": false}, {"slug": "minatomo-step-rhythm", "file": "minatomo-step-rhythm.html", "title": "ステップリズム", "description": "歩行リズムトレーニング - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "", "is_new": true}, {"slug": "minatomo-stroop", "file": "minatomo-stroop.html", "title": "ストループ", "description": "色と意味の矛盾に対応 - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "", "is_new": false}, {"slug": "minatomo-rehab-stroop", "file": "minatomo-rehab-stroop.html", "title": "ストループ課題", "description": "ストループ課題 - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-step-order", "file": "minatomo-step-order.html", "title": "手順ならべ", "description": "正しい手順に並べ替える - 無料リハビリゲーム みなともPlay", "domain": "executive", "category": "", "is_new": false}, {"slug": "minatomo-yesterday-quiz", "file": "minatomo-yesterday-quiz.html", "title": "きのうクイズ", "description": "時間見当識トレーニング - 無料リハビリゲーム みなともPlay", "domain": "orientation", "category": "", "is_new": true}, {"slug": "minatomo-date-quiz", "file": "minatomo-date-quiz.html", "title": "きょうは何日？", "description": "日付・曜日・季節を答える - 無料リハビリゲーム みなともPlay", "domain": "orientation", "category": "", "is_new": false}, {"slug": "minatomo-rehab-clock", "file": "minatomo-rehab-clock.html", "title": "なんじかな？", "description": "なんじかな？ - 無料リハビリゲーム みなともPlay", "domain": "orientation", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-schedule", "file": "minatomo-schedule.html", "title": "スケジュール管理", "description": "1日の予定を覚えて答える - 無料リハビリゲーム みなともPlay", "domain": "orientation", "category": "", "is_new": false}, {"slug": "minatomo-clock-quiz", "file": "minatomo-clock-quiz.html", "title": "時計よみクイズ", "description": "時計を読む・時間計算 - 無料リハビリゲーム みなともPlay", "domain": "orientation", "category": "", "is_new": false}, {"slug": "minatomo-simple-mostcommon", "file": "minatomo-simple-mostcommon.html", "title": "いちばんおおい！", "description": "いちばんおおい！ - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-updown", "file": "minatomo-simple-updown.html", "title": "うえ？した？", "description": "うえ？した？ - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-bigger", "file": "minatomo-simple-bigger.html", "title": "おおきいのどっち？", "description": "おおきいのどっち？ - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "シンプル", "is_new": true}, {"slug": "minatomo-shape-puzzle", "file": "minatomo-shape-puzzle.html", "title": "かたちパズル", "description": "形の識別・合成・パターン - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "", "is_new": false}, {"slug": "minatomo-fragment-id", "file": "minatomo-fragment-id.html", "title": "これなーんだ？", "description": "少しずつ現れる絵を当てる - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "", "is_new": false}, {"slug": "minatomo-rehab-path", "file": "minatomo-rehab-path.html", "title": "どうろをすすめ", "description": "どうろをすすめ - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-trace", "file": "minatomo-trace.html", "title": "なぞりトレース", "description": "巧緻運動トレーニング - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "", "is_new": true}, {"slug": "minatomo-simple-leftright", "file": "minatomo-simple-leftright.html", "title": "ひだり？みぎ？", "description": "ひだり？みぎ？ - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-realone", "file": "minatomo-simple-realone.html", "title": "ほんものどこ？", "description": "ほんものどこ？ - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "シンプル", "is_new": true}, {"slug": "minatomo-rehab-rotation", "file": "minatomo-rehab-rotation.html", "title": "まわしたらおなじ？", "description": "まわしたらおなじ？ - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-puzzle-rotation", "file": "minatomo-puzzle-rotation.html", "title": "パズル回転", "description": "形を回転させて判断 - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "", "is_new": false}, {"slug": "minatomo-block-stack", "file": "minatomo-block-stack.html", "title": "ブロックたおし", "description": "積み木パターン記憶 - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "", "is_new": true}, {"slug": "minatomo-left-right", "file": "minatomo-left-right.html", "title": "右左クイズ", "description": "左右の判断を素早く - 無料リハビリゲーム みなともPlay", "domain": "visuospatial", "category": "", "is_new": false}, {"slug": "minatomo-simple-addition", "file": "minatomo-simple-addition.html", "title": "あわせていくつ？", "description": "あわせていくつ？ - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-howmany", "file": "minatomo-simple-howmany.html", "title": "いくつある？", "description": "いくつある？ - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "シンプル", "is_new": true}, {"slug": "minatomo-wallet-calc", "file": "minatomo-wallet-calc.html", "title": "おさいふ計算", "description": "硬貨とお札を数えて計算 - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "", "is_new": false}, {"slug": "minatomo-change-calc", "file": "minatomo-change-calc.html", "title": "おつり計算", "description": "おつりを硬貨で作る - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "", "is_new": false}, {"slug": "minatomo-simple-samecount", "file": "minatomo-simple-samecount.html", "title": "おなじかず？", "description": "おなじかず？ - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "シンプル", "is_new": true}, {"slug": "minatomo-number-compare", "file": "minatomo-number-compare.html", "title": "かずくらべ", "description": "どちらが多いか素早く判断 - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "", "is_new": false}, {"slug": "minatomo-simple-counttap", "file": "minatomo-simple-counttap.html", "title": "かぞえてタップ！", "description": "かぞえてタップ！ - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "シンプル", "is_new": true}, {"slug": "minatomo-rehab-numseries", "file": "minatomo-rehab-numseries.html", "title": "すうじのつぎは？", "description": "すうじのつぎは？ - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-rehab-serialadd", "file": "minatomo-rehab-serialadd.html", "title": "たしざんリレー", "description": "たしざんリレー - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "リハビリ脳トレ", "is_new": true}, {"slug": "minatomo-stack-calc", "file": "minatomo-stack-calc.html", "title": "つみき計算", "description": "積み上がる数を暗算 - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "", "is_new": false}, {"slug": "minatomo-serial-calc", "file": "minatomo-serial-calc.html", "title": "なぞり計算", "description": "連続計算で答えをつなげる - 無料リハビリゲーム みなともPlay", "domain": "calculation", "category": "", "is_new": false}, {"slug": "minatomo-simple-same", "file": "minatomo-simple-same.html", "title": "おなじ？ちがう？", "description": "おなじ？ちがう？ - 無料リハビリゲーム みなともPlay", "domain": "uncategorized", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-order", "file": "minatomo-simple-order.html", "title": "じゅんばんにタップ！", "description": "じゅんばんにタップ！ - 無料リハビリゲーム みなともPlay", "domain": "uncategorized", "category": "シンプル", "is_new": true}, {"slug": "minatomo-simple-pattern", "file": "minatomo-simple-pattern.html", "title": "つぎはなに？", "description": "つぎはなに？ - 無料リハビリゲーム みなともPlay", "domain": "uncategorized", "category": "シンプル", "is_new": true}];
+const DOMAIN_INFO = {"memory": {"name": "記憶", "icon": "🧠", "color": "#FF6B35", "bg": "#FFF3E0", "desc": "覚えて思い出す力"}, "attention": {"name": "注意力", "icon": "👁️", "color": "#1E88E5", "bg": "#E3F2FD", "desc": "見つける・集中する力"}, "executive": {"name": "遂行", "icon": "🔄", "color": "#7B1FA2", "bg": "#F3E5F5", "desc": "判断・切り替え・計画"}, "orientation": {"name": "見当識", "icon": "📅", "color": "#43A047", "bg": "#E8F5E9", "desc": "日時・場所の把握"}, "visuospatial": {"name": "視空間", "icon": "🧩", "color": "#00ACC1", "bg": "#E0F7FA", "desc": "空間を理解する力"}, "calculation": {"name": "計算", "icon": "🔢", "color": "#E53935", "bg": "#FFEBEE", "desc": "数を扱う力"}, "uncategorized": {"name": "未分類", "icon": "📦", "color": "#757575", "bg": "#F5F5F5", "desc": "カテゴリ調整中"}};
+const DOMAIN_ORDER = ["memory", "attention", "executive", "orientation", "visuospatial", "calculation", "uncategorized"];
+
+const main = document.getElementById('main');
+const empty = document.getElementById('empty');
+const searchInput = document.getElementById('search');
+const filtersEl = document.getElementById('filters');
+
+let activeFilter = 'all';
+let searchQuery = '';
+
+function buildFilters() {
+  const counts = { all: GAMES.length, new: GAMES.filter(g => g.is_new).length };
+  for (const dom of DOMAIN_ORDER) {
+    counts[dom] = GAMES.filter(g => g.domain === dom).length;
+  }
+
+  const items = [
+    { key: 'all',   label: 'すべて',   icon: '🎮' },
+    { key: 'new',   label: '新着',     icon: '✨' },
+    ...DOMAIN_ORDER.map(d => ({
+      key: d,
+      label: DOMAIN_INFO[d].name,
+      icon: DOMAIN_INFO[d].icon,
+    })),
+  ];
+
+  filtersEl.innerHTML = items.filter(it => (counts[it.key] || 0) > 0).map(it => `
+    <button class="filter-btn ${activeFilter === it.key ? 'active' : ''}" data-key="${it.key}">
+      <span>${it.icon}</span>
+      <span>${it.label}</span>
+      <span class="count">${counts[it.key] || 0}</span>
+    </button>
+  `).join('');
+
+  filtersEl.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeFilter = btn.dataset.key;
+      buildFilters();
+      render();
+    });
+  });
+}
+
+function matchesSearch(g, q) {
+  if (!q) return true;
+  const haystack = (g.title + ' ' + g.description + ' ' + g.slug + ' ' + (DOMAIN_INFO[g.domain]?.name || '')).toLowerCase();
+  return q.toLowerCase().split(/\s+/).every(t => haystack.includes(t));
+}
+
+function matchesFilter(g) {
+  if (activeFilter === 'all') return true;
+  if (activeFilter === 'new') return g.is_new;
+  return g.domain === activeFilter;
+}
+
+function render() {
+  const filtered = GAMES.filter(g => matchesFilter(g) && matchesSearch(g, searchQuery));
+  if (filtered.length === 0) {
+    main.innerHTML = '';
+    main.appendChild(empty);
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const byDomain = {};
+  for (const g of filtered) {
+    (byDomain[g.domain] = byDomain[g.domain] || []).push(g);
+  }
+
+  let html = '';
+  for (const dom of DOMAIN_ORDER) {
+    const list = byDomain[dom];
+    if (!list || list.length === 0) continue;
+    const info = DOMAIN_INFO[dom];
+    html += `
+      <section class="domain-section" data-domain="${dom}" style="color:${info.color};">
+        <div class="domain-header" onclick="this.parentElement.classList.toggle('collapsed')">
+          <span class="icon">${info.icon}</span>
+          <span class="name" style="color:${info.color};">${info.name}</span>
+          <span class="desc">${info.desc}</span>
+          <span class="count">${list.length}本</span>
+          <span class="toggle">▼</span>
+        </div>
+        <div class="grid">
+          ${list.map(g => `
+            <a class="card" href="${g.file}" data-domain="${g.domain}">
+              ${g.is_new ? '<span class="badge-new">NEW</span>' : ''}
+              <div class="title" style="color:${info.color};">${escapeHtml(g.title)}</div>
+              <div class="meta">${escapeHtml(g.category || info.name)}</div>
+            </a>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+  main.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+searchInput.addEventListener('input', e => {
+  searchQuery = e.target.value.trim();
+  render();
+});
+
+buildFilters();
+render();
+</script>
+</body>
+</html>

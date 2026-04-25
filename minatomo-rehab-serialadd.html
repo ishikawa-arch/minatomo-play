@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>たしざんリレー | みなともPlay</title>
+<meta name="description" content="たしざんリレー - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="calculation">
+<meta name="minatomo-category" content="リハビリ脳トレ">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【リハビリ脳トレ】たしざんリレー ==========
+// PASAT-style Serial Addition - 前の数字と足す
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// Generate sequence of numbers (1-9) 
+function genSeq(count) {
+  const seq = [];
+  for (let i = 0; i < count; i++) {
+    seq.push(1 + Math.floor(Math.random() * 9));
+  }
+  return seq;
+}
+
+function genChoices(answer) {
+  // 4 choices: correct + 3 plausible wrongs
+  const wrongs = new Set();
+  while (wrongs.size < 3) {
+    const offset = [-3,-2,-1,1,2,3][Math.floor(Math.random() * 6)];
+    const w = answer + offset;
+    if (w > 0 && w <= 18 && w !== answer) wrongs.add(w);
+  }
+  return shuffle([answer, ...wrongs]);
+}
+
+// Levels: different display intervals (faster = harder)
+const LEVELS = [
+  { count:10, interval:3000, label:'レベル1', tag:'ゆっくり' },
+  { count:12, interval:2400, label:'レベル2', tag:'ふつう' },
+  { count:14, interval:1800, label:'レベル3', tag:'はやい' },
+];
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    levelIdx:0, phase:'idle', // intro, showing, done-level
+    seq:[], seqIdx:0,
+    prev:null, current:null,
+    choices:[], answered:false,
+    correct:0, errors:0, missed:0, score:0,
+    feedback:null, selected:null,
+    timeLeft:0,
+    levelResults:[],
+  }).current;
+
+  const intervalRef = React.useRef(null);
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => { clearInterval(intervalRef.current); clearTimeout(timerRef.current); }, []);
+
+  const startGame = () => {
+    g.levelIdx = 0; g.levelResults = []; g.score = 0;
+    setScreen('play');
+    startLevel(0);
+  };
+
+  const startLevel = (lvlIdx) => {
+    g.levelIdx = lvlIdx;
+    const level = LEVELS[lvlIdx];
+    g.seq = genSeq(level.count);
+    g.seqIdx = 0;
+    g.prev = null; g.current = null;
+    g.choices = []; g.answered = false;
+    g.correct = 0; g.errors = 0; g.missed = 0;
+    g.feedback = null; g.selected = null;
+    g.phase = 'intro';
+    rerender();
+
+    timerRef.current = setTimeout(() => showNext(), 1500);
+  };
+
+  const showNext = () => {
+    const level = LEVELS[g.levelIdx];
+    if (g.seqIdx >= g.seq.length) {
+      finishLevel();
+      return;
+    }
+
+    // If there was a pending answer from previous, mark as missed
+    if (g.seqIdx > 0 && !g.answered && g.phase === 'showing') {
+      g.missed++;
+    }
+
+    g.prev = g.seqIdx > 0 ? g.seq[g.seqIdx - 1] : null;
+    g.current = g.seq[g.seqIdx];
+    g.answered = false;
+    g.feedback = null;
+    g.selected = null;
+    g.timeLeft = level.interval;
+
+    if (g.seqIdx > 0) {
+      // From the 2nd number onward, there's an answer to give
+      g.choices = genChoices(g.prev + g.current);
+    } else {
+      g.choices = [];
+    }
+
+    g.phase = 'showing';
+    rerender();
+
+    intervalRef.current = setInterval(() => {
+      g.timeLeft -= 100;
+      if (g.timeLeft <= 0) {
+        clearInterval(intervalRef.current);
+        // Time up - advance
+        if (g.seqIdx > 0 && !g.answered) {
+          g.missed++;
+          g.feedback = 'timeout';
+        }
+        g.seqIdx++;
+        rerender();
+        timerRef.current = setTimeout(showNext, 400);
+      } else {
+        rerender();
+      }
+    }, 100);
+  };
+
+  const handleTap = (num) => {
+    if (g.phase !== 'showing' || g.answered || g.seqIdx === 0) return;
+    clearInterval(intervalRef.current);
+    const answer = g.prev + g.current;
+    const isCorrect = num === answer;
+    g.answered = true;
+    g.selected = num;
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    if (isCorrect) {
+      g.correct++;
+      g.score += 10 + Math.max(0, Math.round(g.timeLeft / 200));
+    } else {
+      g.errors++;
+    }
+    rerender();
+
+    // Advance after brief feedback
+    timerRef.current = setTimeout(() => {
+      g.seqIdx++;
+      if (g.seqIdx >= g.seq.length) {
+        finishLevel();
+      } else {
+        showNext();
+      }
+    }, isCorrect ? 500 : 900);
+  };
+
+  const finishLevel = () => {
+    clearInterval(intervalRef.current);
+    const level = LEVELS[g.levelIdx];
+    const totalProblems = level.count - 1; // 1st is just showing
+    g.levelResults.push({
+      label: level.label,
+      correct: g.correct,
+      errors: g.errors,
+      missed: g.missed,
+      total: totalProblems,
+    });
+    g.phase = 'levelEnd';
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.levelIdx + 1 >= LEVELS.length) {
+        setScreen('done'); rerender();
+      } else {
+        startLevel(g.levelIdx + 1);
+      }
+    }, 2200);
+  };
+
+  const level = LEVELS[g.levelIdx];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @keyframes numPop{0%{transform:scale(0.3);opacity:0}50%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:1}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🔢 たしざんリレー</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {level?.label}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'30px 20px', textAlign:'center', minHeight:'70vh' }}>
+          {/* Demo */}
+          <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+            <div style={{ display:'flex', gap:8, alignItems:'center', justifyContent:'center' }}>
+              <div style={{ width:44, height:44, borderRadius:10, background:'#BDBDBD', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:22, fontWeight:900, color:'white' }}>5</div>
+              <span style={{ fontSize:20, fontWeight:900, color:'#E8652E' }}>＋</span>
+              <div style={{ width:44, height:44, borderRadius:10, background:'#E8652E', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:22, fontWeight:900, color:'white' }}>3</div>
+              <span style={{ fontSize:20, fontWeight:900, color:'#E8652E' }}>＝</span>
+              <div style={{ width:44, height:44, borderRadius:10, background:'white', border:'3px solid #66BB6A', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:22, fontWeight:900, color:'#2E7D32' }}>8</div>
+            </div>
+            <div style={{ fontSize:12, color:'#BDBDBD', fontWeight:700 }}>まえ　　　　　いま</div>
+            <div style={{ display:'flex', gap:8, alignItems:'center', justifyContent:'center' }}>
+              <div style={{ width:44, height:44, borderRadius:10, background:'#BDBDBD', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:22, fontWeight:900, color:'white' }}>3</div>
+              <span style={{ fontSize:20, fontWeight:900, color:'#E8652E' }}>＋</span>
+              <div style={{ width:44, height:44, borderRadius:10, background:'#E8652E', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:22, fontWeight:900, color:'white' }}>7</div>
+              <span style={{ fontSize:20, fontWeight:900, color:'#E8652E' }}>＝</span>
+              <div style={{ width:44, height:44, borderRadius:10, background:'white', border:'3px solid #66BB6A', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:22, fontWeight:900, color:'#2E7D32' }}>10</div>
+            </div>
+          </div>
+          <div style={{ fontSize:13, color:'#C62828', fontWeight:700, background:'#FFF5F5', padding:'8px 14px', borderRadius:12, marginBottom:20 }}>
+            💡 ぜんぶ足すのではなく、<strong>まえと今</strong>をたす
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            つぎつぎに たしざん！
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            数字をおぼえて すぐ足す
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:24 }}>
+            ワーキングメモリ＋計算＋注意
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && level && (
+        <div style={{ padding:'12px 16px', maxWidth:520, margin:'0 auto' }}>
+          {/* Progress of levels */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:8 }}>
+            {LEVELS.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.levelIdx ? 20 : 14, height:6, borderRadius:3,
+                background: i < g.levelIdx ? '#8BC34A' : i === g.levelIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:12, color:'#9E9E9E' }}>pt</span></span>
+            <div style={{ display:'flex', gap:10, fontSize:12, fontWeight:700 }}>
+              <span style={{ color:'#2E7D32' }}>⭕{g.correct}</span>
+              {g.errors > 0 && <span style={{ color:'#C62828' }}>❌{g.errors}</span>}
+              {g.missed > 0 && <span style={{ color:'#999' }}>💨{g.missed}</span>}
+            </div>
+          </div>
+
+          {/* Sequence progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:10 }}>
+            {g.seq.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.seqIdx ? 10 : 6, height:6, borderRadius:3,
+                background: i < g.seqIdx ? '#8BC34A' : i === g.seqIdx ? '#E8652E' : '#E0E0E0',
+                transition:'all 0.2s',
+              }} />
+            ))}
+          </div>
+
+          {/* INTRO */}
+          {g.phase === 'intro' && (
+            <div style={{ textAlign:'center', padding:'60px 0' }}>
+              <div style={{ fontSize:16, fontWeight:700, color:'#9E9E9E', marginBottom:6 }}>{level.label}</div>
+              <div style={{ fontSize:30, fontWeight:900, color:'#E8652E', marginBottom:6 }}>{level.tag}</div>
+              <div style={{ fontSize:14, color:'#9E9E9E', marginTop:8 }}>準備…</div>
+            </div>
+          )}
+
+          {/* SHOWING */}
+          {g.phase === 'showing' && g.current !== null && (
+            <div>
+              {/* Timer bar */}
+              <div style={{ width:'100%', height:6, background:'#E8E8E8', borderRadius:3, marginBottom:10, overflow:'hidden' }}>
+                <div style={{
+                  width:`${(g.timeLeft / level.interval) * 100}%`, height:'100%',
+                  background: g.timeLeft < level.interval * 0.3 ? '#C62828' : '#E8652E',
+                  transition:'width 0.1s linear',
+                }} />
+              </div>
+
+              {/* Current number display */}
+              <div style={{
+                background:'white', borderRadius:20, padding:'30px 20px',
+                border:'2px solid #E8E8E8',
+                display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                marginBottom:14, minHeight:180,
+              }}>
+                <div key={g.seqIdx} style={{
+                  width:120, height:120, borderRadius:24,
+                  background:'#E8652E',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+                  animation:'numPop 0.3s ease-out',
+                  marginBottom:10,
+                }}>
+                  <span style={{ fontFamily:'Outfit,sans-serif', fontSize:72, fontWeight:900, color:'white' }}>{g.current}</span>
+                </div>
+
+                <div style={{ fontSize:13, fontWeight:700, color:'#9E9E9E' }}>
+                  {g.seqIdx === 0 ? 'さいしょの数字… あたまに入れて' : 'まえの数 ＋ この数 ＝ ？'}
+                </div>
+              </div>
+
+              {/* Feedback */}
+              {g.feedback && (
+                <div style={{ textAlign:'center', marginBottom:10, animation:'fadeUp 0.2s' }}>
+                  <span style={{ fontSize:36 }}>
+                    {g.feedback === 'correct' ? '⭕' : g.feedback === 'timeout' ? '⏰' : '❌'}
+                  </span>
+                  {g.feedback === 'wrong' && (
+                    <div style={{ fontSize:13, fontWeight:700, color:'#C62828', marginTop:2 }}>
+                      こたえは {g.prev + g.current}
+                    </div>
+                  )}
+                </div>
+              )}
+              {!g.feedback && g.seqIdx > 0 && <div style={{ height:40 }} />}
+
+              {/* Choice buttons */}
+              {g.seqIdx > 0 && g.choices.length > 0 && (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                  {g.choices.map((n, i) => {
+                    const isSelected = g.selected === n;
+                    const isAnswer = n === g.prev + g.current;
+                    const showCorrect = g.feedback && isAnswer;
+                    const showWrong = g.feedback === 'wrong' && isSelected;
+                    return (
+                      <button key={i} onClick={() => handleTap(n)}
+                        disabled={g.answered}
+                        style={{
+                          ...bs, height:64, borderRadius:14,
+                          background: showCorrect ? '#F1F8E9' : showWrong ? '#FFF5F5' : 'white',
+                          border: `4px solid ${showCorrect ? '#66BB6A' : showWrong ? '#EF5350' : '#E8E8E8'}`,
+                          fontFamily:'Outfit,sans-serif', fontSize:28, fontWeight:900,
+                          color: showCorrect ? '#2E7D32' : showWrong ? '#C62828' : '#333',
+                          animation: showWrong ? 'shake 0.3s' : showCorrect ? 'pop 0.3s' : undefined,
+                          opacity: g.feedback && !showCorrect && !showWrong ? 0.3 : 1,
+                        }}>
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* LEVEL END */}
+          {g.phase === 'levelEnd' && (
+            <div style={{ textAlign:'center', padding:'40px 0', animation:'fadeUp 0.3s' }}>
+              <div style={{ fontSize:48, marginBottom:8 }}>🎯</div>
+              <div style={{ fontSize:22, fontWeight:900, color:'#E8652E', marginBottom:4 }}>{level.label}クリア！</div>
+              <div style={{ fontSize:14, fontWeight:700, color:'#555' }}>
+                ⭕{g.correct} ❌{g.errors} 💨{g.missed}
+              </div>
+              {g.levelIdx + 1 < LEVELS.length && (
+                <div style={{ fontSize:13, fontWeight:700, color:'#C62828', marginTop:10 }}>
+                  つぎは「{LEVELS[g.levelIdx + 1].tag}」！
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const totalCorrect = g.levelResults.reduce((a, r) => a + r.correct, 0);
+        const totalErrors = g.levelResults.reduce((a, r) => a + r.errors, 0);
+        const totalMissed = g.levelResults.reduce((a, r) => a + r.missed, 0);
+        const emoji = totalErrors + totalMissed <= 3 ? '🎉' : totalCorrect >= 15 ? '👍' : '😊';
+        const msg = totalErrors + totalMissed <= 3 ? 'すばらしい！' : totalCorrect >= 15 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ background:'white', borderRadius:16, padding:'14px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:20, minWidth:280 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginBottom:8 }}>認知機能レポート</div>
+              {g.levelResults.map((r, i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:13 }}>
+                  <span style={{ fontWeight:700, color:'#555' }}>{r.label}</span>
+                  <span style={{ fontFamily:'Outfit', fontWeight:900 }}>
+                    <span style={{ color:'#2E7D32' }}>⭕{r.correct}</span>
+                    {' '}/{' '}
+                    <span style={{ color:'#333' }}>{r.total}</span>
+                    {r.errors + r.missed > 0 && (
+                      <span style={{ color:'#C62828', marginLeft:8 }}>
+                        ❌{r.errors + r.missed}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

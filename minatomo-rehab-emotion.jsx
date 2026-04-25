@@ -1,0 +1,371 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【リハビリ脳トレ】きもちをよもう ==========
+// Emotion Recognition - 表情認識・社会的認知
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// 6 basic emotions (Ekman's universal emotions) + neutral
+const EMOTIONS = [
+  { name:'うれしい', emoji:'😄', color:'#FFC107', hint:'ハッピー' },
+  { name:'かなしい', emoji:'😢', color:'#42A5F5', hint:'なみだ' },
+  { name:'おこってる', emoji:'😠', color:'#EF5350', hint:'ふまん' },
+  { name:'びっくり', emoji:'😲', color:'#AB47BC', hint:'どうしよう' },
+  { name:'こわい', emoji:'😨', color:'#78909C', hint:'ふあん' },
+  { name:'いや', emoji:'🤢', color:'#66BB6A', hint:'けんおかん' },
+];
+
+// Scenarios for matching emotion to situation
+// 一義的に感情が決まるものだけを厳選
+const SCENARIOS = [
+  // うれしい：明確にポジティブ
+  { text:'たんじょうびに プレゼントをもらった', emotion:'うれしい' },
+  { text:'だいすきな人と ひさしぶりに 会えた', emotion:'うれしい' },
+  { text:'ほしかったものが やっと てにはいった', emotion:'うれしい' },
+  { text:'テストで 100てんだった', emotion:'うれしい' },
+
+  // かなしい：喪失・失敗（涙を伴うような明確な悲しみ）
+  { text:'かっていたペットが しんでしまった', emotion:'かなしい' },
+  { text:'なかよしが とおくに ひっこしてしまった', emotion:'かなしい' },
+  { text:'大切にしていた写真を なくした', emotion:'かなしい' },
+
+  // おこってる：不当・侵害
+  { text:'大切なものを わざと こわされた', emotion:'おこってる' },
+  { text:'じゅんばんを わりこまれた', emotion:'おこってる' },
+  { text:'やくそくを わざと やぶられた', emotion:'おこってる' },
+  { text:'ぶんべつを ないしょで よこどりされた', emotion:'おこってる' },
+
+  // びっくり：予期しない突然の出来事（中立的）
+  { text:'しずかな夜に とつぜん 大きな音がした', emotion:'びっくり' },
+  { text:'ふりむいたら すぐうしろに 人がいた', emotion:'びっくり' },
+  { text:'かばんの中から 知らないものが出てきた', emotion:'びっくり' },
+
+  // こわい：明確な恐怖・危険
+  { text:'大きな犬が ほえながら 走ってきた', emotion:'こわい' },
+  { text:'まっくらな部屋で ひとりに なった', emotion:'こわい' },
+  { text:'エレベーターが とちゅうで 止まった', emotion:'こわい' },
+
+  // いや：嫌悪（生理的に不快、誰もが嫌がるもの）
+  { text:'くさった食べものの においがした', emotion:'いや' },
+  { text:'お風呂に ゴキブリが うかんでいた', emotion:'いや' },
+  { text:'どろだらけの あしで へやに 入られた', emotion:'いや' },
+];
+
+const LEVELS = [
+  {
+    rounds:5,
+    mode:'face-to-name',
+    label:'レベル1',
+    tag:'かおから きもち',
+    description:'かおを見て きもちをえらぶ',
+  },
+  {
+    rounds:5,
+    mode:'scenario-to-face',
+    label:'レベル2',
+    tag:'ばめんから きもち',
+    description:'ばめんを読んで きもちをえらぶ',
+  },
+  {
+    rounds:6,
+    mode:'mixed',
+    label:'レベル3',
+    tag:'まぜあわせ',
+    description:'どちらもでるよ',
+  },
+];
+
+function genRound(mode) {
+  const actualMode = mode === 'mixed' ? (Math.random() < 0.5 ? 'face-to-name' : 'scenario-to-face') : mode;
+
+  if (actualMode === 'face-to-name') {
+    // Show face → pick emotion name
+    const correct = EMOTIONS[Math.floor(Math.random() * EMOTIONS.length)];
+    const wrongs = shuffle(EMOTIONS.filter(e => e.name !== correct.name)).slice(0, 3);
+    const choices = shuffle([correct, ...wrongs]);
+    return { mode:actualMode, target: correct, choices, question: { emoji: correct.emoji } };
+  } else {
+    // Show scenario → pick emotion face
+    const scenario = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
+    const correct = EMOTIONS.find(e => e.name === scenario.emotion);
+    const wrongs = shuffle(EMOTIONS.filter(e => e.name !== correct.name)).slice(0, 3);
+    const choices = shuffle([correct, ...wrongs]);
+    return { mode:actualMode, target: correct, choices, question: { text: scenario.text } };
+  }
+}
+
+export default function EmotionRecognition() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    levelIdx:0, roundIdx:0,
+    rounds:[],
+    feedback:null, selectedIdx:null,
+    correct:0, score:0,
+  }).current;
+
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.levelIdx = 0; g.correct = 0; g.score = 0;
+    setScreen('play');
+    startLevel(0);
+  };
+
+  const startLevel = (lvlIdx) => {
+    g.levelIdx = lvlIdx;
+    const level = LEVELS[lvlIdx];
+    g.rounds = [];
+    for (let i = 0; i < level.rounds; i++) {
+      g.rounds.push(genRound(level.mode));
+    }
+    g.roundIdx = 0;
+    g.feedback = null; g.selectedIdx = null;
+    rerender();
+  };
+
+  const handleTap = (idx) => {
+    if (g.feedback) return;
+    const round = g.rounds[g.roundIdx];
+    const isCorrect = round.choices[idx].name === round.target.name;
+    g.selectedIdx = idx;
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    if (isCorrect) {
+      g.correct++;
+      g.score += 15;
+    }
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.feedback = null; g.selectedIdx = null;
+      if (g.roundIdx + 1 >= g.rounds.length) {
+        if (g.levelIdx + 1 >= LEVELS.length) {
+          setScreen('done'); rerender();
+        } else {
+          startLevel(g.levelIdx + 1);
+        }
+      } else {
+        g.roundIdx++;
+        rerender();
+      }
+    }, isCorrect ? 900 : 1800);
+  };
+
+  const level = LEVELS[g.levelIdx];
+  const round = g.rounds[g.roundIdx];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @keyframes facePop{0%{transform:scale(0.5);opacity:0}50%{transform:scale(1.1);opacity:1}100%{transform:scale(1);opacity:1}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>😊 きもちをよもう</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {level?.label}　{g.roundIdx + 1}/{level?.rounds}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'30px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', justifyContent:'center', maxWidth:300 }}>
+            {EMOTIONS.map((e, i) => (
+              <div key={i} style={{
+                display:'flex', flexDirection:'column', alignItems:'center',
+                padding:'6px 8px', borderRadius:10,
+                background:'white', boxShadow:'0 2px 6px rgba(0,0,0,0.05)',
+              }}>
+                <span style={{ fontSize:28 }}>{e.emoji}</span>
+                <span style={{ fontSize:10, fontWeight:900, color:e.color }}>{e.name}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            きもちをよもう！
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            かおや ばめんから きもちをあてる
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:24 }}>
+            表情認識・社会的認知
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && level && round && (
+        <div style={{ padding:'12px 16px', maxWidth:520, margin:'0 auto' }}>
+
+          {/* Level progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:8 }}>
+            {LEVELS.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.levelIdx ? 20 : 14, height:6, borderRadius:3,
+                background: i < g.levelIdx ? '#8BC34A' : i === g.levelIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Round progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:10 }}>
+            {g.rounds.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.roundIdx ? 10 : 6, height:6, borderRadius:3,
+                background: i < g.roundIdx ? '#8BC34A' : i === g.roundIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:12, color:'#9E9E9E' }}>pt</span></span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#555' }}>{level.tag}</span>
+          </div>
+
+          {/* Question */}
+          <div style={{
+            background:'white', borderRadius:20, padding:'32px 20px',
+            boxShadow:'0 4px 16px rgba(0,0,0,0.06)',
+            textAlign:'center', marginBottom:14, minHeight:180,
+            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+          }} key={g.roundIdx + '-' + g.levelIdx}>
+            {round.mode === 'face-to-name' ? (
+              <>
+                <div style={{ fontSize:13, fontWeight:700, color:'#9E9E9E', marginBottom:10 }}>
+                  このかおの きもちは？
+                </div>
+                <div style={{ fontSize:120, lineHeight:1, animation:'facePop 0.3s ease-out' }}>
+                  {round.question.emoji}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:13, fontWeight:700, color:'#9E9E9E', marginBottom:14 }}>
+                  このばめんの きもちは？
+                </div>
+                <div style={{
+                  background:'#FFF8F5', borderRadius:14, padding:'16px 20px',
+                  border:'2px solid #FFE0CC',
+                  animation:'fadeUp 0.3s ease-out',
+                }}>
+                  <span style={{ fontSize:22, fontWeight:900, color:'#333', lineHeight:1.4 }}>
+                    「{round.question.text}」
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Feedback */}
+          {g.feedback && (
+            <div style={{ textAlign:'center', marginBottom:10, animation:'fadeUp 0.2s' }}>
+              <span style={{ fontSize:40 }}>{g.feedback === 'correct' ? '⭕' : '❌'}</span>
+              {g.feedback === 'wrong' && (
+                <div style={{ fontSize:15, fontWeight:900, color:'#C62828', marginTop:4 }}>
+                  こたえは「{round.target.name}」{round.target.emoji}
+                </div>
+              )}
+            </div>
+          )}
+          {!g.feedback && <div style={{ height:54 }} />}
+
+          {/* Choices */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+            {round.choices.map((c, i) => {
+              const isSelected = g.selectedIdx === i;
+              const isAnswer = c.name === round.target.name;
+              const showCorrect = g.feedback && isAnswer;
+              const showWrong = g.feedback === 'wrong' && isSelected;
+              return (
+                <button key={i} onClick={() => handleTap(i)}
+                  disabled={!!g.feedback}
+                  style={{
+                    ...bs, height:72, borderRadius:16,
+                    background: showCorrect ? '#F1F8E9' : showWrong ? '#FFF5F5' : 'white',
+                    border: `4px solid ${showCorrect ? '#66BB6A' : showWrong ? '#EF5350' : '#E8E8E8'}`,
+                    display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+                    animation: showWrong ? 'shake 0.3s' : showCorrect ? 'pop 0.3s' : undefined,
+                    opacity: g.feedback && !showCorrect && !showWrong ? 0.3 : 1,
+                    boxShadow:'0 3px 10px rgba(0,0,0,0.05)',
+                  }}>
+                  {round.mode === 'face-to-name' ? (
+                    <>
+                      <span style={{ fontSize:18, fontWeight:900, color: showCorrect ? '#2E7D32' : showWrong ? '#C62828' : '#555' }}>
+                        {c.name}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize:40 }}>{c.emoji}</span>
+                      <span style={{ fontSize:14, fontWeight:900, color: showCorrect ? '#2E7D32' : showWrong ? '#C62828' : '#555' }}>
+                        {c.name}
+                      </span>
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const totalRounds = LEVELS.reduce((a, l) => a + l.rounds, 0);
+        const pct = g.correct / totalRounds;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すばらしい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize:16, fontWeight:700, color:'#555', marginBottom:20 }}>
+              {g.correct}もん せいかい / {totalRounds}もん
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

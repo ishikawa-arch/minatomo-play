@@ -1,0 +1,213 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【シンプル】もぐらポン！ ==========
+export default function SimpleMole() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    score:0, hits:0, misses:0,
+    holes:[false,false,false,false,false,false,false,false,false], // 3x3
+    popTimers:[], phase:'idle',
+    totalPops:0, maxPops:25,
+    gameTimer:null,
+  }).current;
+
+  const timerRef = useRef(null);
+  const popRef = useRef(null);
+  useEffect(() => () => { clearTimeout(timerRef.current); clearTimeout(popRef.current); clearTimeout(g.gameTimer); }, []);
+
+  const startGame = () => {
+    g.score = 0; g.hits = 0; g.misses = 0; g.totalPops = 0;
+    g.holes = [false,false,false,false,false,false,false,false,false];
+    g.phase = 'playing';
+    setScreen('play'); rerender();
+    schedulePop();
+  };
+
+  const schedulePop = () => {
+    if (g.totalPops >= g.maxPops) {
+      // Wait for active moles to clear
+      timerRef.current = setTimeout(() => {
+        if (!g.holes.some(h => h)) {
+          g.phase = 'idle';
+          setScreen('done'); rerender();
+        } else {
+          schedulePop();
+        }
+      }, 500);
+      return;
+    }
+
+    // Pick a random empty hole
+    const empty = g.holes.map((h, i) => h ? -1 : i).filter(i => i >= 0);
+    if (empty.length === 0) {
+      timerRef.current = setTimeout(schedulePop, 200);
+      return;
+    }
+
+    const holeIdx = empty[Math.floor(Math.random() * empty.length)];
+    g.holes[holeIdx] = true;
+    g.totalPops++;
+    rerender();
+
+    // Auto-hide after time (gets faster)
+    const hideTime = Math.max(600, 1400 - g.totalPops * 30);
+    const thisTimer = setTimeout(() => {
+      if (g.holes[holeIdx]) {
+        g.holes[holeIdx] = false;
+        g.misses++;
+        rerender();
+      }
+    }, hideTime);
+    g.popTimers[holeIdx] = thisTimer;
+
+    // Schedule next pop (gets more frequent)
+    const nextInterval = Math.max(400, 1000 - g.totalPops * 22);
+    popRef.current = setTimeout(schedulePop, nextInterval);
+  };
+
+  const handleWhack = (idx) => {
+    if (g.phase !== 'playing' || !g.holes[idx]) return;
+    clearTimeout(g.popTimers[idx]);
+    g.holes[idx] = false;
+    g.hits++;
+    g.score += 10;
+    rerender();
+  };
+
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.1s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.8)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+        @keyframes moleUp{0%{transform:translateY(100%);opacity:0}100%{transform:translateY(0);opacity:1}}
+        @keyframes moleHit{0%{transform:scale(1);opacity:1}100%{transform:scale(0) rotate(20deg);opacity:0}}
+        @keyframes wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-3deg)}75%{transform:rotate(3deg)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🐹 もぐらポン！</span>
+        {screen === 'play' && (
+          <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:18, fontWeight:900, color:'#E8652E' }}>{g.score}pt</span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#9E9E9E' }}>{g.hits}/{g.maxPops}</span>
+          </div>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ fontSize:80, marginBottom:20, animation:'wobble 1s ease-in-out infinite' }}>🐹</div>
+
+          <div style={{ fontSize:26, fontWeight:900, color:'#333', marginBottom:8, letterSpacing:'0.06em' }}>
+            もぐらをタップ！
+          </div>
+          <div style={{ fontSize:16, color:'#9E9E9E', marginBottom:40 }}>
+            でてきたらすばやくタッチ！
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:28, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'24px 64px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && (
+        <div style={{ padding:'16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Progress */}
+          <div style={{ width:'100%', height:6, background:'#E8E8E8', borderRadius:3, marginBottom:12, overflow:'hidden' }}>
+            <div style={{ width:`${Math.min(100, (g.totalPops / g.maxPops) * 100)}%`, height:'100%', background:'#E8652E', borderRadius:3, transition:'width 0.3s' }} />
+          </div>
+
+          {/* 3x3 Grid */}
+          <div style={{
+            display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10,
+            maxWidth:340, margin:'0 auto',
+            userSelect:'none', WebkitUserSelect:'none',
+          }}>
+            {g.holes.map((hasMole, idx) => (
+              <div key={idx}
+                onClick={() => handleWhack(idx)}
+                style={{
+                  ...bs,
+                  height:100, borderRadius:20,
+                  background: '#8D6E63',
+                  border:'4px solid #6D4C41',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  overflow:'hidden',
+                  position:'relative',
+                  boxShadow:'inset 0 4px 8px rgba(0,0,0,0.2)',
+                }}>
+                {/* Hole */}
+                <div style={{
+                  position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)',
+                  width:'80%', height:20, borderRadius:'50%',
+                  background:'#5D4037',
+                }} />
+                {/* Mole */}
+                {hasMole && (
+                  <div style={{
+                    animation:'moleUp 0.15s ease-out',
+                    display:'flex', flexDirection:'column', alignItems:'center',
+                  }}>
+                    <span style={{ fontSize:48, lineHeight:1 }}>🐹</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div style={{ display:'flex', justifyContent:'center', gap:20, marginTop:14 }}>
+            <div style={{ textAlign:'center' }}>
+              <span style={{ fontSize:14, fontWeight:700, color:'#2E7D32' }}>🎯 {g.hits}</span>
+            </div>
+            <div style={{ textAlign:'center' }}>
+              <span style={{ fontSize:14, fontWeight:700, color:'#C62828' }}>💨 {g.misses}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const total = g.maxPops;
+        const pct = g.hits / total;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すごい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:80, marginBottom:16, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:32, fontWeight:900, color:'#E8652E', marginBottom:12 }}>{msg}</div>
+            <div style={{ background:'white', borderRadius:24, padding:'20px 40px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:8 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:48, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:20, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:16, marginBottom:8 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:'#2E7D32' }}>🎯 {g.hits}ひき タッチ</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#C62828' }}>💨 {g.misses}ひき にげた</div>
+            </div>
+            <div style={{ fontSize:20, fontWeight:700, color:'#6B6B6B', marginBottom:40 }}>{g.hits} / {total}</div>
+            <button onClick={startGame} style={{
+              ...bs, fontSize:24, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'22px 48px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

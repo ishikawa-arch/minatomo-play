@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>おなじかず？ | みなともPlay</title>
+<meta name="description" content="おなじかず？ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="calculation">
+<meta name="minatomo-category" content="シンプル">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【シンプル】おなじかず？ ==========
+const LEFT_EMOJIS = ['🍎','⭐','❤️','🌸','🎈','☀️','🍇','🐱'];
+const RIGHT_EMOJIS = ['🐟','🚗','🍰','🐸','🌻','🎵','🐧','🍊'];
+
+function genRounds(count) {
+  const rounds = [];
+  for (let i = 0; i < count; i++) {
+    const isSame = Math.random() < 0.45;
+    const leftEmoji = LEFT_EMOJIS[Math.floor(Math.random() * LEFT_EMOJIS.length)];
+    const rightEmoji = RIGHT_EMOJIS[Math.floor(Math.random() * RIGHT_EMOJIS.length)];
+
+    let leftCount, rightCount;
+    if (i < 4) {
+      // Easy: 2-4 items
+      leftCount = 2 + Math.floor(Math.random() * 3);
+      rightCount = isSame ? leftCount : leftCount + (Math.random() < 0.5 ? 1 : -1);
+      if (rightCount < 1) rightCount = leftCount + 1;
+    } else if (i < 8) {
+      // Medium: 3-5 items
+      leftCount = 3 + Math.floor(Math.random() * 3);
+      rightCount = isSame ? leftCount : leftCount + (Math.random() < 0.5 ? 1 : -1);
+      if (rightCount < 1) rightCount = leftCount + 1;
+    } else {
+      // Hard: 4-7 items, difference can be 1 or 2
+      leftCount = 4 + Math.floor(Math.random() * 4);
+      const diff = Math.random() < 0.5 ? 1 : 2;
+      rightCount = isSame ? leftCount : leftCount + (Math.random() < 0.5 ? diff : -diff);
+      if (rightCount < 2) rightCount = leftCount + diff;
+    }
+
+    const answer = leftCount === rightCount ? 'same' : 'diff';
+    rounds.push({ leftEmoji, rightEmoji, leftCount, rightCount, answer });
+  }
+  return rounds;
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    rounds:[], currentR:0, score:0, correct:0,
+    feedback:null, selected:null,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.rounds = genRounds(12);
+    g.currentR = 0; g.score = 0; g.correct = 0;
+    g.feedback = null; g.selected = null;
+    setScreen('play'); rerender();
+  };
+
+  const handleTap = (choice) => {
+    if (g.feedback) return;
+    const round = g.rounds[g.currentR];
+    const isCorrect = choice === round.answer;
+    g.selected = choice;
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    if (isCorrect) { g.correct++; g.score += 10; }
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.selected = null; g.feedback = null;
+      g.currentR++;
+      if (g.currentR >= g.rounds.length) setScreen('done');
+      rerender();
+    }, isCorrect ? 800 : 1200);
+  };
+
+  const round = g.currentR < g.rounds.length ? g.rounds[g.currentR] : null;
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  // Emoji scatter in a box - random positions
+  const EmojiBox = ({ emoji, count, bg, seed }) => {
+    const size = count <= 3 ? 30 : count <= 5 ? 26 : 22;
+    // Generate deterministic random positions from seed
+    const positions = [];
+    let s = seed || 1;
+    for (let i = 0; i < count; i++) {
+      s = (s * 9301 + 49297) % 233280;
+      const x = 12 + (s / 233280) * 68;
+      s = (s * 9301 + 49297) % 233280;
+      const y = 10 + (s / 233280) * 65;
+      positions.push({ x, y });
+    }
+    return (
+      <div style={{
+        flex:1, height:140, borderRadius:18,
+        background:bg || 'white', border:'3px solid #E8E8E8',
+        position:'relative', overflow:'hidden',
+      }}>
+        {positions.map((pos, i) => (
+          <span key={i} style={{
+            position:'absolute',
+            left:pos.x+'%', top:pos.y+'%',
+            fontSize:size, lineHeight:1,
+            pointerEvents:'none', userSelect:'none',
+          }}>{emoji}</span>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.8)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🔢 おなじかず？</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>{g.currentR + 1} / {g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:12, alignItems:'center', marginBottom:8 }}>
+            <div style={{ display:'flex', gap:4 }}>
+              <span style={{ fontSize:36 }}>🍎</span>
+              <span style={{ fontSize:36 }}>🍎</span>
+              <span style={{ fontSize:36 }}>🍎</span>
+            </div>
+            <span style={{ fontSize:24, fontWeight:900, color:'#9E9E9E' }}>？</span>
+            <div style={{ display:'flex', gap:4 }}>
+              <span style={{ fontSize:36 }}>🐟</span>
+              <span style={{ fontSize:36 }}>🐟</span>
+              <span style={{ fontSize:36 }}>🐟</span>
+            </div>
+          </div>
+          <div style={{ fontSize:18, fontWeight:900, color:'#43A047', marginBottom:24 }}>→ おなじ！⭕</div>
+
+          <div style={{ fontSize:26, fontWeight:900, color:'#333', marginBottom:8, letterSpacing:'0.06em' }}>
+            かずはおなじ？
+          </div>
+          <div style={{ fontSize:16, color:'#9E9E9E', marginBottom:40 }}>
+            ひだりとみぎのかずをくらべよう
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:28, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'24px 64px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && round && (
+        <div style={{ padding:'16px', maxWidth:580, margin:'0 auto', animation:'fadeUp 0.3s ease-out' }} key={g.currentR}>
+
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:12 }}>
+            {g.rounds.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.currentR ? 12 : 8, height:8, borderRadius:4,
+                background: i < g.currentR ? '#8BC34A' : i === g.currentR ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          <div style={{ textAlign:'center', marginBottom:14 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:24, fontWeight:900, color:'#E8652E' }}>{g.score}</span>
+            <span style={{ fontSize:14, fontWeight:700, color:'#9E9E9E', marginLeft:4 }}>てん</span>
+          </div>
+
+          <div style={{ fontSize:18, fontWeight:900, color:'#9E9E9E', textAlign:'center', marginBottom:10 }}>
+            かずはおなじ？
+          </div>
+
+          {/* Two boxes side by side */}
+          <div style={{ display:'flex', gap:12, marginBottom:14 }}>
+            <EmojiBox emoji={round.leftEmoji} count={round.leftCount} seed={g.currentR * 100 + 1} />
+            <EmojiBox emoji={round.rightEmoji} count={round.rightCount} seed={g.currentR * 100 + 50} />
+          </div>
+
+          {/* Feedback */}
+          {g.feedback && (
+            <div style={{ textAlign:'center', marginBottom:10, animation:'fadeUp 0.2s ease-out' }}>
+              <span style={{ fontSize:48 }}>{g.feedback === 'correct' ? '⭕' : '❌'}</span>
+              {g.feedback && (
+                <div style={{ fontSize:14, fontWeight:700, color:'#555', marginTop:2 }}>
+                  {round.leftCount}こ と {round.rightCount}こ
+                </div>
+              )}
+            </div>
+          )}
+          {!g.feedback && <div style={{ height:64 }} />}
+
+          {/* Same / Different buttons */}
+          <div style={{ display:'flex', gap:14 }}>
+            {[
+              { choice:'same', label:'おなじ！', emoji:'⭕', color:'#43A047', lightBg:'#F1F8E9' },
+              { choice:'diff', label:'ちがう！', emoji:'❌', color:'#E53935', lightBg:'#FFF5F5' },
+            ].map((btn) => {
+              const isSelected = g.selected === btn.choice;
+              const isCorrectAnswer = round.answer === btn.choice;
+              const showCorrect = g.feedback && isCorrectAnswer;
+              const showWrong = g.feedback && isSelected && !isCorrectAnswer;
+
+              return (
+                <button key={btn.choice} onClick={() => handleTap(btn.choice)}
+                  style={{
+                    ...bs, flex:1, height:100, borderRadius:24,
+                    background: showCorrect ? btn.lightBg : showWrong ? '#FFF5F5' : 'white',
+                    border: `4px solid ${showCorrect ? btn.color : showWrong ? '#EF5350' : '#E8E8E8'}`,
+                    display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4,
+                    animation: showWrong ? 'shake 0.3s' : showCorrect ? 'pop 0.3s' : undefined,
+                    opacity: g.feedback && !showCorrect && !showWrong ? 0.3 : 1,
+                    boxShadow: '0 3px 10px rgba(0,0,0,0.05)',
+                    pointerEvents: g.feedback ? 'none' : 'auto',
+                  }}>
+                  <span style={{ fontSize:32 }}>{btn.emoji}</span>
+                  <span style={{ fontSize:16, fontWeight:900, color: showCorrect ? btn.color : showWrong ? '#C62828' : '#555' }}>{btn.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const total = g.rounds.length;
+        const pct = g.correct / total;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すごい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:80, marginBottom:16, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:32, fontWeight:900, color:'#E8652E', marginBottom:12 }}>{msg}</div>
+            <div style={{ background:'white', borderRadius:24, padding:'20px 40px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:12 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:48, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:20, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+            <div style={{ fontSize:20, fontWeight:700, color:'#6B6B6B', marginBottom:40 }}>{g.correct}もん せいかい / {total}もん</div>
+            <button onClick={startGame} style={{
+              ...bs, fontSize:24, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'22px 48px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>色あわせ | みなともPlay</title>
+<meta name="description" content="色の名前・混色・グラデーション - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+const COLORS = [
+  { name:'あか', hex:'#E53935', hue:0 },
+  { name:'オレンジ', hex:'#FF6D00', hue:30 },
+  { name:'きいろ', hex:'#FDD835', hue:50 },
+  { name:'きみどり', hex:'#7CB342', hue:80 },
+  { name:'みどり', hex:'#43A047', hue:120 },
+  { name:'みずいろ', hex:'#00ACC1', hue:190 },
+  { name:'あお', hex:'#1E88E5', hue:210 },
+  { name:'むらさき', hex:'#7B1FA2', hue:280 },
+  { name:'ピンク', hex:'#EC407A', hue:340 },
+  { name:'ちゃいろ', hex:'#6D4C41', hue:20 },
+  { name:'はいいろ', hex:'#9E9E9E', hue:0 },
+  { name:'しろ', hex:'#F5F5F5', hue:0 },
+];
+
+// Generate shade variants of a color
+function shadeVariant(hex, amount) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  const nr = Math.min(255, Math.max(0, r + amount));
+  const ng = Math.min(255, Math.max(0, g + amount));
+  const nb = Math.min(255, Math.max(0, b + amount));
+  return '#' + [nr,ng,nb].map(c => c.toString(16).padStart(2,'0')).join('');
+}
+
+// Hue shift
+function hueShift(hex, shift) {
+  const r = parseInt(hex.slice(1,3),16)/255;
+  const g = parseInt(hex.slice(3,5),16)/255;
+  const b = parseInt(hex.slice(5,7),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h, s, l = (max+min)/2;
+  if (max===min) { h=s=0; }
+  else {
+    const d=max-min; s=l>0.5?d/(2-max-min):d/(max+min);
+    if (max===r) h=((g-b)/d+(g<b?6:0))/6;
+    else if (max===g) h=((b-r)/d+2)/6;
+    else h=((r-g)/d+4)/6;
+  }
+  h = ((h*360+shift)%360)/360;
+  // HSL to RGB
+  function hue2rgb(p,q,t){if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
+  let nr,ng,nb;
+  if(s===0){nr=ng=nb=l;}
+  else{const q=l<0.5?l*(1+s):l+s-l*s;const p=2*l-q;nr=hue2rgb(p,q,h+1/3);ng=hue2rgb(p,q,h);nb=hue2rgb(p,q,h-1/3);}
+  return '#'+[Math.round(nr*255),Math.round(ng*255),Math.round(nb*255)].map(c=>c.toString(16).padStart(2,'0')).join('');
+}
+
+// Color mixing data
+const MIX_DATA = [
+  { a:'あか', b:'あお', result:'むらさき', resultHex:'#7B1FA2' },
+  { a:'あか', b:'きいろ', result:'オレンジ', resultHex:'#FF6D00' },
+  { a:'あお', b:'きいろ', result:'みどり', resultHex:'#43A047' },
+  { a:'あか', b:'しろ', result:'ピンク', resultHex:'#EC407A' },
+  { a:'あか', b:'みどり', result:'ちゃいろ', resultHex:'#6D4C41' },
+  { a:'あお', b:'しろ', result:'みずいろ', resultHex:'#00ACC1' },
+  { a:'きいろ', b:'みどり', result:'きみどり', resultHex:'#7CB342' },
+];
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'色の名前あて・はっきり違う', rounds:12, modes:['name','match_easy'] },
+  normal: { label:'ふつう', emoji:'🌿', desc:'似た色えらび・混色クイズ', rounds:14, modes:['name','match_normal','mix'] },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'微妙な違い・グラデーション・3秒', rounds:16, modes:['match_hard','mix','gradient'], timeLimit:5 },
+};
+
+// ========== QUESTION GENERATORS ==========
+
+// Mode: Name the color
+function genName() {
+  const color = COLORS[Math.floor(Math.random() * 8)]; // Skip grey/white for naming
+  const wrongs = shuffle(COLORS.filter(c => c.name !== color.name)).slice(0, 3);
+  return {
+    mode: 'name',
+    question: 'この色の名前は？',
+    targetColor: color.hex,
+    answer: color.name,
+    opts: shuffle([color, ...wrongs]).map(c => ({ label: c.name, color: c.hex })),
+  };
+}
+
+// Mode: Match the same color (easy - very different distractors)
+function genMatchEasy() {
+  const color = COLORS[Math.floor(Math.random() * 10)];
+  const wrongs = shuffle(COLORS.filter(c => Math.abs(c.hue - color.hue) > 60 || c.name === 'はいいろ' || c.name === 'しろ').filter(c => c.name !== color.name)).slice(0, 3);
+  return {
+    mode: 'match',
+    question: '同じ色はどれ？',
+    targetColor: color.hex,
+    answer: color.hex,
+    opts: shuffle([{ label: '', color: color.hex }, ...wrongs.map(c => ({ label: '', color: c.hex }))]),
+  };
+}
+
+// Mode: Match shade (normal - similar colors)
+function genMatchNormal() {
+  const color = COLORS[Math.floor(Math.random() * 9)];
+  const wrongs = [
+    shadeVariant(color.hex, 40),
+    shadeVariant(color.hex, -50),
+    hueShift(color.hex, 25),
+  ];
+  return {
+    mode: 'match',
+    question: 'ぴったり同じ色はどれ？',
+    targetColor: color.hex,
+    answer: color.hex,
+    opts: shuffle([{ label: '', color: color.hex }, ...wrongs.map(c => ({ label: '', color: c }))]),
+  };
+}
+
+// Mode: Match shade (hard - very subtle)
+function genMatchHard() {
+  const color = COLORS[Math.floor(Math.random() * 9)];
+  const wrongs = [
+    shadeVariant(color.hex, 20),
+    shadeVariant(color.hex, -25),
+    hueShift(color.hex, 12),
+  ];
+  return {
+    mode: 'match',
+    question: 'ぴったり同じ色はどれ？',
+    targetColor: color.hex,
+    answer: color.hex,
+    opts: shuffle([{ label: '', color: color.hex }, ...wrongs.map(c => ({ label: '', color: c }))]),
+  };
+}
+
+// Mode: Color mixing
+function genMix() {
+  const mix = MIX_DATA[Math.floor(Math.random() * MIX_DATA.length)];
+  const colorA = COLORS.find(c => c.name === mix.a);
+  const colorB = COLORS.find(c => c.name === mix.b);
+  const wrongs = shuffle(COLORS.filter(c => c.name !== mix.result)).slice(0, 3);
+  return {
+    mode: 'mix',
+    question: `${mix.a} + ${mix.b} = ？`,
+    colorA: colorA?.hex,
+    colorB: colorB?.hex,
+    answer: mix.result,
+    resultHex: mix.resultHex,
+    opts: shuffle([{ label: mix.result, color: mix.resultHex }, ...wrongs.map(c => ({ label: c.name, color: c.hex }))]),
+  };
+}
+
+// Mode: Gradient ordering (hard)
+function genGradient() {
+  const base = COLORS[Math.floor(Math.random() * 8)];
+  const shades = [
+    { color: shadeVariant(base.hex, -60), order: 0 },
+    { color: shadeVariant(base.hex, -20), order: 1 },
+    { color: base.hex, order: 2 },
+    { color: shadeVariant(base.hex, 30), order: 3 },
+  ];
+  const shuffled = shuffle(shades);
+  // Ask: which is the darkest?
+  const askDark = Math.random() < 0.5;
+  const answer = askDark ? shades[0].color : shades[3].color;
+  return {
+    mode: 'gradient',
+    question: askDark ? 'いちばん暗い色はどれ？' : 'いちばん明るい色はどれ？',
+    targetColor: null,
+    answer,
+    opts: shuffled.map(s => ({ label: '', color: s.color })),
+  };
+}
+
+function generateQ(diff) {
+  const cfg = DIFF[diff];
+  const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+  switch(mode) {
+    case 'name': return genName();
+    case 'match_easy': return genMatchEasy();
+    case 'match_normal': return genMatchNormal();
+    case 'match_hard': return genMatchHard();
+    case 'mix': return genMix();
+    case 'gradient': return genGradient();
+    default: return genName();
+  }
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    questions: [],
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    selected: null,
+    feedback: null,
+    results: [],
+    timeLeft: 0,
+    streak: 0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const questions = [];
+    for (let i = 0; i < cfg.rounds; i++) questions.push(generateQ(diff));
+    g.questions = questions;
+    g.currentQ = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.selected = null;
+    g.feedback = null;
+    g.results = [];
+    g.streak = 0;
+    g.phase = 'playing';
+    setShowConfetti(false);
+    setScreen('game');
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const startTimer = (sec) => {
+    g.timeLeft = sec;
+    clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      g.timeLeft--;
+      rerender();
+      if (g.timeLeft <= 0) {
+        clearInterval(intervalRef.current);
+        if (g.selected === null) {
+          g.selected = '__timeout__';
+          g.feedback = 'timeout';
+          g.streak = 0;
+          g.results.push({ q: g.questions[g.currentQ], correct: false });
+          rerender();
+          timerRef.current = setTimeout(() => nextQ(), 1200);
+        }
+      }
+    }, 1000);
+  };
+
+  const handleAnswer = (opt) => {
+    if (g.selected !== null) return;
+    clearInterval(intervalRef.current);
+    const q = g.questions[g.currentQ];
+    g.selected = opt.color || opt.label;
+    const isCorrect = (q.mode === 'name' || q.mode === 'mix') ? opt.label === q.answer : opt.color === q.answer;
+
+    if (isCorrect) {
+      g.streak++;
+      g.score += 10 + (g.streak >= 5 ? 5 : g.streak >= 3 ? 3 : 0);
+      g.correct++;
+      g.feedback = 'correct';
+    } else {
+      g.streak = 0;
+      g.feedback = 'wrong';
+    }
+    g.results.push({ q, selected: opt, correct: isCorrect });
+    rerender();
+    timerRef.current = setTimeout(() => nextQ(), isCorrect ? 600 : 1500);
+  };
+
+  const nextQ = () => {
+    if (g.currentQ + 1 >= g.questions.length) { finishGame(); return; }
+    g.currentQ++; g.selected = null; g.feedback = null;
+    const cfg = DIFF[difficulty];
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const finishGame = () => {
+    clearInterval(intervalRef.current);
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.questions.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily: "'Zen Maru Gothic',sans-serif", cursor: 'pointer', transition: 'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 999, overflow: 'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({ length: 50 }, (_, i) => (
+        <div key={i} style={{ position: 'absolute', top: -10, left: Math.random() * 100 + '%', width: 6 + Math.random() * 8, height: 6 + Math.random() * 8, background: ['#FF6B35', '#2EC4B6', '#F9A825', '#AB47BC', '#66BB6A', '#FF8F5E'][i % 6], borderRadius: Math.random() > 0.5 ? '50%' : 2, animation: `cf ${2 + Math.random() * 2}s linear ${Math.random() * 1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  // Color swatch component
+  const Swatch = ({ color, size = 60, border, children }) => (
+    <div style={{ width: size, height: size, borderRadius: 12, background: color, border: border || '3px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+      {children}
+    </div>
+  );
+
+  return (
+    <div style={{ fontFamily: "'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background: '#FAFAF7', minHeight: '100vh', color: '#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background: 'white', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{ ...btnBase, fontSize: 20, background: 'none', border: 'none', color: '#6B6B6B', padding: '4px 8px', borderRadius: 8 }}>←</button>}
+          <span style={{ fontSize: 16, fontWeight: 900, color: '#FF6B35' }}>🎨 色あわせ</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'white', background: '#2EC4B6', padding: '3px 10px', borderRadius: 50 }}>{g.currentQ + 1}/{g.questions.length}</span>
+            {g.streak >= 3 && <span style={{ fontSize: 10, fontWeight: 700, color: 'white', background: '#F9A825', padding: '3px 10px', borderRadius: 50 }}>🔥{g.streak}</span>}
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'white', background: '#FF6B35', padding: '3px 10px', borderRadius: 50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', textAlign: 'center' }}>
+          <div style={{ fontSize: 64, marginBottom: 16, animation: 'bounce 2s infinite' }}>🎨</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#FF6B35', marginBottom: 6 }}>色あわせ</div>
+          <div style={{ fontSize: 14, color: '#6B6B6B', marginBottom: 8, lineHeight: 1.7 }}>色を見分ける・名前を当てる<br />混ぜた色を予想しよう！</div>
+          <div style={{ fontSize: 12, color: '#9E9E9E', marginBottom: 28, background: '#FFF3E0', padding: '8px 16px', borderRadius: 12 }}>🧠 色彩認知・視覚弁別のトレーニングです</div>
+
+          {/* Modes explanation */}
+          <div style={{ width: '100%', maxWidth: 420, marginBottom: 24, background: 'white', borderRadius: 16, padding: '18px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#6B6B6B', marginBottom: 12, textAlign: 'left' }}>📝 こんな問題が出ます</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { icon: '🏷️', label: '色の名前あて', desc: 'この色は何色？', bg: '#FFEBEE' },
+                { icon: '🔍', label: '同じ色さがし', desc: 'ぴったり同じ色はどれ？', bg: '#E3F2FD' },
+                { icon: '🧪', label: '混色クイズ', desc: '赤＋青＝何色？', bg: '#F3E5F5' },
+                { icon: '🌈', label: 'グラデーション', desc: '一番暗い/明るいのはどれ？', bg: '#E8F5E9' },
+              ].map((m, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: m.bg, borderRadius: 10 }}>
+                  <span style={{ fontSize: 18 }}>{m.icon}</span>
+                  <div style={{ textAlign: 'left' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>{m.label}</span>
+                    <div style={{ fontSize: 10, color: '#6B6B6B' }}>{m.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Color palette preview */}
+          <div style={{ width: '100%', maxWidth: 420, marginBottom: 24, background: 'white', borderRadius: 16, padding: '14px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', marginBottom: 8, textAlign: 'left' }}>🎨 12色を使います</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {COLORS.map((c, i) => (
+                <div key={i} style={{ textAlign: 'center' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: c.hex, border: c.name === 'しろ' ? '2px solid #E0E0E0' : '2px solid transparent', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }} />
+                  <div style={{ fontSize: 8, color: '#6B6B6B', marginTop: 2 }}>{c.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width: '100%', maxWidth: 420 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#6B6B6B', marginBottom: 10, textAlign: 'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {Object.entries(DIFF).map(([k, d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{ ...btnBase, fontSize: 15, fontWeight: 700, padding: '18px 20px', borderRadius: 16, border: '3px solid #E8E8E8', background: 'white', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left' }}>
+                  <span style={{ fontSize: 26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize: 15, fontWeight: 700 }}>{d.label}</div><div style={{ fontSize: 11, color: '#6B6B6B', marginTop: 2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width: '100%', maxWidth: 420, marginTop: 28, textAlign: 'left' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#6B6B6B', marginBottom: 10 }}>📊 プレイ履歴</div>
+              {history.slice(0, 5).map((h, i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background: 'white', borderRadius: 16, padding: '12px 14px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, background: h.diff === 'easy' ? '#E8F5E9' : h.diff === 'normal' ? '#FFF3E0' : '#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{ fontSize: 12, fontWeight: 700 }}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{ fontSize: 10, color: '#9E9E9E' }}>{d.getMonth() + 1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2, '0')}</div></div>
+                    </div>
+                    <div style={{ fontFamily: 'Outfit', fontSize: 16, fontWeight: 800, color: '#FF6B35' }}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const q = g.questions[g.currentQ];
+        if (!q) return null;
+        const answered = g.selected !== null;
+
+        return (
+          <div style={{ padding: '0 16px', maxWidth: 500, margin: '0 auto' }}>
+            {/* Status */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 16, padding: '8px 14px', background: 'white', borderBottom: '1px solid #F0F0F0', borderRadius: '0 0 12px 12px', marginBottom: 8 }}>
+              {[
+                { v: g.score, l: 'スコア', c: '#FF6B35' },
+                { v: g.correct + '/' + (g.currentQ + (answered ? 1 : 0)), l: '正解', c: '#2EC4B6' },
+                { v: (g.currentQ + 1) + '/' + g.questions.length, l: '問題', c: '#7B1FA2' },
+                ...(cfg.timeLimit && !answered ? [{ v: g.timeLeft + '秒', l: '残り', c: g.timeLeft <= 2 ? '#E53935' : '#6B6B6B' }] : []),
+              ].map((s, i) => (
+                <div key={i} style={{ textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Outfit', fontSize: 18, fontWeight: 800, color: s.c, animation: s.l === '残り' && g.timeLeft <= 2 ? 'pulse 0.3s infinite' : undefined }}>{s.v}</div>
+                  <div style={{ fontSize: 10, color: '#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
+              {g.questions.map((_, i) => (
+                <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < g.results.length ? (g.results[i].correct ? '#66BB6A' : '#EF5350') : i === g.currentQ ? '#FFB74D' : '#E8E8E8' }} />
+              ))}
+            </div>
+
+            {/* Timer bar */}
+            {cfg.timeLimit && !answered && (
+              <div style={{ width: '100%', height: 4, background: '#E8E8E8', borderRadius: 2, marginBottom: 8, overflow: 'hidden' }}>
+                <div style={{ width: (g.timeLeft / cfg.timeLimit * 100) + '%', height: '100%', background: g.timeLeft <= 2 ? '#E53935' : 'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius: 2, transition: 'width 1s linear' }} />
+              </div>
+            )}
+
+            <div style={{ animation: 'fadeUp 0.25s ease-out' }} key={g.currentQ}>
+              {/* Question */}
+              <div style={{ textAlign: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 14, fontWeight: 900, color: '#7B1FA2', background: '#F3E5F5', padding: '6px 16px', borderRadius: 50 }}>
+                  {q.question}
+                </span>
+              </div>
+
+              {/* Target display */}
+              <div style={{ background: 'white', borderRadius: 20, padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16 }}>
+                {q.mode === 'mix' ? (
+                  <>
+                    <Swatch color={q.colorA} size={70} />
+                    <span style={{ fontSize: 28, fontWeight: 900, color: '#6B6B6B' }}>+</span>
+                    <Swatch color={q.colorB} size={70} />
+                    <span style={{ fontSize: 28, fontWeight: 900, color: '#6B6B6B' }}>=</span>
+                    <span style={{ fontSize: 36 }}>❓</span>
+                  </>
+                ) : q.targetColor ? (
+                  <Swatch color={q.targetColor} size={100} border={q.targetColor === '#F5F5F5' ? '3px solid #E0E0E0' : undefined} />
+                ) : null}
+              </div>
+
+              {/* Options */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
+                {q.opts.map((opt, i) => {
+                  const isSelected = g.selected === (opt.color || opt.label);
+                  const isCorrect = (q.mode === 'name' || q.mode === 'mix') ? opt.label === q.answer : opt.color === q.answer;
+
+                  return (
+                    <button key={i} onClick={() => handleAnswer(opt)} disabled={answered}
+                      style={{
+                        ...btnBase, padding: '14px 10px', borderRadius: 16, textAlign: 'center',
+                        border: `3px solid ${answered && isCorrect ? '#66BB6A' : answered && isSelected && !isCorrect ? '#EF5350' : '#E8E8E8'}`,
+                        background: answered && isCorrect ? '#E8F5E9' : answered && isSelected && !isCorrect ? '#FFEBEE' : 'white',
+                        opacity: answered && !isCorrect && !isSelected ? 0.3 : 1,
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                      }}>
+                      <div style={{
+                        width: 50, height: 50, borderRadius: 10, background: opt.color,
+                        border: opt.color === '#F5F5F5' ? '2px solid #E0E0E0' : '2px solid rgba(0,0,0,0.05)',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                      }} />
+                      {opt.label && <span style={{ fontSize: 13, fontWeight: 700, color: answered && isCorrect ? '#2E7D32' : answered && isSelected && !isCorrect ? '#C62828' : '#2D2D2D' }}>{opt.label}</span>}
+                      {answered && isCorrect && <span style={{ fontSize: 12 }}>✅</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Feedback */}
+              {g.feedback === 'timeout' && (
+                <div style={{ textAlign: 'center', marginTop: 10, fontSize: 14, fontWeight: 900, color: '#E65100' }}>⏰ 時間切れ！</div>
+              )}
+
+              {g.streak >= 3 && !answered && (
+                <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12, fontWeight: 700, color: '#F9A825' }}>🔥 {g.streak}連続正解中！</div>
+              )}
+            </div>
+            <div style={{ height: 20 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.questions.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? '色彩マスター！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        const modeStats = {};
+        g.results.forEach(r => {
+          const m = r.q.mode;
+          if (!modeStats[m]) modeStats[m] = { total: 0, correct: 0 };
+          modeStats[m].total++;
+          if (r.correct) modeStats[m].correct++;
+        });
+        const modeLabels = { name: '🏷️ 名前あて', match: '🔍 色さがし', mix: '🧪 混色', gradient: '🌈 グラデーション' };
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '30px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 16, animation: 'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#FF6B35', marginBottom: 4 }}>{msg}</div>
+            <div style={{ fontSize: 14, color: '#6B6B6B', marginBottom: 24 }}>{cfg.label}モード</div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, width: '100%', maxWidth: 360, marginBottom: 24 }}>
+              {[{ v: `${g.correct}/${total}`, l: '正解数' }, { v: Math.round(pct * 100) + '%', l: '正答率' }, { v: g.score, l: 'スコア' }].map((s, i) =>
+                <div key={i} style={{ background: 'white', borderRadius: 16, padding: '14px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Outfit', fontSize: 24, fontWeight: 800, color: '#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize: 10, color: '#9E9E9E', marginTop: 4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Mode breakdown */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 24, width: '100%', maxWidth: 360 }}>
+              {Object.entries(modeStats).map(([m, s]) => (
+                <div key={m} style={{ background: 'white', borderRadius: 12, padding: '10px 14px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', textAlign: 'center', minWidth: 80 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6B6B6B' }}>{modeLabels[m] || m}</div>
+                  <div style={{ fontFamily: 'Outfit', fontSize: 16, fontWeight: 800, marginTop: 2 }}>{s.correct}/{s.total}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width: '100%', maxWidth: 420, marginBottom: 24, padding: '14px 16px', background: '#F5F5F5', borderRadius: 12, textAlign: 'left' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', marginBottom: 6 }}>💡 色と暮らし</div>
+              <div style={{ fontSize: 11, color: '#9E9E9E', lineHeight: 1.8 }}>
+                色の認知は日常で大切です。お薬の色で種類を見分ける、食材の鮮度を判断する、信号を正しく認識するなど、暮らしの安全に直結します。
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 300 }}>
+              <button onClick={() => startGame(difficulty)} style={{ ...btnBase, fontSize: 16, fontWeight: 700, color: 'white', background: '#FF6B35', border: 'none', padding: '16px 32px', borderRadius: 60 }}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{ ...btnBase, fontSize: 14, fontWeight: 700, color: '#6B6B6B', background: 'white', border: '2px solid #E0E0E0', padding: '14px 32px', borderRadius: 60 }}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>まちがい直し | みなともPlay</title>
+<meta name="description" content="文章の誤りを見つける - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+// Question categories - all reviewed for single clear answer
+const QUESTIONS = {
+  // 事実の誤り
+  facts: [
+    { wrong:'太陽は西からのぼります', q:'どこがまちがい？', opts:['西→東','太陽→月','のぼります→しずみます','まちがいなし'] },
+    { wrong:'1年は10か月あります', q:'どこがまちがい？', opts:['10か月→12か月','1年→1か月','あります→ありません','まちがいなし'] },
+    { wrong:'お正月は12月1日です', q:'どこがまちがい？', opts:['12月→1月','お正月→お盆','1日→15日','まちがいなし'] },
+    { wrong:'日本の首都は大阪です', q:'どこがまちがい？', opts:['大阪→東京','首都→古都','日本→中国','まちがいなし'] },
+    { wrong:'1週間は6日あります', q:'どこがまちがい？', opts:['6日→7日','1週間→1か月','あります→ありません','まちがいなし'] },
+    { wrong:'夏は気温が低くなります', q:'どこがまちがい？', opts:['低く→高く','夏→冬','気温→湿度','まちがいなし'] },
+    { wrong:'水は100度で凍ります', q:'どこがまちがい？', opts:['凍ります→沸騰します','100度→0度','水→氷','まちがいなし'] },
+    { wrong:'赤信号は「進め」です', q:'どこがまちがい？', opts:['進め→止まれ','赤→青','信号→標識','まちがいなし'] },
+    { wrong:'1時間は30分です', q:'どこがまちがい？', opts:['30分→60分','1時間→半日','分→秒','まちがいなし'] },
+    { wrong:'雪は夏によく降ります', q:'どこがまちがい？', opts:['夏→冬','雪→雨','よく→あまり','まちがいなし'] },
+    { wrong:'月曜日の次は水曜日です', q:'どこがまちがい？', opts:['水曜日→火曜日','月曜日→日曜日','次→前','まちがいなし'] },
+    { wrong:'りんごは野菜です', q:'どこがまちがい？', opts:['野菜→くだもの','りんご→にんじん','です→ではない','まちがいなし'] },
+    { wrong:'お米は畑でとれます', q:'どこがまちがい？', opts:['畑→田んぼ','お米→野菜','とれます→育ちます','まちがいなし'] },
+    { wrong:'桜は秋に咲きます', q:'どこがまちがい？', opts:['秋→春','桜→紅葉','咲きます→散ります','まちがいなし'] },
+    { wrong:'富士山は日本でいちばん低い山です', q:'どこがまちがい？', opts:['低い→高い','富士山→高尾山','日本→世界','まちがいなし'] },
+    { wrong:'地球は四角い形をしています', q:'どこがまちがい？', opts:['四角い→丸い','地球→月','形→色','まちがいなし'] },
+    { wrong:'にんじんは青い野菜です', q:'どこがまちがい？', opts:['青い→オレンジの','にんじん→きゅうり','野菜→くだもの','まちがいなし'] },
+    { wrong:'1日は12時間です', q:'どこがまちがい？', opts:['12時間→24時間','1日→半日','です→ではない','まちがいなし'] },
+    { wrong:'12月の次は2月です', q:'どこがまちがい？', opts:['2月→1月','12月→11月','次→前','まちがいなし'] },
+    { wrong:'金曜日の前は水曜日です', q:'どこがまちがい？', opts:['水曜日→木曜日','金曜日→土曜日','前→次','まちがいなし'] },
+  ],
+
+  // 数え方の誤り
+  counters: [
+    { wrong:'犬が3本います', q:'数え方がおかしいのは？', opts:['3本→3匹','犬→猫','います→あります','まちがいなし'] },
+    { wrong:'えんぴつが2匹あります', q:'数え方がおかしいのは？', opts:['2匹→2本','えんぴつ→ペン','あります→います','まちがいなし'] },
+    { wrong:'本を5台読みました', q:'数え方がおかしいのは？', opts:['5台→5冊','本→雑誌','読みました→見ました','まちがいなし'] },
+    { wrong:'お茶を1枚ください', q:'数え方がおかしいのは？', opts:['1枚→1杯','お茶→紙','ください→あげます','まちがいなし'] },
+    { wrong:'くつを1冊買いました', q:'数え方がおかしいのは？', opts:['1冊→1足','くつ→本','買いました→借りました','まちがいなし'] },
+    { wrong:'車が2羽止まっています', q:'数え方がおかしいのは？', opts:['2羽→2台','車→鳥','止まって→走って','まちがいなし'] },
+    { wrong:'手紙を1台書きました', q:'数え方がおかしいのは？', opts:['1台→1通','手紙→車','書きました→読みました','まちがいなし'] },
+    { wrong:'うさぎが2冊います', q:'数え方がおかしいのは？', opts:['2冊→2羽','うさぎ→本','います→あります','まちがいなし'] },
+    { wrong:'飛行機が3匹飛んでいます', q:'数え方がおかしいのは？', opts:['3匹→3機','飛行機→鳥','飛んで→止まって','まちがいなし'] },
+    { wrong:'お皿を5通洗いました', q:'数え方がおかしいのは？', opts:['5通→5枚','お皿→手紙','洗いました→拭きました','まちがいなし'] },
+    { wrong:'ケーキを3足食べました', q:'数え方がおかしいのは？', opts:['3足→3個','ケーキ→くつ','食べました→飲みました','まちがいなし'] },
+    { wrong:'テレビが1杯あります', q:'数え方がおかしいのは？', opts:['1杯→1台','テレビ→お茶','あります→います','まちがいなし'] },
+  ],
+
+  // 季節・行事の誤り
+  seasons: [
+    { wrong:'お花見はもみじを見ます', q:'どこがまちがい？', opts:['もみじ→桜','お花見→紅葉狩り','見ます→聞きます','まちがいなし'] },
+    { wrong:'七夕は12月7日です', q:'どこがまちがい？', opts:['12月→7月','七夕→クリスマス','7日→1日','まちがいなし'] },
+    { wrong:'節分には米をまきます', q:'どこがまちがい？', opts:['米→豆','節分→お正月','まきます→食べます','まちがいなし'] },
+    { wrong:'お盆は春の行事です', q:'どこがまちがい？', opts:['春→夏','お盆→ひな祭り','行事→休日','まちがいなし'] },
+    { wrong:'年越しにはうどんを食べます', q:'どこがまちがい？', opts:['うどん→そば','年越し→大晦日','食べます→飲みます','まちがいなし'] },
+    { wrong:'ひな祭りは10月3日です', q:'どこがまちがい？', opts:['10月→3月','ひな祭り→体育の日','3日→1日','まちがいなし'] },
+    { wrong:'冬至にはスイカを食べます', q:'どこがまちがい？', opts:['スイカ→かぼちゃ','冬至→夏至','食べます→飲みます','まちがいなし'] },
+    { wrong:'クリスマスは12月31日です', q:'どこがまちがい？', opts:['31日→25日','12月→1月','クリスマス→大晦日','まちがいなし'] },
+    { wrong:'お正月にはチョコレートを食べます', q:'どこがまちがい？', opts:['チョコレート→おもち','お正月→バレンタイン','食べます→飲みます','まちがいなし'] },
+    { wrong:'端午の節句は女の子のお祝いです', q:'どこがまちがい？', opts:['女の子→男の子','端午の節句→ひな祭り','お祝い→お休み','まちがいなし'] },
+    { wrong:'大晦日は1月31日です', q:'どこがまちがい？', opts:['1月→12月','大晦日→元旦','31日→1日','まちがいなし'] },
+    { wrong:'紅葉は春に見ごろです', q:'どこがまちがい？', opts:['春→秋','紅葉→桜','見ごろ→終わり','まちがいなし'] },
+  ],
+
+  // 反対の言葉が入っている
+  opposites: [
+    { wrong:'冷蔵庫は食べ物を温めます', q:'どこがまちがい？', opts:['温めます→冷やします','冷蔵庫→電子レンジ','食べ物→飲み物','まちがいなし'] },
+    { wrong:'夜になると明るくなります', q:'どこがまちがい？', opts:['明るく→暗く','夜→朝','なります→なりません','まちがいなし'] },
+    { wrong:'お風呂で体を汚します', q:'どこがまちがい？', opts:['汚します→きれいにします','お風呂→プール','体→服','まちがいなし'] },
+    { wrong:'冬になると暑くなります', q:'どこがまちがい？', opts:['暑く→寒く','冬→夏','なります→なりません','まちがいなし'] },
+    { wrong:'消しゴムで字を書きます', q:'どこがまちがい？', opts:['書きます→消します','消しゴム→えんぴつ','字→絵','まちがいなし'] },
+    { wrong:'ストーブは部屋を涼しくします', q:'どこがまちがい？', opts:['涼しく→暖かく','ストーブ→エアコン','部屋→外','まちがいなし'] },
+    { wrong:'洗濯機は服を汚します', q:'どこがまちがい？', opts:['汚します→きれいにします','洗濯機→泥','服→食器','まちがいなし'] },
+    { wrong:'朝になると暗くなります', q:'どこがまちがい？', opts:['暗く→明るく','朝→夜','なります→なりません','まちがいなし'] },
+    { wrong:'掃除機でゴミをまきます', q:'どこがまちがい？', opts:['まきます→吸います','掃除機→ほうき','ゴミ→水','まちがいなし'] },
+    { wrong:'石けんで手を汚します', q:'どこがまちがい？', opts:['汚します→洗います','石けん→泥','手→足','まちがいなし'] },
+    { wrong:'春になると葉が枯れます', q:'どこがまちがい？', opts:['枯れます→芽が出ます','春→秋','葉→花','まちがいなし'] },
+    { wrong:'鍵をかけるとドアが開きます', q:'どこがまちがい？', opts:['開きます→閉まります','鍵→取っ手','ドア→窓','まちがいなし'] },
+  ],
+
+  // 生活の常識
+  common: [
+    { wrong:'手紙はテレビに入れて送ります', q:'どこがまちがい？', opts:['テレビ→ポスト','手紙→荷物','送ります→届けます','まちがいなし'] },
+    { wrong:'歯は歯ブラシとシャンプーで磨きます', q:'どこがまちがい？', opts:['シャンプー→歯みがき粉','歯→髪','磨きます→洗います','まちがいなし'] },
+    { wrong:'電話をかけるときは口で聞きます', q:'どこがまちがい？', opts:['口→耳','電話→手紙','聞きます→話します','まちがいなし'] },
+    { wrong:'洗濯物は冷蔵庫に干します', q:'どこがまちがい？', opts:['冷蔵庫→物干し','洗濯物→食べ物','干します→入れます','まちがいなし'] },
+    { wrong:'お風呂には服を着たまま入ります', q:'どこがまちがい？', opts:['着たまま→脱いで','お風呂→プール','入ります→出ます','まちがいなし'] },
+    { wrong:'ゴミはベッドの下に捨てます', q:'どこがまちがい？', opts:['ベッドの下→ゴミ箱','ゴミ→服','捨てます→拾います','まちがいなし'] },
+    { wrong:'靴は頭にはきます', q:'どこがまちがい？', opts:['頭→足','靴→帽子','はきます→かぶります','まちがいなし'] },
+    { wrong:'ごはんを食べるときは足を使います', q:'どこがまちがい？', opts:['足→手','ごはん→散歩','食べる→飲む','まちがいなし'] },
+    { wrong:'本は冷蔵庫に置いておきましょう', q:'どこがまちがい？', opts:['冷蔵庫→本棚','本→食べ物','置いて→捨てて','まちがいなし'] },
+    { wrong:'目薬は耳にさします', q:'どこがまちがい？', opts:['耳→目','目薬→耳薬','さします→飲みます','まちがいなし'] },
+    { wrong:'布団は台所にしきます', q:'どこがまちがい？', opts:['台所→寝室','布団→まな板','しきます→片づけます','まちがいなし'] },
+    { wrong:'めがねは足にかけます', q:'どこがまちがい？', opts:['足→鼻（顔）','めがね→くつ下','かけます→はきます','まちがいなし'] },
+  ],
+
+  // 正しい文（ひっかけ）
+  correct: [
+    { wrong:'朝ごはんのあとに歯を磨きます', q:'この文はあっている？', opts:['まちがいなし','朝→夜','歯→顔','磨きます→洗います'], answer:'まちがいなし' },
+    { wrong:'赤ちゃんはミルクを飲みます', q:'この文はあっている？', opts:['まちがいなし','赤ちゃん→大人','ミルク→お酒','飲みます→食べます'], answer:'まちがいなし' },
+    { wrong:'冬になるとコートを着ます', q:'この文はあっている？', opts:['まちがいなし','冬→夏','コート→水着','着ます→脱ぎます'], answer:'まちがいなし' },
+    { wrong:'図書館では静かにします', q:'この文はあっている？', opts:['まちがいなし','静かに→にぎやかに','図書館→公園','します→しません'], answer:'まちがいなし' },
+    { wrong:'魚は海で泳ぎます', q:'この文はあっている？', opts:['まちがいなし','海→空','魚→鳥','泳ぎます→飛びます'], answer:'まちがいなし' },
+    { wrong:'お医者さんは病気を治します', q:'この文はあっている？', opts:['まちがいなし','病気→車','治します→壊します','お医者さん→大工さん'], answer:'まちがいなし' },
+    { wrong:'夏はアイスクリームがおいしいです', q:'この文はあっている？', opts:['まちがいなし','夏→冬','アイス→おでん','おいしい→まずい'], answer:'まちがいなし' },
+    { wrong:'雨の日は傘をさします', q:'この文はあっている？', opts:['まちがいなし','雨→晴れ','傘→帽子','さします→たたみます'], answer:'まちがいなし' },
+    { wrong:'犬はしっぽを振ってよろこびます', q:'この文はあっている？', opts:['まちがいなし','しっぽ→耳','振って→隠して','犬→猫'], answer:'まちがいなし' },
+    { wrong:'お正月には年賀状を出します', q:'この文はあっている？', opts:['まちがいなし','年賀状→暑中見舞い','出します→捨てます','お正月→お盆'], answer:'まちがいなし' },
+  ],
+};
+
+const ALL_CATEGORIES = Object.keys(QUESTIONS);
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'かんたんな事実・ゆっくり', rounds:10, categories:['facts','opposites','correct'], correctChance:0.15 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'数え方・季節も登場', rounds:12, categories:['facts','counters','seasons','opposites','correct'], correctChance:0.12 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'全ジャンル・6秒制限', rounds:14, categories:ALL_CATEGORIES, correctChance:0.1, timeLimit:8 },
+};
+
+// Shuffle opts but keep まちがいなし always at the bottom
+function shuffleOpts(opts) {
+  const others = opts.filter(o => o !== 'まちがいなし');
+  const has = opts.includes('まちがいなし');
+  return has ? [...shuffle(others), 'まちがいなし'] : shuffle(others);
+}
+
+function generateQ(diff, usedSet) {
+  const cfg = DIFF[diff];
+
+  // Occasionally insert a correct sentence (trick question)
+  if (Math.random() < cfg.correctChance) {
+    const pool = QUESTIONS.correct.filter(q => !usedSet.has(q.wrong));
+    if (pool.length > 0) {
+      const q = pool[Math.floor(Math.random() * pool.length)];
+      usedSet.add(q.wrong);
+      return { ...q, isCorrect:true, answer:q.answer, opts:shuffleOpts(q.opts) };
+    }
+  }
+
+  const cat = cfg.categories.filter(c => c !== 'correct')[Math.floor(Math.random() * (cfg.categories.length - (cfg.categories.includes('correct')?1:0)))];
+  const pool = (QUESTIONS[cat] || QUESTIONS.facts).filter(q => !usedSet.has(q.wrong));
+  if (pool.length === 0) usedSet.clear();
+  const src = pool.length > 0 ? pool : QUESTIONS[cat] || QUESTIONS.facts;
+  const q = src[Math.floor(Math.random() * src.length)];
+  usedSet.add(q.wrong);
+  const correctAnswer = q.opts[0]; // first opt is always the correct one in data
+  return { ...q, isCorrect:false, answer:correctAnswer, opts:shuffleOpts(q.opts), category:cat };
+}
+
+const CAT_LABELS = {
+  facts:{ icon:'📚', name:'事実', color:'#1E88E5' },
+  counters:{ icon:'🔢', name:'数え方', color:'#7B1FA2' },
+  seasons:{ icon:'🌸', name:'季節・行事', color:'#EC407A' },
+  opposites:{ icon:'↔️', name:'反対ことば', color:'#E53935' },
+  common:{ icon:'🏠', name:'生活の常識', color:'#43A047' },
+  correct:{ icon:'✅', name:'正しい文', color:'#FF6B35' },
+};
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase:'idle',
+    questions:[], currentQ:0,
+    score:0, correct:0,
+    selected:null, feedback:null,
+    results:[], timeLeft:0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const questions = [];
+    const usedSet = new Set();
+    for (let i = 0; i < cfg.rounds; i++) questions.push(generateQ(diff, usedSet));
+    g.questions = questions; g.currentQ = 0; g.score = 0; g.correct = 0;
+    g.selected = null; g.feedback = null; g.results = [];
+    g.phase = 'playing';
+    setShowConfetti(false); setScreen('game');
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const startTimer = (sec) => {
+    g.timeLeft = sec;
+    clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      g.timeLeft--; rerender();
+      if (g.timeLeft <= 0) {
+        clearInterval(intervalRef.current);
+        if (!g.feedback) {
+          g.feedback = 'timeout';
+          g.results.push({ q:g.questions[g.currentQ], correct:false });
+          rerender();
+          timerRef.current = setTimeout(() => nextQ(), 1500);
+        }
+      }
+    }, 1000);
+  };
+
+  const handleAnswer = (opt) => {
+    if (g.selected !== null || g.feedback) return;
+    clearInterval(intervalRef.current);
+    const q = g.questions[g.currentQ];
+    g.selected = opt;
+    const isCorrect = opt === q.answer;
+    if (isCorrect) { g.score += 10; g.correct++; g.feedback = 'correct'; }
+    else { g.feedback = 'wrong'; }
+    g.results.push({ q, selected:opt, correct:isCorrect });
+    rerender();
+    timerRef.current = setTimeout(() => nextQ(), isCorrect ? 700 : 2000);
+  };
+
+  const nextQ = () => {
+    if (g.currentQ+1 >= g.questions.length) { finishGame(); return; }
+    g.currentQ++; g.selected = null; g.feedback = null;
+    const cfg = DIFF[difficulty];
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const finishGame = () => {
+    clearInterval(intervalRef.current);
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, correct:g.correct, total:g.questions.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🔄 まちがい直し</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentQ+1}/{g.questions.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🔄</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>まちがい直し</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>文章のおかしいところを<br/>見つけて直そう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 注意力・言語理解・常識のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① まちがいのある文章が出ます<br/>
+              ② おかしいところを見つけよう<br/>
+              ③ 正しい直し方を4つの中から選ぶ<br/>
+              ④ 「まちがいなし」のひっかけも！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📝 こんなジャンルが出ます</div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'center' }}>
+              {Object.entries(CAT_LABELS).map(([k,c]) => (
+                <span key={k} style={{ fontSize:11, fontWeight:700, padding:'5px 10px', borderRadius:50, background:'#F5F5F5', color:c.color }}>
+                  {c.icon} {c.name}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Example */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>💡 例えば…</div>
+            <div style={{ background:'#FFEBEE', borderRadius:12, padding:'12px', textAlign:'center', marginBottom:8 }}>
+              <span style={{ fontSize:15, fontWeight:700 }}>「太陽は<span style={{ color:'#E53935', textDecoration:'underline' }}>西</span>からのぼります」</span>
+            </div>
+            <div style={{ textAlign:'center', fontSize:16, fontWeight:700, color:'#2E7D32' }}>→ 西<span style={{ color:'#9E9E9E' }}>→</span>東 が正解！</div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const q = g.questions[g.currentQ];
+        if (!q) return null;
+        const answered = g.selected !== null || g.feedback !== null;
+        const cl = CAT_LABELS[q.category] || CAT_LABELS.facts;
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status */}
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+              {[
+                {v:g.score,l:'スコア',c:'#FF6B35'},
+                {v:g.correct+'/'+(g.currentQ+(answered?1:0)),l:'正解',c:'#2EC4B6'},
+                {v:(g.currentQ+1)+'/'+g.questions.length,l:'問題',c:'#7B1FA2'},
+                ...(cfg.timeLimit && !answered ? [{v:g.timeLeft+'秒',l:'残り',c:g.timeLeft<=3?'#E53935':'#6B6B6B'}] : []),
+              ].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c, animation:s.l==='残り'&&g.timeLeft<=3?'pulse 0.3s infinite':undefined }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display:'flex', gap:2, marginBottom:8 }}>
+              {g.questions.map((_,i) => (
+                <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].correct?'#66BB6A':'#EF5350'):i===g.currentQ?'#FFB74D':'#E8E8E8' }} />
+              ))}
+            </div>
+
+            {/* Timer */}
+            {cfg.timeLimit > 0 && !answered && (
+              <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:8, overflow:'hidden' }}>
+                <div style={{ width:(g.timeLeft/cfg.timeLimit*100)+'%', height:'100%', background:g.timeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:2, transition:'width 1s linear' }} />
+              </div>
+            )}
+
+            <div style={{ animation:'fadeUp 0.25s ease-out' }} key={g.currentQ}>
+              {/* Category badge */}
+              <div style={{ textAlign:'center', marginBottom:8 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:cl.color, background:'#F5F5F5', padding:'4px 14px', borderRadius:50 }}>
+                  {cl.icon} {cl.name}
+                </span>
+              </div>
+
+              {/* The sentence with error */}
+              <div style={{ background:'white', borderRadius:18, padding:'22px 18px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:8, textAlign:'center' }}>
+                <div style={{ fontSize:11, color:'#9E9E9E', marginBottom:8 }}>この文を読んでください</div>
+                <div style={{ fontSize:22, fontWeight:900, color:'#2D2D2D', lineHeight:1.7, background:q.isCorrect?'#E8F5E9':'#FFF3E0', padding:'12px 16px', borderRadius:12 }}>
+                  「{q.wrong}」
+                </div>
+              </div>
+
+              {/* Question */}
+              <div style={{ textAlign:'center', marginBottom:10 }}>
+                <span style={{ fontSize:14, fontWeight:900, color:'#7B1FA2' }}>{q.q}</span>
+              </div>
+
+              {/* Options */}
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {q.opts.map((opt,i) => {
+                  const isSelected = g.selected === opt;
+                  const isCorrect = opt === q.answer;
+                  const isNoError = opt === 'まちがいなし';
+                  return (
+                    <button key={i} onClick={() => handleAnswer(opt)} disabled={answered}
+                      style={{...btnBase, fontSize:17, fontWeight:700, padding:'16px 18px', borderRadius:14, textAlign:'left',
+                        border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                        background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':isNoError?'#F5F5F5':'white',
+                        opacity:answered&&!isCorrect&&!isSelected?0.3:1,
+                        color:answered&&isCorrect?'#2E7D32':answered&&isSelected&&!isCorrect?'#C62828':'#2D2D2D',
+                        display:'flex', alignItems:'center', gap:8}}>
+                      {isNoError && <span style={{ fontSize:16 }}>⭕</span>}
+                      <span>{opt}</span>
+                      {answered && isCorrect && <span style={{ marginLeft:'auto' }}>✅</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Feedback */}
+              {g.feedback === 'wrong' && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#C62828', animation:'fadeUp 0.2s ease-out' }}>
+                  ❌ 正解は「{q.answer}」
+                </div>
+              )}
+              {g.feedback === 'timeout' && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#E65100', animation:'fadeUp 0.2s ease-out' }}>
+                  ⏰ 時間切れ！正解は「{q.answer}」
+                </div>
+              )}
+            </div>
+            <div style={{ height:20 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.questions.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'まちがい発見名人！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Wrong answers review */}
+            {g.results.filter(r => !r.correct).length > 0 && (
+              <div style={{ width:'100%', maxWidth:420, marginBottom:24 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📋 まちがえた問題</div>
+                {g.results.filter(r => !r.correct).map((r,i) => (
+                  <div key={i} style={{ background:'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:4, borderLeft:'4px solid #FF6B35', textAlign:'left' }}>
+                    <div style={{ fontSize:12, fontWeight:700, marginBottom:2 }}>「{r.q.wrong}」</div>
+                    <div style={{ fontSize:11, color:'#2E7D32' }}>→ {r.q.answer}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 見つけるコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                文を読むとき「主語は？」「いつ？」「どこ？」「何を？」に分けて考えると、おかしなところが見つかりやすくなります。「まちがいなし」のひっかけにも注意！
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

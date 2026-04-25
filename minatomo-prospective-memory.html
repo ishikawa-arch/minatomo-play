@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>展望記憶 | みなともPlay</title>
+<meta name="description" content="予定を覚えて実行 - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+const TIME_TASKS = [
+  { action:'薬を飲む', icon:'💊' },
+  { action:'病院に電話する', icon:'📞' },
+  { action:'テレビ体操をする', icon:'📺' },
+  { action:'水を飲む', icon:'🥤' },
+  { action:'血圧を測る', icon:'🩺' },
+  { action:'日記を書く', icon:'📝' },
+  { action:'花に水をやる', icon:'🌿' },
+  { action:'洗濯物を取り込む', icon:'👕' },
+  { action:'手紙をポストに出す', icon:'📮' },
+  { action:'体温を測る', icon:'🌡️' },
+];
+
+const EVENT_TASKS = [
+  { trigger:'郵便屋さんが通ったら', action:'ポストを見に行く', icon:'📮', sceneType:'mailman' },
+  { trigger:'雨が降ってきたら', action:'窓を閉める', icon:'🌧️', sceneType:'rain' },
+  { trigger:'猫がやってきたら', action:'ご飯をあげる', icon:'🐱', sceneType:'cat' },
+  { trigger:'煙突から煙が出たら', action:'お茶を淹れる', icon:'🍵', sceneType:'smoke' },
+  { trigger:'お客さんが来たら', action:'玄関を開ける', icon:'🚶', sceneType:'visitor' },
+];
+
+// Decoy actions - not in today's schedule but look plausible
+const DECOY_ACTIONS = [
+  { action:'ゴミを出す', icon:'🗑️' },
+  { action:'犬の散歩に行く', icon:'🐕' },
+  { action:'布団を干す', icon:'🛏️' },
+  { action:'買い物に行く', icon:'🛒' },
+  { action:'お風呂を沸かす', icon:'🛁' },
+  { action:'庭の草むしりをする', icon:'🌱' },
+  { action:'友達に電話する', icon:'📱' },
+  { action:'新聞を取りに行く', icon:'📰' },
+  { action:'靴を磨く', icon:'👞' },
+  { action:'アイロンをかける', icon:'👔' },
+  { action:'お米を炊く', icon:'🍚' },
+  { action:'カーテンを開ける', icon:'🪟' },
+];
+
+const DISTRACTORS = [
+  { q:'3 + 5 = ?', opts:['7','8','9','6'], ans:1 },
+  { q:'日本の首都は？', opts:['大阪','京都','東京','名古屋'], ans:2 },
+  { q:'1年は何ヶ月？', opts:['10','11','12','13'], ans:2 },
+  { q:'7 - 3 = ?', opts:['3','4','5','2'], ans:1 },
+  { q:'春の次の季節は？', opts:['秋','冬','夏','春'], ans:2 },
+  { q:'2 × 4 = ?', opts:['6','7','8','9'], ans:2 },
+  { q:'1週間は何日？', opts:['5','6','7','8'], ans:2 },
+  { q:'10 - 6 = ?', opts:['3','4','5','6'], ans:1 },
+  { q:'4 + 7 = ?', opts:['10','11','12','9'], ans:1 },
+  { q:'お正月は何月？', opts:['12月','1月','2月','3月'], ans:1 },
+  { q:'「大きい」の反対は？', opts:['長い','小さい','広い','少ない'], ans:1 },
+  { q:'5 × 3 = ?', opts:['12','14','15','16'], ans:2 },
+];
+
+const HOURS = [8,9,10,11,12,13,14,15,16,17];
+const HOUR_LABELS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+
+// Sky colors per hour index
+const SKY_THEMES = [
+  { sky:['#FFB74D','#FFCC80','#87CEEB'], sun:15, label:'あさ', ground:'#4CAF50' },   // 8
+  { sky:['#64B5F6','#87CEEB','#B3E5FC'], sun:30, label:'あさ', ground:'#4CAF50' },   // 9
+  { sky:['#42A5F5','#64B5F6','#BBDEFB'], sun:45, label:'ひる', ground:'#43A047' },   // 10
+  { sky:['#2196F3','#42A5F5','#90CAF9'], sun:60, label:'ひる', ground:'#388E3C' },   // 11
+  { sky:['#1E88E5','#42A5F5','#90CAF9'], sun:75, label:'おひる', ground:'#388E3C' }, // 12
+  { sky:['#2196F3','#42A5F5','#90CAF9'], sun:70, label:'ごご', ground:'#388E3C' },   // 13
+  { sky:['#42A5F5','#64B5F6','#BBDEFB'], sun:55, label:'ごご', ground:'#43A047' },   // 14
+  { sky:['#64B5F6','#90CAF9','#FFE082'], sun:40, label:'ゆうがた', ground:'#4CAF50' },// 15
+  { sky:['#FF8A65','#FFB74D','#CE93D8'], sun:20, label:'ゆうがた', ground:'#5D4037' },// 16
+  { sky:['#5C6BC0','#7E57C2','#FF8A65'], sun:5, label:'ゆう', ground:'#3E2723' },    // 17
+];
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'予定2つ・問題少なめ', timeTasks:2, eventTasks:0, distractorRate:0.3 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'予定3つ＋イベント1つ', timeTasks:2, eventTasks:1, distractorRate:0.5 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'予定3つ＋イベント2つ', timeTasks:3, eventTasks:2, distractorRate:0.6 },
+};
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+
+// ========== SKY COMPONENT ==========
+function SkyBackground({ hourIdx, sceneEvent }) {
+  const theme = SKY_THEMES[hourIdx] || SKY_THEMES[0];
+  const sunY = 100 - theme.sun;
+  const isRaining = sceneEvent === 'rain';
+
+  return (
+    <div style={{ position:'absolute', inset:0, overflow:'hidden', borderRadius:20 }}>
+      <svg viewBox="0 0 400 200" width="100%" height="100%" preserveAspectRatio="none" style={{ display:'block' }}>
+        <defs>
+          <linearGradient id={`sky${hourIdx}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={isRaining ? '#546E7A' : theme.sky[0]} />
+            <stop offset="50%" stopColor={isRaining ? '#78909C' : theme.sky[1]} />
+            <stop offset="100%" stopColor={isRaining ? '#90A4AE' : theme.sky[2]} />
+          </linearGradient>
+          <radialGradient id={`glow${hourIdx}`}>
+            <stop offset="0%" stopColor={hourIdx >= 8 ? '#FF6B35' : '#FFF9C4'} stopOpacity={isRaining ? 0.1 : 0.6} />
+            <stop offset="100%" stopColor={hourIdx >= 8 ? '#FF6B35' : '#FFF9C4'} stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <rect width="400" height="200" fill={`url(#sky${hourIdx})`} />
+
+        {/* Sun glow & sun (hidden in rain) */}
+        {!isRaining && <>
+          <circle cx={50 + hourIdx * 30} cy={sunY} r="50" fill={`url(#glow${hourIdx})`} />
+          <circle cx={50 + hourIdx * 30} cy={sunY} r={hourIdx >= 9 ? 12 : 16}
+            fill={hourIdx >= 8 ? '#FF6B35' : hourIdx >= 7 ? '#FFB74D' : '#FFF176'} />
+        </>}
+
+        {/* Stars at evening */}
+        {hourIdx >= 9 && !isRaining && [80,150,250,320,180,60,340].map((x,i) => (
+          <circle key={i} cx={x} cy={20+i*12%50} r="1.5" fill="white" opacity={0.3+i%3*0.2} />
+        ))}
+
+        {/* Normal clouds */}
+        {hourIdx < 9 && !isRaining && <>
+          <ellipse cx="100" cy="40" rx="35" ry="12" fill="white" opacity="0.4" />
+          <ellipse cx="120" cy="36" rx="25" ry="10" fill="white" opacity="0.3" />
+          <ellipse cx="300" cy="55" rx="30" ry="10" fill="white" opacity="0.3" />
+        </>}
+
+        {/* ===== RAIN EVENT ===== */}
+        {isRaining && <>
+          {/* Dark rain clouds */}
+          <ellipse cx="80" cy="30" rx="50" ry="18" fill="#546E7A" />
+          <ellipse cx="120" cy="25" rx="40" ry="16" fill="#455A64" />
+          <ellipse cx="200" cy="35" rx="55" ry="20" fill="#546E7A" />
+          <ellipse cx="240" cy="28" rx="45" ry="17" fill="#455A64" />
+          <ellipse cx="320" cy="32" rx="50" ry="18" fill="#546E7A" />
+          {/* Rain drops */}
+          {Array.from({length:30}).map((_,i) => (
+            <line key={i} x1={15+i*13} y1={50+i%4*8} x2={12+i*13} y2={65+i%4*8}
+              stroke="#90CAF9" strokeWidth="1.5" opacity="0.5" />
+          ))}
+          {/* Puddles */}
+          <ellipse cx="150" cy="178" rx="20" ry="4" fill="#90CAF9" opacity="0.3" />
+          <ellipse cx="280" cy="175" rx="15" ry="3" fill="#90CAF9" opacity="0.3" />
+        </>}
+
+        {/* Ground */}
+        <ellipse cx="200" cy="215" rx="250" ry="40" fill={isRaining ? '#3E2723' : theme.ground} />
+
+        {/* Left house */}
+        <rect x="40" y="145" width="30" height="25" fill="#795548" rx="2" />
+        <polygon points="35,145 55,125 75,145" fill="#D32F2F" />
+        <rect x="47" y="155" width="8" height="15" fill="#FFE082" opacity={hourIdx >= 7 || isRaining ? 0.8 : 0.2} />
+
+        {/* ===== SMOKE EVENT ===== */}
+        {sceneEvent === 'smoke' && <>
+          <circle cx="55" cy="116" r="5" fill="#BDBDBD" opacity="0.6" />
+          <circle cx="52" cy="108" r="6" fill="#BDBDBD" opacity="0.5" />
+          <circle cx="56" cy="98" r="7" fill="#BDBDBD" opacity="0.4" />
+          <circle cx="53" cy="87" r="8" fill="#BDBDBD" opacity="0.3" />
+        </>}
+
+        {/* Right house */}
+        <rect x="300" y="150" width="35" height="22" fill="#8D6E63" rx="2" />
+        <polygon points="295,150 317,128 340,150" fill="#E65100" />
+        <rect x="310" y="157" width="8" height="15" fill="#FFE082" opacity={hourIdx >= 7 || isRaining ? 0.8 : 0.2} />
+
+        {/* Mailbox near right house */}
+        <rect x="348" y="158" width="5" height="14" fill="#D32F2F" />
+        <rect x="344" y="154" width="13" height="8" fill="#E53935" rx="2" />
+
+        {/* ===== MAILMAN EVENT ===== */}
+        {sceneEvent === 'mailman' && <>
+          {/* Mailman body */}
+          <circle cx="270" cy="148" r="7" fill="#FFE0B2" /> {/* head */}
+          <rect x="265" y="155" width="10" height="14" fill="#1565C0" rx="2" /> {/* body - blue uniform */}
+          <rect x="263" y="169" width="5" height="8" fill="#37474F" rx="1" /> {/* left leg */}
+          <rect x="272" y="169" width="5" height="8" fill="#37474F" rx="1" /> {/* right leg */}
+          <rect x="260" y="157" width="5" height="3" fill="#1565C0" rx="1" /> {/* left arm */}
+          <rect x="275" y="155" width="8" height="6" fill="#8D6E63" rx="1" /> {/* bag */}
+          {/* Cap */}
+          <rect x="264" y="142" width="12" height="4" fill="#0D47A1" rx="1" />
+          <rect x="262" y="145" width="16" height="3" fill="#0D47A1" rx="1" />
+        </>}
+
+        {/* Tree */}
+        <rect x="198" y="148" width="6" height="22" fill="#4E342E" />
+        <circle cx="201" cy="138" r="18" fill="#2E7D32" opacity="0.8" />
+        <circle cx="192" cy="133" r="12" fill="#388E3C" opacity="0.7" />
+        <circle cx="210" cy="135" r="10" fill="#43A047" opacity="0.6" />
+
+        {/* ===== CAT EVENT ===== */}
+        {sceneEvent === 'cat' && <>
+          {/* Cat body */}
+          <ellipse cx="175" cy="172" rx="10" ry="7" fill="#FF8F00" /> {/* body */}
+          <circle cx="167" cy="166" r="6" fill="#FF8F00" /> {/* head */}
+          {/* Ears */}
+          <polygon points="163,161 165,155 168,161" fill="#FF8F00" />
+          <polygon points="168,161 170,155 173,161" fill="#FF8F00" />
+          {/* Eyes */}
+          <circle cx="165" cy="165" r="1.5" fill="#2D2D2D" />
+          <circle cx="170" cy="165" r="1.5" fill="#2D2D2D" />
+          {/* Tail */}
+          <path d="M 185 170 Q 192 160 188 155" fill="none" stroke="#FF8F00" strokeWidth="3" strokeLinecap="round" />
+        </>}
+
+        {/* ===== VISITOR EVENT ===== */}
+        {sceneEvent === 'visitor' && <>
+          {/* Person at left house door */}
+          <circle cx="30" cy="150" r="6" fill="#FFCC80" /> {/* head */}
+          <rect x="25" y="156" width="10" height="12" fill="#7B1FA2" rx="2" /> {/* body */}
+          <rect x="23" y="168" width="5" height="7" fill="#37474F" rx="1" /> {/* left leg */}
+          <rect x="32" y="168" width="5" height="7" fill="#37474F" rx="1" /> {/* right leg */}
+          {/* Hair */}
+          <ellipse cx="30" cy="146" rx="6" ry="3" fill="#3E2723" />
+        </>}
+      </svg>
+
+      {/* Time label */}
+      <div style={{ position:'absolute', top:12, right:16, background:'rgba(0,0,0,0.3)', backdropFilter:'blur(8px)', padding:'6px 14px', borderRadius:20 }}>
+        <span style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:'white' }}>
+          {HOUR_LABELS[hourIdx]}
+        </span>
+      </div>
+
+      {/* Period label */}
+      <div style={{ position:'absolute', top:14, left:16, fontSize:12, fontWeight:700, color:'rgba(255,255,255,0.8)' }}>
+        {isRaining ? '☔ あめ' : theme.label}
+      </div>
+    </div>
+  );
+}
+
+// ========== MAIN COMPONENT ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [schedule, setSchedule] = React.useState([]);
+  const [currentHourIdx, setCurrentHourIdx] = React.useState(0);
+  const [phase, setPhase] = React.useState('idle');
+  // phases: idle, memorize, hour-start, distractor, event-check, action-choice, hour-feedback, result
+  const [memTimeLeft, setMemTimeLeft] = React.useState(0);
+  const [distractorQ, setDistractorQ] = React.useState(null);
+  const [distractorAnswer, setDistractorAnswer] = React.useState(null);
+  const [activeEvent, setActiveEvent] = React.useState(null);
+  const [actionFeedback, setActionFeedback] = React.useState(null);
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [hourActions, setHourActions] = React.useState([]); // actions taken this hour
+  const [usedDistractors, setUsedDistractors] = React.useState([]);
+  const [choices, setChoices] = React.useState([]);
+
+  // Start game
+  const startGame = React.useCallback((diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+
+    const timeTasks = shuffle(TIME_TASKS).slice(0, cfg.timeTasks);
+    const availableHours = shuffle([1,2,3,4,5,6,7,8]);
+    const timeSchedule = timeTasks.map((t,i) => ({
+      type:'time', hour:availableHours[i], task:t, done:false, missed:false,
+    }));
+
+    const eventTasks = shuffle(EVENT_TASKS).slice(0, cfg.eventTasks);
+    const eventHours = availableHours.slice(cfg.timeTasks, cfg.timeTasks + cfg.eventTasks);
+    const eventSchedule = eventTasks.map((t,i) => ({
+      type:'event', task:t, done:false, missed:false,
+      triggerHour: eventHours[i] || 4,
+    }));
+
+    const fullSchedule = [...timeSchedule, ...eventSchedule];
+    setSchedule(fullSchedule);
+
+    // Build choice list: real tasks + decoys, shuffled
+    const realActions = fullSchedule.map(s => s.task.action);
+    const decoyPool = shuffle(DECOY_ACTIONS).filter(d => !realActions.includes(d.action));
+    const decoyCount = diff === 'easy' ? 3 : diff === 'normal' ? 4 : 5;
+    const decoys = decoyPool.slice(0, decoyCount).map(d => ({
+      label: d.action, icon: d.icon, realIdx: null, decoy: true,
+    }));
+    const reals = fullSchedule.map((s, i) => ({
+      label: s.task.action, icon: s.task.icon, realIdx: i, decoy: false,
+    }));
+    setChoices(shuffle([...reals, ...decoys]));
+
+    setCurrentHourIdx(0);
+    setActionFeedback(null);
+    setShowConfetti(false);
+    setHourActions([]);
+    setActiveEvent(null);
+    setUsedDistractors([]);
+
+    const memTime = diff === 'easy' ? 25 : diff === 'normal' ? 30 : 35;
+    setMemTimeLeft(memTime);
+    setPhase('memorize');
+    setScreen('game');
+  }, []);
+
+  // Memorize countdown
+  React.useEffect(() => {
+    if (phase === 'memorize' && memTimeLeft > 0) {
+      const t = setTimeout(() => setMemTimeLeft(m => m - 1), 1000);
+      return () => clearTimeout(t);
+    }
+    if (phase === 'memorize' && memTimeLeft === 0) {
+      beginHour(0);
+    }
+  }, [phase, memTimeLeft]);
+
+  const beginHour = React.useCallback((hourIdx) => {
+    if (hourIdx >= HOURS.length) {
+      finishGame();
+      return;
+    }
+    setCurrentHourIdx(hourIdx);
+    setHourActions([]);
+    setActionFeedback(null);
+    setActiveEvent(null);
+
+    // Check if distractor should appear first
+    const cfg = DIFF[difficulty];
+    const showDistractor = Math.random() < cfg.distractorRate && hourIdx > 0 && hourIdx < 9;
+
+    if (showDistractor) {
+      const available = DISTRACTORS.filter((_, i) => !usedDistractors.includes(i));
+      const pool = available.length > 0 ? available : DISTRACTORS;
+      const q = shuffle(pool)[0];
+      const qIdx = DISTRACTORS.indexOf(q);
+      setUsedDistractors(prev => [...prev, qIdx]);
+      setDistractorQ(q);
+      setDistractorAnswer(null);
+      setPhase('distractor');
+    } else {
+      checkEventAndProceed(hourIdx);
+    }
+  }, [difficulty, schedule, usedDistractors]);
+
+  const checkEventAndProceed = React.useCallback((hourIdx) => {
+    // Check for event at this hour
+    const event = schedule.find(s => s.type === 'event' && s.triggerHour === hourIdx && !s.done && !s.missed);
+    if (event) {
+      setActiveEvent(event);
+      setPhase('event-check');
+    } else {
+      setPhase('action-choice');
+    }
+  }, [schedule]);
+
+  const answerDistractor = React.useCallback((optIdx) => {
+    if (distractorAnswer !== null) return;
+    setDistractorAnswer(optIdx);
+    setTimeout(() => {
+      setDistractorQ(null);
+      setDistractorAnswer(null);
+      checkEventAndProceed(currentHourIdx);
+    }, 1200);
+  }, [currentHourIdx, checkEventAndProceed]);
+
+  const handleChoiceTap = React.useCallback((choiceIdx) => {
+    const choice = choices[choiceIdx];
+    if (!choice) return;
+
+    if (choice.decoy) {
+      // Tapped a decoy - wrong!
+      setActionFeedback({ type:'wrong', text:`❌ 「${choice.label}」は今日の予定にありません` });
+      return;
+    }
+
+    // It's a real task
+    const taskIdx = choice.realIdx;
+    const task = schedule[taskIdx];
+    if (!task || task.done || task.missed) return;
+
+    if (task.type === 'time' && task.hour === currentHourIdx) {
+      setSchedule(prev => prev.map((s, i) => i === taskIdx ? { ...s, done: true } : s));
+      setChoices(prev => prev.map((c, i) => i === choiceIdx ? { ...c, done: true } : c));
+      setActionFeedback({ type:'correct', text:`✅ ${task.task.icon} ${task.task.action} — 正しい時間です！` });
+    } else if (task.type === 'time' && task.hour !== currentHourIdx) {
+      if (task.hour > currentHourIdx) {
+        setActionFeedback({ type:'early', text:`⏳ まだ早いです。${HOUR_LABELS[task.hour]}の予定です` });
+      } else {
+        setActionFeedback({ type:'late', text:`⏰ ${HOUR_LABELS[task.hour]}の予定でした…もう過ぎています` });
+      }
+    } else if (task.type === 'event') {
+      if (activeEvent && schedule.indexOf(activeEvent) === taskIdx) {
+        setSchedule(prev => prev.map((s, i) => i === taskIdx ? { ...s, done: true } : s));
+        setChoices(prev => prev.map((c, i) => i === choiceIdx ? { ...c, done: true } : c));
+        setActionFeedback({ type:'correct', text:`✅ ${task.task.icon} ${task.task.trigger}${task.task.action} — 覚えていました！` });
+        setActiveEvent(null);
+      } else {
+        setActionFeedback({ type:'early', text:'今はこのイベントは起きていません' });
+      }
+    }
+  }, [choices, schedule, currentHourIdx, activeEvent]);
+
+  const advanceToNextHour = React.useCallback(() => {
+    // Check for missed tasks at current hour
+    setSchedule(prev => {
+      const updated = prev.map(s => {
+        if (s.type === 'time' && s.hour === currentHourIdx && !s.done && !s.missed) {
+          return { ...s, missed: true };
+        }
+        if (s.type === 'event' && s.triggerHour === currentHourIdx && !s.done && !s.missed) {
+          return { ...s, missed: true };
+        }
+        return s;
+      });
+      return updated;
+    });
+
+    setActionFeedback(null);
+    setActiveEvent(null);
+    beginHour(currentHourIdx + 1);
+  }, [currentHourIdx, beginHour]);
+
+  const finishGame = React.useCallback(() => {
+    // Mark any remaining as missed
+    setSchedule(prev => prev.map(s => (!s.done && !s.missed) ? { ...s, missed: true } : s));
+    setPhase('result');
+    setScreen('result');
+  }, []);
+
+  // Delayed finishGame needs up-to-date schedule
+  React.useEffect(() => {
+    if (screen === 'result') {
+      const done = schedule.filter(s => s.done).length;
+      const total = schedule.length;
+      if (done === total && total > 0) {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 4000);
+      }
+      // Save history
+      setHistory(prev => {
+        if (prev.length > 0 && prev[0].date === 'pending') return prev;
+        return [{ diff: difficulty, completed: done, total, date: new Date().toISOString() }, ...prev].slice(0, 20);
+      });
+    }
+  }, [screen]);
+
+  const goBack = () => { setPhase('idle'); setScreen('select'); };
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  // Count tasks for current hour
+  const tasksThisHour = schedule.filter(s =>
+    (s.type === 'time' && s.hour === currentHourIdx) ||
+    (s.type === 'event' && s.triggerHour === currentHourIdx)
+  );
+  const allDoneThisHour = tasksThisHour.every(s => s.done);
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+        @keyframes eventPop{0%{transform:scale(0.8);opacity:0}60%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🗓️ 展望記憶</span>
+        </div>
+        {screen === 'game' && phase !== 'memorize' && (
+          <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🗓️</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>展望記憶テスト</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>
+            1日の予定を覚えて、<br/>正しいタイミングで実行しよう！
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>
+            🧠 展望記憶（予定を覚えて実行する力）のトレーニングです
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:12, textAlign:'left' }}>📝 2種類の予定</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'#FFF3E0', borderRadius:12 }}>
+                <span style={{ fontSize:22 }}>⏰</span>
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#FF6B35' }}>時間の予定</span>
+                  <div style={{ fontSize:11, color:'#6B6B6B' }}>「10時に薬を飲む」など決まった時間</div>
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'#E8F5E9', borderRadius:12 }}>
+                <span style={{ fontSize:22 }}>🔔</span>
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:16, fontWeight:700, color:'#2E7D32' }}>イベントの予定</span>
+                  <div style={{ fontSize:11, color:'#6B6B6B' }}>風景の変化に気づいて行動する</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 今日の予定を覚える<br/>
+              ② 時間が1時間ずつ進みます<br/>
+              ③ 毎時間「この時間にやることは？」を判断<br/>
+              ④ 風景に変化があったら行動を思い出して！<br/>
+              ⑤ 全ての予定を忘れずに実行しよう！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div>
+                    <div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div>
+                    <div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.completed}/{h.total}達成</div>
+                        <div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div>
+                      </div>
+                    </div>
+                    <div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:h.completed===h.total?'#66BB6A':'#FF6B35' }}>
+                      {h.completed===h.total?'🏆 ':''}{Math.round(h.completed/h.total*100)}%
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== MEMORIZE ===== */}
+      {screen === 'game' && phase === 'memorize' && (
+        <div style={{ padding:'20px', maxWidth:500, margin:'0 auto' }}>
+          <div style={{ marginBottom:16 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <span style={{ fontSize:13, fontWeight:700, color:'#6B6B6B' }}>⏱ 覚える時間</span>
+              <span style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:memTimeLeft<=5?'#E53935':'#FF6B35', animation:memTimeLeft<=5?'pulse 0.5s infinite':undefined }}>{memTimeLeft}秒</span>
+            </div>
+            <div style={{ width:'100%', height:8, background:'#E8E8E8', borderRadius:4, overflow:'hidden' }}>
+              <div style={{ width:(memTimeLeft/(difficulty==='easy'?25:difficulty==='normal'?30:35)*100)+'%', height:'100%', background:memTimeLeft<=5?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:4, transition:'width 1s linear' }} />
+            </div>
+          </div>
+
+          <div style={{ background:'white', borderRadius:20, padding:'24px 20px', boxShadow:'0 4px 24px rgba(0,0,0,0.08)', animation:'fadeUp 0.6s ease-out' }}>
+            <div style={{ fontSize:18, fontWeight:900, color:'#FF6B35', marginBottom:4, textAlign:'center' }}>📋 今日の予定</div>
+            <div style={{ fontSize:12, color:'#9E9E9E', textAlign:'center', marginBottom:20 }}>しっかり覚えてください！</div>
+
+            {schedule.some(s => s.type === 'event') && (
+              <div style={{ fontSize:11, color:'#2E7D32', background:'#E8F5E9', padding:'8px 12px', borderRadius:10, marginBottom:14, textAlign:'center' }}>
+                💡 イベントの予定は風景の中に変化として現れます。よく観察しましょう！
+              </div>
+            )}
+
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              {schedule.map((s, i) => (
+                <div key={i} style={{
+                  display:'flex', alignItems:'center', gap:12, padding:'14px 16px', borderRadius:14,
+                  background: s.type==='time' ? '#FFF3E0' : '#E8F5E9',
+                  border:`2px solid ${s.type==='time'?'#FFE0B2':'#C8E6C9'}`,
+                }}>
+                  <div style={{ fontSize:28, flexShrink:0 }}>{s.task.icon}</div>
+                  <div>
+                    {s.type === 'time' ? (
+                      <>
+                        <div style={{ fontSize:14, fontWeight:700, color:'#E65100' }}>⏰ {HOUR_LABELS[s.hour]}</div>
+                        <div style={{ fontSize:15, fontWeight:700, marginTop:2 }}>{s.task.action}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontSize:14, fontWeight:700, color:'#2E7D32' }}>{s.task.trigger}</div>
+                        <div style={{ fontSize:15, fontWeight:700, marginTop:2 }}>{s.task.action}</div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={() => setMemTimeLeft(0)} style={{...btnBase, marginTop:20, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'12px 28px', borderRadius:50, display:'block', margin:'20px auto 0'}}>
+            覚えた！スタート →
+          </button>
+        </div>
+      )}
+
+      {/* ===== GAME PLAY ===== */}
+      {screen === 'game' && (phase === 'distractor' || phase === 'event-check' || phase === 'action-choice') && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+
+          {/* Sky scene */}
+          <div style={{ position:'relative', width:'100%', height:180, borderRadius:20, overflow:'hidden', marginTop:12, marginBottom:12, boxShadow:'0 4px 24px rgba(0,0,0,0.1)' }} key={currentHourIdx + '-' + (activeEvent ? activeEvent.task.sceneType : 'none')}>
+            <SkyBackground hourIdx={currentHourIdx} sceneEvent={activeEvent ? activeEvent.task.sceneType : null} />
+          </div>
+
+          {/* Timeline */}
+          <div style={{ background:'white', borderRadius:12, padding:'10px 14px', marginBottom:12, boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ display:'flex', gap:3 }}>
+              {HOURS.map((_, i) => (
+                <div key={i} style={{
+                  flex:1, height:8, borderRadius:4,
+                  background: i < currentHourIdx ? '#FF6B35' : i === currentHourIdx ? '#FFB74D' : '#E8E8E8',
+                }} />
+              ))}
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
+              <span style={{ fontSize:9, color:'#9E9E9E' }}>8:00</span>
+              <span style={{ fontSize:9, fontWeight:700, color:'#FF6B35' }}>{HOUR_LABELS[currentHourIdx]}</span>
+              <span style={{ fontSize:9, color:'#9E9E9E' }}>17:00</span>
+            </div>
+          </div>
+
+          {/* Feedback */}
+          {actionFeedback && (
+            <div style={{
+              padding:'10px 16px', borderRadius:12, marginBottom:10,
+              background: actionFeedback.type==='correct'?'#E8F5E9':actionFeedback.type==='wrong'?'#FFEBEE':actionFeedback.type==='early'||actionFeedback.type==='late'?'#FFF3E0':'#FFEBEE',
+              border:`2px solid ${actionFeedback.type==='correct'?'#66BB6A':actionFeedback.type==='wrong'?'#EF5350':'#FF6B35'}`,
+              fontSize:13, fontWeight:700, textAlign:'center',
+              color: actionFeedback.type==='correct'?'#2E7D32':actionFeedback.type==='wrong'?'#C62828':'#E65100',
+              animation:'fadeUp 0.3s ease-out',
+            }}>
+              {actionFeedback.text}
+            </div>
+          )}
+
+          {/* Distractor */}
+          {phase === 'distractor' && distractorQ && (
+            <div style={{ background:'white', borderRadius:16, padding:'20px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:12, animation:'fadeUp 0.4s ease-out' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginBottom:8 }}>📝 ちょっと問題</div>
+              <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>{distractorQ.q}</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                {distractorQ.opts.map((opt, oi) => {
+                  const answered = distractorAnswer !== null;
+                  const isCorrect = distractorQ.ans === oi;
+                  const isSelected = distractorAnswer === oi;
+                  return (
+                    <button key={oi} onClick={() => answerDistractor(oi)} disabled={answered}
+                      style={{
+                        ...btnBase, fontSize:14, fontWeight:600, padding:'12px', borderRadius:12, textAlign:'center',
+                        border:`2px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected?'#EF5350':'#E8E8E8'}`,
+                        background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                        color:answered&&isCorrect?'#2E7D32':answered&&isSelected&&!isCorrect?'#C62828':'#2D2D2D',
+                        opacity:answered&&!isCorrect&&!isSelected?0.5:1,
+                      }}>
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Event hint - subtle, player must notice the scene change */}
+          {phase === 'event-check' && activeEvent && (
+            <div style={{
+              background:'#E8F5E9', borderRadius:12,
+              padding:'10px 16px', marginBottom:10, textAlign:'center',
+              border:'2px solid #C8E6C9', animation:'fadeUp 0.4s ease-out',
+              fontSize:14, fontWeight:700, color:'#2E7D32',
+            }}>
+              👀 景色に何か変化がありました。何をすべきか覚えていますか？
+            </div>
+          )}
+
+          {/* Action choice prompt */}
+          {(phase === 'action-choice' || phase === 'event-check') && (
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8 }}>
+                📋 {HOUR_LABELS[currentHourIdx]} — この時間にやることはありますか？
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {choices.map((c, i) => {
+                  const isDone = c.done;
+                  const realTask = c.realIdx !== null ? schedule[c.realIdx] : null;
+                  const isMissed = realTask ? realTask.missed : false;
+                  const isCompleted = isDone || (realTask && realTask.done);
+                  return (
+                    <button key={i} onClick={() => handleChoiceTap(i)} disabled={isCompleted || isMissed}
+                      style={{
+                        ...btnBase, fontSize:14, fontWeight:700, padding:'14px 16px', borderRadius:14,
+                        border:`2px solid ${isCompleted?'#66BB6A':isMissed?'#EF5350':'#E8E8E8'}`,
+                        background:isCompleted?'#E8F5E9':isMissed?'#FFEBEE':'white',
+                        color:isCompleted?'#2E7D32':isMissed?'#C62828':'#2D2D2D',
+                        display:'flex', alignItems:'center', gap:10, textAlign:'left',
+                        opacity:isCompleted||isMissed?0.6:1,
+                      }}>
+                      <span style={{ fontSize:22 }}>{c.icon}</span>
+                      <span style={{ flex:1 }}>{c.label}</span>
+                      {isCompleted && <span style={{ fontSize:16 }}>✅</span>}
+                      {isMissed && <span style={{ fontSize:16 }}>❌</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Next hour button */}
+              <button onClick={advanceToNextHour}
+                style={{
+                  ...btnBase, marginTop:14, width:'100%', fontSize:15, fontWeight:700,
+                  padding:'16px', borderRadius:50, border:'none',
+                  background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                  color:'white', boxShadow:'0 4px 16px rgba(255,107,53,0.3)',
+                }}>
+                {currentHourIdx < 9 ? `次の時間へ → ${HOUR_LABELS[currentHourIdx+1]}` : '1日を終える'}
+              </button>
+
+              <div style={{ fontSize:11, color:'#9E9E9E', textAlign:'center', marginTop:8 }}>
+                ※ やることがなければそのまま「次の時間へ」を押してください
+              </div>
+            </div>
+          )}
+
+          <div style={{ height:20 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const done = schedule.filter(s => s.done).length;
+        const total = schedule.length;
+        const pct = total > 0 ? done / total : 0;
+        const stars = pct >= 0.9 ? '⭐⭐⭐' : pct >= 0.5 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.9 ? '全部覚えていました！' : pct >= 0.5 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14, width:'100%', maxWidth:300, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[{v:`${done}/${total}`,l:'達成した予定'},{v:Math.round(pct*100)+'%',l:'達成率'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:28, fontWeight:800, color:pct>=0.9?'#66BB6A':'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.35s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 結果の振り返り</div>
+              {schedule.map((s, i) => (
+                <div key={i} style={{
+                  background:s.done?'#E8F5E9':'#FFEBEE', borderRadius:12, padding:'12px 14px',
+                  marginBottom:6, borderLeft:`4px solid ${s.done?'#66BB6A':'#EF5350'}`,
+                  display:'flex', alignItems:'center', gap:10, textAlign:'left',
+                }}>
+                  <span style={{ fontSize:20 }}>{s.done?'✅':'❌'}</span>
+                  <div>
+                    <div style={{ fontSize:16, fontWeight:700 }}>
+                      {s.type==='time' ? `${HOUR_LABELS[s.hour]} ${s.task.action}` : `${s.task.trigger}${s.task.action}`}
+                    </div>
+                    <div style={{ fontSize:11, color:s.done?'#2E7D32':'#C62828', marginTop:2 }}>
+                      {s.done ? '覚えていました！' : '忘れてしまいました'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

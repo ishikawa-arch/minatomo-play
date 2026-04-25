@@ -1,0 +1,380 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【リハビリ脳トレ】なんじかな？ ==========
+// Clock Reading - 時計の読み取り（空間認知・数字解釈）
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// Generate a time based on difficulty
+// 0: hour only (X:00)
+// 1: hour + 30 min (X:00 or X:30)
+// 2: 15-minute increments (X:00, X:15, X:30, X:45)
+// 3: any 5-minute increment
+function genTime(difficulty) {
+  const hour = 1 + Math.floor(Math.random() * 12);
+  let minute;
+  if (difficulty === 0) minute = 0;
+  else if (difficulty === 1) minute = Math.random() < 0.5 ? 0 : 30;
+  else if (difficulty === 2) minute = [0,15,30,45][Math.floor(Math.random() * 4)];
+  else minute = Math.floor(Math.random() * 12) * 5;
+  return { hour, minute };
+}
+
+function fmtTime(t) {
+  const mm = String(t.minute).padStart(2, '0');
+  return `${t.hour}:${mm}`;
+}
+
+function timeToMinutes(t) {
+  return t.hour * 60 + t.minute;
+}
+
+function genChoices(answer, difficulty) {
+  const choices = [answer];
+  const ansMin = timeToMinutes(answer);
+  const usedKeys = new Set([fmtTime(answer)]);
+
+  while (choices.length < 4) {
+    // Generate a plausible distractor
+    let d;
+    const r = Math.random();
+    if (r < 0.3) {
+      // Hour off by ±1
+      const hourOff = Math.random() < 0.5 ? 1 : -1;
+      let h = answer.hour + hourOff;
+      if (h > 12) h -= 12;
+      if (h < 1) h += 12;
+      d = { hour: h, minute: answer.minute };
+    } else if (r < 0.6) {
+      // Minute different
+      const mins = difficulty === 0 ? [0] : difficulty === 1 ? [0,30] : difficulty === 2 ? [0,15,30,45] : [0,5,10,15,20,25,30,35,40,45,50,55];
+      const altMin = mins[Math.floor(Math.random() * mins.length)];
+      d = { hour: answer.hour, minute: altMin };
+    } else {
+      // Completely different
+      d = genTime(difficulty);
+    }
+    const key = fmtTime(d);
+    if (!usedKeys.has(key)) {
+      usedKeys.add(key);
+      choices.push(d);
+    }
+  }
+  return shuffle(choices);
+}
+
+const LEVELS = [
+  { rounds:4, difficulty:0, label:'レベル1', tag:'ちょうど' },
+  { rounds:4, difficulty:1, label:'レベル2', tag:'はん' },
+  { rounds:4, difficulty:2, label:'レベル3', tag:'15ふんきざみ' },
+  { rounds:5, difficulty:3, label:'レベル4', tag:'こまかい' },
+];
+
+// Analog clock SVG component
+const Clock = ({ hour, minute, size = 180 }) => {
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - 4;
+
+  // Calculate hand angles (0° = 12 o'clock, clockwise)
+  const minuteAngle = (minute / 60) * 360;
+  const hourAngle = ((hour % 12) / 12) * 360 + (minute / 60) * 30;
+
+  const hourHandLength = r * 0.55;
+  const minuteHandLength = r * 0.8;
+
+  // Hand endpoints
+  const hourX = cx + hourHandLength * Math.sin(hourAngle * Math.PI / 180);
+  const hourY = cy - hourHandLength * Math.cos(hourAngle * Math.PI / 180);
+  const minX = cx + minuteHandLength * Math.sin(minuteAngle * Math.PI / 180);
+  const minY = cy - minuteHandLength * Math.cos(minuteAngle * Math.PI / 180);
+
+  return (
+    <svg width={size} height={size} style={{ display:'block' }}>
+      {/* Face */}
+      <circle cx={cx} cy={cy} r={r} fill="white" stroke="#E8E8E8" strokeWidth="3" />
+
+      {/* Hour markers */}
+      {[0,1,2,3,4,5,6,7,8,9,10,11].map(i => {
+        const angle = (i / 12) * 360;
+        const isMain = i % 3 === 0;
+        const tickInnerR = isMain ? r - 10 : r - 6;
+        const tickOuterR = r - 2;
+        const x1 = cx + tickInnerR * Math.sin(angle * Math.PI / 180);
+        const y1 = cy - tickInnerR * Math.cos(angle * Math.PI / 180);
+        const x2 = cx + tickOuterR * Math.sin(angle * Math.PI / 180);
+        const y2 = cy - tickOuterR * Math.cos(angle * Math.PI / 180);
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={isMain ? '#333' : '#BDBDBD'} strokeWidth={isMain ? 3 : 2} strokeLinecap="round" />;
+      })}
+
+      {/* Numbers */}
+      {[12,1,2,3,4,5,6,7,8,9,10,11].map((num, i) => {
+        const angle = (i / 12) * 360;
+        const nr = r - 22;
+        const x = cx + nr * Math.sin(angle * Math.PI / 180);
+        const y = cy - nr * Math.cos(angle * Math.PI / 180);
+        return (
+          <text key={num} x={x} y={y} textAnchor="middle" dominantBaseline="central"
+            fontFamily="Outfit, sans-serif" fontSize={size * 0.11} fontWeight="900" fill="#333">
+            {num}
+          </text>
+        );
+      })}
+
+      {/* Hour hand (short, thick) */}
+      <line x1={cx} y1={cy} x2={hourX} y2={hourY} stroke="#E8652E" strokeWidth="6" strokeLinecap="round" />
+
+      {/* Minute hand (long, thinner) */}
+      <line x1={cx} y1={cy} x2={minX} y2={minY} stroke="#333" strokeWidth="4" strokeLinecap="round" />
+
+      {/* Center dot */}
+      <circle cx={cx} cy={cy} r="5" fill="#E8652E" />
+    </svg>
+  );
+};
+
+export default function ClockReading() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    levelIdx:0, roundIdx:0,
+    rounds:[],
+    feedback:null, selectedIdx:null,
+    correct:0, score:0,
+  }).current;
+
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.levelIdx = 0; g.correct = 0; g.score = 0;
+    setScreen('play');
+    startLevel(0);
+  };
+
+  const startLevel = (lvlIdx) => {
+    g.levelIdx = lvlIdx;
+    const level = LEVELS[lvlIdx];
+    g.rounds = [];
+    for (let i = 0; i < level.rounds; i++) {
+      const answer = genTime(level.difficulty);
+      g.rounds.push({
+        time: answer,
+        choices: genChoices(answer, level.difficulty),
+      });
+    }
+    g.roundIdx = 0;
+    g.feedback = null; g.selectedIdx = null;
+    rerender();
+  };
+
+  const handleTap = (idx) => {
+    if (g.feedback) return;
+    const round = g.rounds[g.roundIdx];
+    const picked = round.choices[idx];
+    const isCorrect = picked.hour === round.time.hour && picked.minute === round.time.minute;
+    g.selectedIdx = idx;
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    if (isCorrect) {
+      g.correct++;
+      g.score += 10 + g.levelIdx * 5;
+    }
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.feedback = null; g.selectedIdx = null;
+      if (g.roundIdx + 1 >= g.rounds.length) {
+        if (g.levelIdx + 1 >= LEVELS.length) {
+          setScreen('done'); rerender();
+        } else {
+          startLevel(g.levelIdx + 1);
+        }
+      } else {
+        g.roundIdx++;
+        rerender();
+      }
+    }, isCorrect ? 800 : 1800);
+  };
+
+  const level = LEVELS[g.levelIdx];
+  const round = g.rounds[g.roundIdx];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🕐 なんじかな？</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {level?.label}　{g.roundIdx + 1}/{level?.rounds}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'30px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ marginBottom:8 }}>
+            <Clock hour={3} minute={0} size={130} />
+          </div>
+          <div style={{
+            display:'inline-block', padding:'8px 20px', borderRadius:14,
+            background:'white', border:'3px solid #66BB6A', marginBottom:20,
+          }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:22, fontWeight:900, color:'#2E7D32' }}>3:00</span>
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            なんじ？
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            みじかいはり＝じ　ながいはり＝ふん
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:24 }}>
+            空間認知・数概念・時間理解
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && level && round && (
+        <div style={{ padding:'12px 16px', maxWidth:520, margin:'0 auto' }}>
+
+          {/* Level progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:8 }}>
+            {LEVELS.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.levelIdx ? 20 : 14, height:6, borderRadius:3,
+                background: i < g.levelIdx ? '#8BC34A' : i === g.levelIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Round progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:10 }}>
+            {g.rounds.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.roundIdx ? 10 : 6, height:6, borderRadius:3,
+                background: i < g.roundIdx ? '#8BC34A' : i === g.roundIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:12, color:'#9E9E9E' }}>pt</span></span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#555' }}>{level.tag}</span>
+          </div>
+
+          <div style={{ fontSize:18, fontWeight:900, color:'#333', textAlign:'center', marginBottom:10 }}>
+            いまなんじ？
+          </div>
+
+          {/* Clock */}
+          <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }} key={g.roundIdx + '-' + g.levelIdx}>
+            <div style={{ background:'white', borderRadius:'50%', boxShadow:'0 6px 24px rgba(0,0,0,0.08)', padding:8 }}>
+              <Clock hour={round.time.hour} minute={round.time.minute} size={220} />
+            </div>
+          </div>
+
+          {/* Feedback */}
+          {g.feedback && (
+            <div style={{ textAlign:'center', marginBottom:10, animation:'fadeUp 0.2s' }}>
+              <span style={{ fontSize:40 }}>{g.feedback === 'correct' ? '⭕' : '❌'}</span>
+              {g.feedback === 'wrong' && (
+                <div style={{ fontSize:16, fontWeight:900, color:'#C62828', marginTop:4 }}>
+                  こたえは {fmtTime(round.time)}
+                </div>
+              )}
+            </div>
+          )}
+          {!g.feedback && <div style={{ height:56 }} />}
+
+          {/* Choices */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+            {round.choices.map((t, i) => {
+              const isSelected = g.selectedIdx === i;
+              const isAnswer = t.hour === round.time.hour && t.minute === round.time.minute;
+              const showCorrect = g.feedback && isAnswer;
+              const showWrong = g.feedback === 'wrong' && isSelected;
+              return (
+                <button key={i} onClick={() => handleTap(i)}
+                  disabled={!!g.feedback}
+                  style={{
+                    ...bs, height:72, borderRadius:16,
+                    background: showCorrect ? '#F1F8E9' : showWrong ? '#FFF5F5' : 'white',
+                    border: `4px solid ${showCorrect ? '#66BB6A' : showWrong ? '#EF5350' : '#E8E8E8'}`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    animation: showWrong ? 'shake 0.3s' : showCorrect ? 'pop 0.3s' : undefined,
+                    opacity: g.feedback && !showCorrect && !showWrong ? 0.3 : 1,
+                    boxShadow:'0 3px 10px rgba(0,0,0,0.05)',
+                  }}>
+                  <span style={{
+                    fontFamily:'Outfit,sans-serif', fontSize:28, fontWeight:900,
+                    color: showCorrect ? '#2E7D32' : showWrong ? '#C62828' : '#333',
+                  }}>
+                    {fmtTime(t)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const totalRounds = LEVELS.reduce((a, l) => a + l.rounds, 0);
+        const pct = g.correct / totalRounds;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すばらしい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize:16, fontWeight:700, color:'#555', marginBottom:20 }}>
+              {g.correct}もん せいかい / {totalRounds}もん
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

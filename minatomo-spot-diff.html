@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>まちがい探し | みなともPlay</title>
+<meta name="description" content="2枚の絵のちがいを探す - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== SCENE ELEMENTS ==========
+// Each element: render function, clickable area {x,y,w,h}
+const ELEMENTS = {
+  sun: (props) => (
+    <g>
+      <circle cx={props.x} cy={props.y} r={props.size||20} fill={props.color||'#FDD835'} />
+      {[0,45,90,135,180,225,270,315].map(a => {
+        const r2 = (props.size||20)+8;
+        const rad = a*Math.PI/180;
+        return <line key={a} x1={props.x+Math.cos(rad)*(props.size||20)} y1={props.y+Math.sin(rad)*(props.size||20)} x2={props.x+Math.cos(rad)*r2} y2={props.y+Math.sin(rad)*r2} stroke={props.color||'#FDD835'} strokeWidth="2" />;
+      })}
+    </g>
+  ),
+  cloud: (props) => (
+    <g>
+      <ellipse cx={props.x} cy={props.y} rx={props.w||30} ry={props.h||14} fill={props.color||'white'} opacity="0.9" />
+      <ellipse cx={props.x-12} cy={props.y-4} rx={18} ry={12} fill={props.color||'white'} opacity="0.9" />
+      <ellipse cx={props.x+14} cy={props.y-2} rx={16} ry={10} fill={props.color||'white'} opacity="0.9" />
+    </g>
+  ),
+  tree: (props) => (
+    <g>
+      <rect x={props.x-4} y={props.y} width={8} height={props.trunkH||25} fill={props.trunkColor||'#5D4037'} />
+      <circle cx={props.x} cy={props.y-10} r={props.size||18} fill={props.color||'#43A047'} />
+      <circle cx={props.x-10} cy={props.y-5} r={props.size*0.7||13} fill={props.color2||'#66BB6A'} />
+      <circle cx={props.x+10} cy={props.y-7} r={props.size*0.6||11} fill={props.color3||'#2E7D32'} />
+    </g>
+  ),
+  house: (props) => (
+    <g>
+      <rect x={props.x} y={props.y} width={props.w||40} height={props.h||30} fill={props.wallColor||'#FFCC80'} />
+      <polygon points={`${props.x-5},${props.y} ${props.x+(props.w||40)/2},${props.y-20} ${props.x+(props.w||40)+5},${props.y}`} fill={props.roofColor||'#E53935'} />
+      <rect x={props.x+(props.w||40)/2-5} y={props.y+10} width={10} height={20} fill={props.doorColor||'#795548'} />
+      <rect x={props.x+5} y={props.y+5} width={8} height={8} fill={props.windowColor||'#81D4FA'} />
+      <rect x={props.x+(props.w||40)-13} y={props.y+5} width={8} height={8} fill={props.windowColor||'#81D4FA'} />
+    </g>
+  ),
+  flower: (props) => (
+    <g>
+      <line x1={props.x} y1={props.y} x2={props.x} y2={props.y+15} stroke="#43A047" strokeWidth="2" />
+      {[0,72,144,216,288].map(a => {
+        const rad = a*Math.PI/180;
+        return <circle key={a} cx={props.x+Math.cos(rad)*6} cy={props.y+Math.sin(rad)*6} r={4} fill={props.color||'#EC407A'} />;
+      })}
+      <circle cx={props.x} cy={props.y} r={3} fill={props.centerColor||'#FDD835'} />
+    </g>
+  ),
+  bird: (props) => (
+    <g>
+      <path d={`M ${props.x-8} ${props.y} Q ${props.x-4} ${props.y-6}, ${props.x} ${props.y} Q ${props.x+4} ${props.y-6}, ${props.x+8} ${props.y}`} fill="none" stroke={props.color||'#2D2D2D'} strokeWidth="2" />
+    </g>
+  ),
+  fence: (props) => (
+    <g>
+      {Array.from({length:props.count||4}).map((_,i) => (
+        <rect key={i} x={props.x+i*12} y={props.y-15} width={4} height={20} fill={props.color||'#8D6E63'} rx="1" />
+      ))}
+      <rect x={props.x-2} y={props.y-10} width={(props.count||4)*12} height={3} fill={props.color||'#8D6E63'} rx="1" />
+      <rect x={props.x-2} y={props.y-2} width={(props.count||4)*12} height={3} fill={props.color||'#8D6E63'} rx="1" />
+    </g>
+  ),
+  bush: (props) => (
+    <g>
+      <ellipse cx={props.x} cy={props.y} rx={props.w||16} ry={props.h||10} fill={props.color||'#388E3C'} />
+      <ellipse cx={props.x-8} cy={props.y-3} rx={10} ry={8} fill={props.color2||'#43A047'} />
+      <ellipse cx={props.x+9} cy={props.y-2} rx={9} ry={7} fill={props.color3||'#2E7D32'} />
+    </g>
+  ),
+  cat: (props) => (
+    <g>
+      <ellipse cx={props.x} cy={props.y} rx={10} ry={7} fill={props.color||'#FF8F00'} />
+      <circle cx={props.x-8} cy={props.y-6} r={6} fill={props.color||'#FF8F00'} />
+      <polygon points={`${props.x-12},${props.y-10} ${props.x-10},${props.y-16} ${props.x-7},${props.y-10}`} fill={props.color||'#FF8F00'} />
+      <polygon points={`${props.x-6},${props.y-10} ${props.x-4},${props.y-16} ${props.x-1},${props.y-10}`} fill={props.color||'#FF8F00'} />
+      <circle cx={props.x-10} cy={props.y-7} r={1.5} fill="#2D2D2D" />
+      <circle cx={props.x-6} cy={props.y-7} r={1.5} fill="#2D2D2D" />
+      <path d={`M ${props.x+10} ${props.y-2} Q ${props.x+16} ${props.y-8}, ${props.x+14} ${props.y-12}`} fill="none" stroke={props.color||'#FF8F00'} strokeWidth="3" strokeLinecap="round" />
+    </g>
+  ),
+  butterfly: (props) => (
+    <g>
+      <ellipse cx={props.x-5} cy={props.y-3} rx={6} ry={8} fill={props.color||'#AB47BC'} opacity="0.7" />
+      <ellipse cx={props.x+5} cy={props.y-3} rx={6} ry={8} fill={props.color||'#AB47BC'} opacity="0.7" />
+      <ellipse cx={props.x-4} cy={props.y+4} rx={4} ry={5} fill={props.color2||'#CE93D8'} opacity="0.7" />
+      <ellipse cx={props.x+4} cy={props.y+4} rx={4} ry={5} fill={props.color2||'#CE93D8'} opacity="0.7" />
+      <line x1={props.x} y1={props.y-8} x2={props.x} y2={props.y+6} stroke="#5D4037" strokeWidth="1.5" />
+    </g>
+  ),
+  pond: (props) => (
+    <g>
+      <ellipse cx={props.x} cy={props.y} rx={props.w||25} ry={props.h||12} fill={props.color||'#64B5F6'} />
+      <ellipse cx={props.x-5} cy={props.y-2} rx={8} ry={3} fill="white" opacity="0.3" />
+    </g>
+  ),
+};
+
+// ========== SCENE TEMPLATES ==========
+const SCENES = [
+  { // Country scene
+    sky: '#87CEEB', ground: '#8BC34A', groundY: 140,
+    elements: [
+      { type:'sun', x:320, y:35, size:22, color:'#FDD835', area:{x:295,y:10,w:50,h:50} },
+      { type:'cloud', x:80, y:40, color:'white', area:{x:50,y:20,w:60,h:40} },
+      { type:'cloud', x:250, y:55, color:'white', area:{x:225,y:38,w:50,h:35} },
+      { type:'house', x:50, y:115, w:45, h:30, roofColor:'#E53935', wallColor:'#FFCC80', doorColor:'#795548', windowColor:'#81D4FA', area:{x:45,y:93,w:55,h:55} },
+      { type:'tree', x:140, y:120, size:20, color:'#43A047', color2:'#66BB6A', color3:'#2E7D32', area:{x:118,y:88,w:44,h:60} },
+      { type:'tree', x:200, y:125, size:16, color:'#388E3C', color2:'#4CAF50', color3:'#1B5E20', area:{x:182,y:98,w:36,h:55} },
+      { type:'flower', x:270, y:145, color:'#EC407A', centerColor:'#FDD835', area:{x:260,y:135,w:20,h:25} },
+      { type:'flower', x:295, y:148, color:'#FF7043', centerColor:'#FFF176', area:{x:285,y:138,w:20,h:25} },
+      { type:'fence', x:110, y:150, count:5, color:'#8D6E63', area:{x:108,y:132,w:62,h:22} },
+      { type:'bird', x:170, y:30, color:'#2D2D2D', area:{x:160,y:20,w:20,h:20} },
+      { type:'cat', x:310, y:148, color:'#FF8F00', area:{x:296,y:130,w:32,h:25} },
+    ],
+  },
+  { // Park scene
+    sky: '#81D4FA', ground: '#A5D6A7', groundY: 140,
+    elements: [
+      { type:'sun', x:50, y:35, size:20, color:'#FFB300', area:{x:28,y:12,w:45,h:45} },
+      { type:'cloud', x:180, y:35, color:'#E3F2FD', area:{x:155,y:18,w:50,h:35} },
+      { type:'cloud', x:310, y:45, color:'white', area:{x:285,y:28,w:50,h:35} },
+      { type:'tree', x:50, y:118, size:22, color:'#2E7D32', color2:'#388E3C', color3:'#1B5E20', area:{x:26,y:84,w:48,h:60} },
+      { type:'tree', x:340, y:120, size:18, color:'#43A047', color2:'#66BB6A', color3:'#2E7D32', area:{x:320,y:92,w:40,h:55} },
+      { type:'pond', x:200, y:152, w:30, h:14, color:'#42A5F5', area:{x:168,y:136,w:64,h:30} },
+      { type:'bench', x:120, y:140, area:{x:115,y:130,w:50,h:25} },
+      { type:'flower', x:80, y:150, color:'#FDD835', centerColor:'#FF6F00', area:{x:70,y:140,w:20,h:22} },
+      { type:'flower', x:100, y:153, color:'#E91E63', centerColor:'#FFF176', area:{x:90,y:143,w:20,h:22} },
+      { type:'butterfly', x:150, y:100, color:'#AB47BC', color2:'#CE93D8', area:{x:138,y:86,w:24,h:24} },
+      { type:'bird', x:260, y:28, color:'#5D4037', area:{x:250,y:18,w:20,h:20} },
+      { type:'bush', x:290, y:152, color:'#388E3C', color2:'#43A047', color3:'#2E7D32', area:{x:270,y:140,w:40,h:20} },
+    ],
+  },
+  { // Village scene
+    sky: '#90CAF9', ground: '#9CCC65', groundY: 138,
+    elements: [
+      { type:'sun', x:340, y:30, size:18, color:'#FFD54F', area:{x:320,y:10,w:40,h:40} },
+      { type:'cloud', x:100, y:30, color:'white', area:{x:75,y:14,w:50,h:35} },
+      { type:'house', x:30, y:110, w:50, h:32, roofColor:'#1E88E5', wallColor:'#FFF9C4', doorColor:'#5D4037', windowColor:'#B3E5FC', area:{x:25,y:88,w:60,h:55} },
+      { type:'house', x:240, y:108, w:42, h:34, roofColor:'#F4511E', wallColor:'#E0E0E0', doorColor:'#3E2723', windowColor:'#80CBC4', area:{x:233,y:86,w:55,h:55} },
+      { type:'tree', x:160, y:115, size:24, color:'#558B2F', color2:'#689F38', color3:'#33691E', area:{x:134,y:78,w:52,h:62} },
+      { type:'fence', x:95, y:148, count:4, color:'#A1887F', area:{x:93,y:130,w:50,h:22} },
+      { type:'flower', x:200, y:148, color:'#7B1FA2', centerColor:'#FFD54F', area:{x:190,y:138,w:20,h:22} },
+      { type:'flower', x:220, y:150, color:'#1E88E5', centerColor:'#FFF176', area:{x:210,y:140,w:20,h:22} },
+      { type:'bird', x:60, y:50, color:'#37474F', area:{x:50,y:40,w:20,h:20} },
+      { type:'bird', x:280, y:40, color:'#37474F', area:{x:270,y:30,w:20,h:20} },
+      { type:'bush', x:320, y:148, color:'#2E7D32', color2:'#388E3C', color3:'#1B5E20', area:{x:302,y:136,w:36,h:18} },
+      { type:'cat', x:130, y:147, color:'#757575', area:{x:116,y:130,w:32,h:24} },
+    ],
+  },
+];
+
+// Modifications by difficulty tier
+// easy: disappear, dramatic color swap
+// normal: + size change, moderate color change
+// hard: + position shift, subtle color, rotation-like
+const MODS = {
+  sun: {
+    easy: [
+      (el) => null, // disappear
+      (el) => ({ ...el, color: '#E53935' }), // yellow → RED
+    ],
+    normal: [
+      (el) => null,
+      (el) => ({ ...el, color: '#E53935' }),
+      (el) => ({ ...el, size: (el.size||20) + 14 }), // much bigger
+    ],
+    hard: [
+      (el) => ({ ...el, color: '#E53935' }),
+      (el) => ({ ...el, size: (el.size||20) - 8 }), // smaller
+      (el) => ({ ...el, x: el.x - 40, area: { ...el.area, x: el.area.x - 40 } }), // moved
+    ],
+  },
+  cloud: {
+    easy: [
+      (el) => null,
+    ],
+    normal: [
+      (el) => null,
+      (el) => ({ ...el, w: (el.w||30) * 1.8, h: (el.h||14) * 1.8 }), // bigger
+    ],
+    hard: [
+      (el) => null,
+      (el) => ({ ...el, y: el.y + 20, area: { ...el.area, y: el.area.y + 20 } }), // moved down
+      (el) => ({ ...el, w: (el.w||30) * 0.5, h: (el.h||14) * 0.5 }), // much smaller
+    ],
+  },
+  tree: {
+    easy: [
+      (el) => null,
+      (el) => ({ ...el, color: '#FF6B35', color2: '#FF8F5E', color3: '#E65100' }), // orange
+    ],
+    normal: [
+      (el) => null,
+      (el) => ({ ...el, color: '#FF6B35', color2: '#FF8F5E', color3: '#E65100' }),
+      (el) => ({ ...el, size: (el.size||18) + 10 }), // bigger
+    ],
+    hard: [
+      (el) => ({ ...el, color: '#EC407A', color2: '#F48FB1', color3: '#AD1457' }), // pink
+      (el) => ({ ...el, size: (el.size||18) - 6 }), // smaller
+      (el) => ({ ...el, x: el.x + 20, area: { ...el.area, x: el.area.x + 20 } }), // shifted right
+    ],
+  },
+  house: {
+    easy: [
+      (el) => ({ ...el, roofColor: el.roofColor === '#E53935' ? '#1E88E5' : el.roofColor === '#1E88E5' ? '#E53935' : '#43A047' }),
+      (el) => ({ ...el, wallColor: '#AB47BC' }),
+    ],
+    normal: [
+      (el) => ({ ...el, roofColor: el.roofColor === '#E53935' ? '#1E88E5' : el.roofColor === '#1E88E5' ? '#E53935' : '#43A047' }),
+      (el) => ({ ...el, doorColor: el.doorColor === '#795548' ? '#1E88E5' : '#795548' }),
+    ],
+    hard: [
+      (el) => ({ ...el, roofColor: el.roofColor === '#E53935' ? '#43A047' : '#E53935' }),
+      (el) => ({ ...el, windowColor: el.windowColor === '#81D4FA' ? '#FFCC80' : '#81D4FA' }), // subtle window color
+      (el) => ({ ...el, w: (el.w||40) + 15, h: (el.h||30) + 10 }), // bigger house
+    ],
+  },
+  flower: {
+    easy: [
+      (el) => null,
+    ],
+    normal: [
+      (el) => null,
+      (el) => ({ ...el, color: el.color === '#EC407A' ? '#1E88E5' : el.color === '#FDD835' ? '#E53935' : '#FDD835' }),
+    ],
+    hard: [
+      (el) => ({ ...el, color: el.color === '#EC407A' ? '#7B1FA2' : '#EC407A' }), // subtle hue shift
+      (el) => ({ ...el, x: el.x + 15, area: { ...el.area, x: el.area.x + 15 } }), // shifted
+    ],
+  },
+  bird: {
+    easy: [
+      (el) => null,
+    ],
+    normal: [
+      (el) => null,
+    ],
+    hard: [
+      (el) => null,
+      (el) => ({ ...el, y: el.y + 15, area: { ...el.area, y: el.area.y + 15 } }), // moved down
+    ],
+  },
+  fence: {
+    easy: [
+      (el) => null,
+      (el) => ({ ...el, color: '#E53935' }),
+    ],
+    normal: [
+      (el) => null,
+      (el) => ({ ...el, count: (el.count||4) + 2 }), // more posts
+    ],
+    hard: [
+      (el) => ({ ...el, count: (el.count||4) - 1 }), // one fewer post
+      (el) => ({ ...el, color: '#5D4037' }), // subtle brown shade change
+    ],
+  },
+  bush: {
+    easy: [
+      (el) => null,
+    ],
+    normal: [
+      (el) => null,
+      (el) => ({ ...el, color: '#FDD835', color2: '#FFEE58', color3: '#F9A825' }), // yellow
+    ],
+    hard: [
+      (el) => ({ ...el, w: (el.w||16) + 10, h: (el.h||10) + 6 }), // bigger
+      (el) => ({ ...el, x: el.x - 15, area: { ...el.area, x: el.area.x - 15 } }), // shifted
+    ],
+  },
+  cat: {
+    easy: [
+      (el) => null,
+    ],
+    normal: [
+      (el) => null,
+      (el) => ({ ...el, color: el.color === '#FF8F00' ? '#424242' : '#FF8F00' }), // orange↔black
+    ],
+    hard: [
+      (el) => ({ ...el, color: el.color === '#FF8F00' ? '#424242' : '#FF8F00' }),
+      (el) => ({ ...el, x: el.x + 20, area: { ...el.area, x: el.area.x + 20 } }), // moved
+    ],
+  },
+  butterfly: {
+    easy: [
+      (el) => null,
+    ],
+    normal: [
+      (el) => null,
+      (el) => ({ ...el, color: '#E53935', color2: '#FFCDD2' }), // red
+    ],
+    hard: [
+      (el) => ({ ...el, x: el.x + 20, y: el.y + 15, area: { ...el.area, x: el.area.x + 20, y: el.area.y + 15 } }), // moved
+    ],
+  },
+  pond: {
+    easy: [
+      (el) => ({ ...el, color: '#E53935' }),
+      (el) => null,
+    ],
+    normal: [
+      (el) => null,
+      (el) => ({ ...el, w: (el.w||25) + 15 }), // bigger
+    ],
+    hard: [
+      (el) => ({ ...el, w: (el.w||25) - 8, h: (el.h||12) - 4 }), // smaller
+      (el) => ({ ...el, x: el.x + 20, area: { ...el.area, x: el.area.x + 20 } }), // shifted
+    ],
+  },
+  bench: { easy:[], normal:[], hard:[] },
+};
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'ちがい2つ・消える変化が中心', differences:2, rounds:6 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'ちがい3つ・色やサイズも変わる', differences:3, rounds:6 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'ちがい4つ・位置ずれ・微妙な変化', differences:4, rounds:6, timeLimit:25 },
+};
+
+function generatePuzzle(diffCount, diff) {
+  const scene = SCENES[Math.floor(Math.random() * SCENES.length)];
+  const original = scene.elements.map(el => ({ ...el }));
+
+  // Pick elements to modify using difficulty-appropriate mods
+  const tier = diff || 'normal';
+  const modifiable = original.map((el, i) => ({ el, i })).filter(({el}) => MODS[el.type] && MODS[el.type][tier] && MODS[el.type][tier].length > 0);
+  const toModify = shuffle(modifiable).slice(0, diffCount);
+
+  const modified = original.map(el => ({ ...el }));
+  const changes = [];
+
+  toModify.forEach(({ el, i }) => {
+    const possibleMods = MODS[el.type][tier];
+    const mod = possibleMods[Math.floor(Math.random() * possibleMods.length)];
+    const result = mod(el);
+    if (result === null) {
+      // Mark as hidden but keep area for tap detection
+      modified[i] = { type:'_hidden', area: el.area };
+      changes.push({ idx: i, type: 'removed', area: el.area, desc: `${el.type}が消えた` });
+    } else {
+      modified[i] = result;
+      changes.push({ idx: i, type: 'changed', area: el.area, desc: `${el.type}が変わった` });
+    }
+  });
+
+  return { sky: scene.sky, ground: scene.ground, groundY: scene.groundY, original, modified, changes, diffIndices: changes.map(c => c.idx) };
+}
+
+// ========== SCENE RENDERER ==========
+function SceneView({ sky, ground, groundY, elements, highlights, onClick, interactive, answerAreas }) {
+  const W = 370, H = 180;
+
+  return (
+    <div style={{ position:'relative', borderRadius:16, overflow:'hidden', boxShadow:'0 2px 12px rgba(0,0,0,0.08)' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display:'block' }}>
+        {/* Sky */}
+        <rect width={W} height={H} fill={sky} />
+        {/* Ground */}
+        <ellipse cx={W/2} cy={H+10} rx={W*0.8} ry={H-groundY+15} fill={ground} />
+        {/* Elements */}
+        {elements.map((el, i) => {
+          if (!el || el.type === '_hidden') return null;
+          const Comp = ELEMENTS[el.type];
+          if (!Comp) {
+            if (el.type === 'bench') {
+              return (
+                <g key={i}>
+                  <rect x={el.x||120} y={(el.y||140)-5} width={40} height={4} fill="#8D6E63" rx="2" />
+                  <rect x={el.x||120} y={(el.y||140)} width={3} height={12} fill="#5D4037" />
+                  <rect x={(el.x||120)+37} y={(el.y||140)} width={3} height={12} fill="#5D4037" />
+                  <rect x={(el.x||120)-2} y={(el.y||140)-12} width={44} height={3} fill="#8D6E63" rx="1" />
+                </g>
+              );
+            }
+            return null;
+          }
+          return <g key={i}>{Comp(el)}</g>;
+        })}
+      </svg>
+
+      {/* Clickable overlay areas for interactive mode */}
+      {interactive && elements.map((el, i) => {
+        if (!el || !el.area) return null;
+        const hl = highlights && highlights.has(i);
+        const scaleX = 100 / 370;
+        const scaleY = 100 / 180;
+        return (
+          <div key={i}
+            onClick={() => onClick && onClick(i)}
+            style={{
+              position:'absolute',
+              left: el.area.x * scaleX + '%',
+              top: el.area.y * scaleY + '%',
+              width: el.area.w * scaleX + '%',
+              height: el.area.h * scaleY + '%',
+              cursor:'pointer',
+              borderRadius:8,
+              border: hl ? '3px solid #66BB6A' : 'none',
+              background: hl ? 'rgba(102,187,106,0.2)' : 'transparent',
+            }}
+          />
+        );
+      })}
+
+      {/* Answer areas - show found (green) and unfound (orange dashed) on bottom image */}
+      {answerAreas && answerAreas.map((aa, i) => {
+        const scaleX = 100 / 370;
+        const scaleY = 100 / 180;
+        return (
+          <div key={'aa'+i} style={{
+            position:'absolute',
+            left: aa.area.x * scaleX + '%',
+            top: aa.area.y * scaleY + '%',
+            width: aa.area.w * scaleX + '%',
+            height: aa.area.h * scaleY + '%',
+            borderRadius:8,
+            border: aa.found ? '3px solid #66BB6A' : '3px dashed #FF6B35',
+            background: aa.found ? 'rgba(102,187,106,0.2)' : 'rgba(255,107,53,0.15)',
+          }} />
+        );
+      })}
+    </div>
+  );
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    puzzles: [],
+    currentP: 0,
+    score: 0,
+    correct: 0,
+    foundIndices: new Set(),
+    wrongTaps: 0,
+    feedback: null,
+    results: [],
+    timeLeft: 0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const puzzles = [];
+    for (let i = 0; i < cfg.rounds; i++) puzzles.push(generatePuzzle(cfg.differences, diff));
+    g.puzzles = puzzles;
+    g.currentP = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.results = [];
+    setShowConfetti(false);
+    setScreen('game');
+    setupPuzzle(0, diff);
+  };
+
+  const setupPuzzle = (idx, diff) => {
+    const cfg = DIFF[diff || difficulty];
+    g.currentP = idx;
+    g.foundIndices = new Set();
+    g.wrongTaps = 0;
+    g.feedback = null;
+    g.timeLeft = cfg.timeLimit || 0;
+    g.phase = 'playing';
+    rerender();
+
+    if (cfg.timeLimit > 0) {
+      clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        g.timeLeft--;
+        rerender();
+        if (g.timeLeft <= 0) { clearInterval(timerRef.current); endPuzzle(false); }
+      }, 1000);
+    }
+  };
+
+  const handleTap = (idx) => {
+    if (g.phase !== 'playing') return;
+    if (g.foundIndices.has(idx)) return;
+    const puzzle = g.puzzles[g.currentP];
+
+    if (puzzle.diffIndices.includes(idx)) {
+      g.foundIndices.add(idx);
+      g.score += 10;
+      rerender();
+      if (g.foundIndices.size >= puzzle.changes.length) {
+        setTimeout(() => endPuzzle(true), 400);
+      }
+    } else {
+      g.wrongTaps++;
+      g.score = Math.max(0, g.score - 3);
+      rerender();
+    }
+  };
+
+  const endPuzzle = (allFound) => {
+    clearInterval(timerRef.current);
+    if (allFound) { g.correct++; g.score += 5; }
+    g.results.push({ found: g.foundIndices.size, total: g.puzzles[g.currentP].changes.length, wrongTaps: g.wrongTaps, allFound });
+    g.phase = 'puzzle-end';
+    rerender();
+  };
+
+  const nextPuzzle = () => {
+    if (g.currentP + 1 >= g.puzzles.length) finishGame();
+    else setupPuzzle(g.currentP + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    clearInterval(timerRef.current);
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.puzzles.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.puzzles.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearInterval(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🎯 まちがい探し</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentP+1}/{g.puzzles.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🎯</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>まちがい探し</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>2つの絵をくらべて<br/>ちがいを見つけよう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 注意力・視覚走査のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 上が「みほん」の絵です<br/>
+              ② 下の絵に何か所かちがいがあります<br/>
+              ③ ちがう部分をタップして見つけよう！<br/>
+              ④ 色・大きさ・あるなしが変わっています
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}クリア</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (g.phase === 'playing' || g.phase === 'puzzle-end') && (() => {
+        const puzzle = g.puzzles[g.currentP];
+        if (!puzzle) return null;
+
+
+        return (
+          <div style={{ padding:'0 12px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status */}
+            <div style={{ display:'flex', justifyContent:'center', gap:14, padding:'8px 12px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:6 }}>
+              {[
+                {v:g.score,l:'スコア',c:'#FF6B35'},
+                {v:`${g.foundIndices.size}/${puzzle.changes.length}`,l:'発見',c:'#2EC4B6'},
+                {v:(g.currentP+1)+'/'+g.puzzles.length,l:'問題',c:'#7B1FA2'},
+                ...(cfg.timeLimit && g.phase==='playing' ? [{v:g.timeLeft+'秒',l:'残り',c:g.timeLeft<=5?'#E53935':'#6B6B6B'}] : []),
+              ].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:15, fontWeight:800, color:s.c, animation:s.l==='残り'&&g.timeLeft<=5?'pulse 0.5s infinite':undefined }}>{s.v}</div>
+                  <div style={{ fontSize:8, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ animation:'fadeUp 0.3s ease-out' }} key={g.currentP}>
+              {/* Original - always clean, no markers */}
+              <div style={{ fontSize:11, fontWeight:700, color:'#7B1FA2', textAlign:'center', marginBottom:4 }}>
+                👆 みほん
+              </div>
+              <SceneView
+                sky={puzzle.sky} ground={puzzle.ground} groundY={puzzle.groundY}
+                elements={puzzle.original}
+              />
+
+              <div style={{ display:'flex', alignItems:'center', gap:8, margin:'6px 0' }}>
+                <div style={{ flex:1, height:2, background:'#E0E0E0' }} />
+                <span style={{ fontSize:11, fontWeight:700, color:'#FF6B35' }}>
+                  {g.phase === 'puzzle-end' ? '↕️ くらべてみよう' : '↕️ ちがいを探そう'}
+                </span>
+                <div style={{ flex:1, height:2, background:'#E0E0E0' }} />
+              </div>
+
+              {/* Modified - interactive during play, answer markers during puzzle-end */}
+              <div style={{ fontSize:11, fontWeight:700, color:'#FF6B35', textAlign:'center', marginBottom:4 }}>
+                {g.phase === 'puzzle-end'
+                  ? `👇 こちらの絵（⭕ = 見つけられなかったちがい）`
+                  : '👇 ちがうところをタップ！'}
+              </div>
+              <SceneView
+                sky={puzzle.sky} ground={puzzle.ground} groundY={puzzle.groundY}
+                elements={puzzle.modified}
+                highlights={g.phase === 'playing' ? g.foundIndices : null}
+                onClick={g.phase === 'playing' ? handleTap : null}
+                interactive={g.phase === 'playing'}
+                answerAreas={g.phase === 'puzzle-end' ? puzzle.changes.map(c => ({
+                  area: c.area,
+                  found: g.foundIndices.has(c.idx),
+                })) : null}
+              />
+
+              {g.phase === 'playing' && (
+                <button onClick={() => endPuzzle(false)} style={{...btnBase, marginTop:10, width:'100%', fontSize:12, fontWeight:700, padding:'8px', borderRadius:50, border:'2px solid #E0E0E0', background:'white', color:'#9E9E9E' }}>
+                  わからない…答えを見る
+                </button>
+              )}
+
+              {g.phase === 'puzzle-end' && (
+                <div style={{ textAlign:'center', marginTop:12, animation:'fadeUp 0.3s ease-out' }}>
+                  <div style={{ fontSize:30, marginBottom:4 }}>{g.foundIndices.size >= puzzle.changes.length ? '🎉' : '🤔'}</div>
+                  <div style={{ fontSize:16, fontWeight:900, color:g.foundIndices.size >= puzzle.changes.length?'#2E7D32':'#E65100' }}>
+                    {g.foundIndices.size >= puzzle.changes.length ? '全部見つけた！' : `${g.foundIndices.size}/${puzzle.changes.length} 見つけた`}
+                  </div>
+                  <button onClick={nextPuzzle} style={{...btnBase, marginTop:10, fontSize:14, fontWeight:700, padding:'12px 28px', borderRadius:50, background:g.foundIndices.size >= puzzle.changes.length?'#66BB6A':'#FF6B35', border:'none', color:'white'}}>
+                    {g.currentP+1 >= g.puzzles.length ? '結果を見る →' : '次へ →'}
+                  </button>
+                </div>
+              )}
+            </div>
+            <div style={{ height:20 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.puzzles.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.5 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'すばらしい観察力！' : pct >= 0.5 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'完全クリア'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 結果</div>
+              {g.results.map((r, i) => (
+                <div key={i} style={{ background:r.allFound?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:6, borderLeft:`4px solid ${r.allFound?'#66BB6A':'#FF6B35'}`, textAlign:'left', fontSize:16, fontWeight:700 }}>
+                  {r.allFound ? '✅' : '❌'} 問題{i+1} — {r.found}/{r.total}発見 {r.wrongTaps>0?`（ミス${r.wrongTaps}回）`:''}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

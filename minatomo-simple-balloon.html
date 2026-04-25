@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>ふうせんタップ | みなともPlay</title>
+<meta name="description" content="ふうせんタップ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="attention">
+<meta name="minatomo-category" content="シンプル">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【シンプル】ふうせんタップ ==========
+const BALLOON_COLORS = ['#E53935','#1E88E5','#FDD835','#43A047','#FB8C00','#8E24AA','#F06292','#00ACC1'];
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    score:0, popped:0, escaped:0,
+    balloons:[], // { id, x, y, color, popped, speed }
+    nextId:0, phase:'idle',
+    spawnCount:0, maxSpawns:20,
+  }).current;
+
+  const frameRef = React.useRef(null);
+  const spawnRef = React.useRef(null);
+  React.useEffect(() => () => { cancelAnimationFrame(frameRef.current); clearTimeout(spawnRef.current); }, []);
+
+  const startGame = () => {
+    g.score = 0; g.popped = 0; g.escaped = 0;
+    g.balloons = []; g.nextId = 0; g.spawnCount = 0; g.maxSpawns = 20;
+    g.phase = 'playing';
+    setScreen('play'); rerender();
+    spawnBalloon();
+    gameLoop();
+  };
+
+  const spawnBalloon = () => {
+    if (g.phase !== 'playing') return;
+    if (g.spawnCount >= g.maxSpawns) {
+      // Wait for remaining balloons to clear
+      if (g.balloons.filter(b => !b.popped && b.y > -10).length === 0) {
+        g.phase = 'idle';
+        setScreen('done'); rerender();
+      }
+      return;
+    }
+
+    const color = BALLOON_COLORS[Math.floor(Math.random() * BALLOON_COLORS.length)];
+    const x = 10 + Math.random() * 75;
+    // Speed increases over time
+    const speed = 0.25 + g.spawnCount * 0.015 + Math.random() * 0.1;
+
+    g.balloons.push({
+      id: g.nextId++,
+      x, y: 105,
+      color, popped: false,
+      speed,
+    });
+    g.spawnCount++;
+    rerender();
+
+    // Next spawn interval: gets shorter
+    const interval = Math.max(600, 1500 - g.spawnCount * 40);
+    spawnRef.current = setTimeout(spawnBalloon, interval);
+  };
+
+  const gameLoop = () => {
+    if (g.phase !== 'playing') return;
+
+    let changed = false;
+    for (const b of g.balloons) {
+      if (b.popped) continue;
+      b.y -= b.speed;
+      if (b.y < -10) {
+        b.popped = true;
+        g.escaped++;
+        changed = true;
+      }
+    }
+
+    // Clean up old balloons
+    g.balloons = g.balloons.filter(b => !b.popped || b.y > -20);
+
+    // Check if game over
+    if (g.spawnCount >= g.maxSpawns && g.balloons.filter(b => !b.popped).length === 0) {
+      g.phase = 'idle';
+      setScreen('done');
+    }
+
+    rerender();
+    frameRef.current = requestAnimationFrame(gameLoop);
+  };
+
+  const handlePop = (balloonId) => {
+    const b = g.balloons.find(x => x.id === balloonId);
+    if (!b || b.popped) return;
+    b.popped = true;
+    g.popped++;
+    g.score += 10;
+    rerender();
+  };
+
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.8)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+        @keyframes popBurst{0%{transform:scale(1);opacity:1}100%{transform:scale(1.5);opacity:0}}
+        @keyframes float{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🎈 ふうせんタップ</span>
+        {screen === 'play' && (
+          <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:16, fontWeight:900, color:'#E8652E' }}>{g.score}pt</span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#9E9E9E' }}>{g.popped}/{g.maxSpawns}</span>
+          </div>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:12, marginBottom:24 }}>
+            {['#E53935','#1E88E5','#FDD835'].map((c, i) => (
+              <div key={i} style={{
+                width:50, height:62, borderRadius:'50% 50% 50% 50% / 40% 40% 60% 60%',
+                background:c, boxShadow:`0 4px 12px ${c}44`,
+                animation:`float ${2 + i * 0.3}s ease-in-out infinite`,
+              }} />
+            ))}
+          </div>
+
+          <div style={{ fontSize:26, fontWeight:900, color:'#333', marginBottom:8, letterSpacing:'0.06em' }}>
+            ふうせんをタップ！
+          </div>
+          <div style={{ fontSize:16, color:'#9E9E9E', marginBottom:40 }}>
+            にげるまえにタッチしよう
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:28, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'24px 64px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && (
+        <div style={{ padding:'0', maxWidth:580, margin:'0 auto' }}>
+          {/* Game area */}
+          <div style={{
+            position:'relative', width:'100%', height: 'calc(100vh - 60px)',
+            overflow:'hidden',
+            background:'linear-gradient(180deg, #E3F2FD 0%, #FAFAF8 100%)',
+            userSelect:'none', WebkitUserSelect:'none',
+          }}>
+            {/* Balloons */}
+            {g.balloons.filter(b => !b.popped).map((b) => (
+              <div key={b.id}
+                onClick={() => handlePop(b.id)}
+                style={{
+                  position:'absolute',
+                  left: b.x + '%',
+                  top: b.y + '%',
+                  transform:'translate(-50%,-50%)',
+                  cursor:'pointer',
+                  padding:18,
+                  userSelect:'none', WebkitUserSelect:'none',
+                }}>
+                {/* Balloon body */}
+                <div style={{
+                  width:52, height:64,
+                  borderRadius:'50% 50% 50% 50% / 40% 40% 60% 60%',
+                  background: `radial-gradient(ellipse at 35% 30%, ${b.color}99, ${b.color})`,
+                  boxShadow:`0 4px 12px ${b.color}44`,
+                  position:'relative',
+                }}>
+                  {/* Shine */}
+                  <div style={{
+                    position:'absolute', top:10, left:12,
+                    width:12, height:16, borderRadius:'50%',
+                    background:'rgba(255,255,255,0.35)',
+                    transform:'rotate(-20deg)',
+                  }} />
+                </div>
+                {/* String */}
+                <div style={{
+                  width:2, height:18, background:'#BDBDBD',
+                  margin:'0 auto',
+                }} />
+              </div>
+            ))}
+
+            {/* Pop effects */}
+            {g.balloons.filter(b => b.popped && b.y > -10).map((b) => (
+              <div key={'pop-'+b.id} style={{
+                position:'absolute',
+                left: b.x + '%', top: b.y + '%',
+                transform:'translate(-50%,-50%)',
+                fontSize:28,
+                animation:'popBurst 0.3s ease-out forwards',
+                pointerEvents:'none',
+              }}>💥</div>
+            ))}
+
+            {/* Escaped counter */}
+            {g.escaped > 0 && (
+              <div style={{
+                position:'absolute', top:12, right:12,
+                fontSize:14, fontWeight:700, color:'#C62828',
+                background:'rgba(255,255,255,0.9)', padding:'4px 10px', borderRadius:50,
+              }}>にげた {g.escaped}</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const total = g.maxSpawns;
+        const pct = g.popped / total;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すごい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:80, marginBottom:16, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:32, fontWeight:900, color:'#E8652E', marginBottom:12 }}>{msg}</div>
+            <div style={{ background:'white', borderRadius:24, padding:'20px 40px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:8 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:48, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:20, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:16, marginBottom:8 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:'#2E7D32' }}>🎈 {g.popped}こ タッチ</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#C62828' }}>💨 {g.escaped}こ にげた</div>
+            </div>
+            <div style={{ fontSize:20, fontWeight:700, color:'#6B6B6B', marginBottom:40 }}>{g.popped} / {total}</div>
+            <button onClick={startGame} style={{
+              ...bs, fontSize:24, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'22px 48px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

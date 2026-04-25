@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>おちる！タップ！ | みなともPlay</title>
+<meta name="description" content="おちる！タップ！ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="attention">
+<meta name="minatomo-category" content="シンプル">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【シンプル】おちる！タップ！ ==========
+const EMOJIS = ['🍎','⭐','🐱','🌸','🎈','🐟','🍰','❤️','🍊','🐸'];
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    score:0, caught:0, dropped:0,
+    items:[], nextId:0, phase:'idle',
+    spawnCount:0, maxSpawns:20,
+  }).current;
+
+  const frameRef = React.useRef(null);
+  const spawnRef = React.useRef(null);
+  React.useEffect(() => () => { cancelAnimationFrame(frameRef.current); clearTimeout(spawnRef.current); }, []);
+
+  const startGame = () => {
+    g.score = 0; g.caught = 0; g.dropped = 0;
+    g.items = []; g.nextId = 0; g.spawnCount = 0;
+    g.phase = 'playing';
+    setScreen('play'); rerender();
+    spawnItem();
+    gameLoop();
+  };
+
+  const spawnItem = () => {
+    if (g.phase !== 'playing') return;
+    if (g.spawnCount >= g.maxSpawns) {
+      if (g.items.filter(i => !i.done).length === 0) {
+        g.phase = 'idle';
+        setScreen('done'); rerender();
+      } else {
+        spawnRef.current = setTimeout(spawnItem, 500);
+      }
+      return;
+    }
+
+    const lane = Math.floor(Math.random() * 3);
+    const emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+    const speed = 0.4 + g.spawnCount * 0.02 + Math.random() * 0.1;
+
+    g.items.push({
+      id: g.nextId++,
+      lane, emoji, y: -8,
+      speed, done: false, caught: false,
+    });
+    g.spawnCount++;
+    rerender();
+
+    const interval = Math.max(500, 1200 - g.spawnCount * 30);
+    spawnRef.current = setTimeout(spawnItem, interval);
+  };
+
+  const gameLoop = () => {
+    if (g.phase !== 'playing') return;
+
+    for (const item of g.items) {
+      if (item.done) continue;
+      item.y += item.speed;
+      if (item.y > 92) {
+        item.done = true;
+        if (!item.caught) g.dropped++;
+      }
+    }
+
+    g.items = g.items.filter(i => !i.done || i.y < 100);
+
+    if (g.spawnCount >= g.maxSpawns && g.items.filter(i => !i.done).length === 0) {
+      g.phase = 'idle';
+      setScreen('done');
+    }
+
+    rerender();
+    frameRef.current = requestAnimationFrame(gameLoop);
+  };
+
+  const handleCatch = (lane) => {
+    if (g.phase !== 'playing') return;
+    // Find the lowest uncaught item in this lane (closest to bottom = most urgent)
+    let bestItem = null;
+    let bestY = -1;
+    for (const item of g.items) {
+      if (!item.done && !item.caught && item.lane === lane && item.y > bestY && item.y > 20) {
+        bestItem = item;
+        bestY = item.y;
+      }
+    }
+    if (bestItem) {
+      bestItem.caught = true;
+      bestItem.done = true;
+      g.caught++;
+      g.score += 10;
+      rerender();
+    }
+  };
+
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.1s' };
+
+  const laneX = (lane) => lane === 0 ? '16.7%' : lane === 1 ? '50%' : '83.3%';
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.8)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+        @keyframes catchBurst{0%{transform:translate(-50%,-50%) scale(1);opacity:1}100%{transform:translate(-50%,-50%) scale(2);opacity:0}}
+        @keyframes sway{0%,100%{transform:translateX(-50%) rotate(-2deg)}50%{transform:translateX(-50%) rotate(2deg)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>⬇️ おちる！タップ！</span>
+        {screen === 'play' && (
+          <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:16, fontWeight:900, color:'#E8652E' }}>{g.score}pt</span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#9E9E9E' }}>{g.caught}/{g.maxSpawns}</span>
+          </div>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, marginBottom:24 }}>
+            <span style={{ fontSize:36 }}>🍎</span>
+            <span style={{ fontSize:20, color:'#9E9E9E' }}>↓</span>
+            <span style={{ fontSize:20, color:'#9E9E9E' }}>↓</span>
+            <div style={{ width:80, height:8, borderRadius:4, background:'#E8652E' }} />
+          </div>
+
+          <div style={{ fontSize:26, fontWeight:900, color:'#333', marginBottom:8, letterSpacing:'0.06em' }}>
+            おちるまえにタップ！
+          </div>
+          <div style={{ fontSize:16, color:'#9E9E9E', marginBottom:40 }}>
+            したのボタンでキャッチしよう
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:28, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'24px 64px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && (
+        <div style={{ padding:'0 8px', maxWidth:580, margin:'0 auto' }}>
+          {/* Progress */}
+          <div style={{ width:'100%', height:5, background:'#E8E8E8', borderRadius:3, margin:'8px 0', overflow:'hidden' }}>
+            <div style={{ width:`${(g.spawnCount / g.maxSpawns) * 100}%`, height:'100%', background:'#E8652E', borderRadius:3, transition:'width 0.3s' }} />
+          </div>
+
+          {/* Stats */}
+          <div style={{ display:'flex', justifyContent:'center', gap:14, marginBottom:4 }}>
+            <span style={{ fontSize:13, fontWeight:700, color:'#2E7D32' }}>🎯 {g.caught}</span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#C62828' }}>💨 {g.dropped}</span>
+          </div>
+
+          {/* Game field */}
+          <div style={{
+            position:'relative', width:'100%', height:340,
+            background:'linear-gradient(180deg, #E3F2FD 0%, #FAFAF8 80%, #FFF3E0 100%)',
+            borderRadius:'20px 20px 0 0',
+            overflow:'hidden',
+            userSelect:'none', WebkitUserSelect:'none',
+          }}>
+            {/* Lane dividers */}
+            <div style={{ position:'absolute', left:'33.3%', top:0, bottom:0, width:1, background:'#E0E0E044' }} />
+            <div style={{ position:'absolute', left:'66.6%', top:0, bottom:0, width:1, background:'#E0E0E044' }} />
+
+            {/* Bottom line */}
+            <div style={{ position:'absolute', bottom:0, left:0, right:0, height:4, background:'#E8652E', opacity:0.3 }} />
+
+            {/* Falling items */}
+            {g.items.filter(i => !i.done).map((item) => (
+              <div key={item.id} style={{
+                position:'absolute',
+                left:laneX(item.lane),
+                top:item.y + '%',
+                transform:'translateX(-50%)',
+                fontSize:36, lineHeight:1,
+                animation:'sway 2s ease-in-out infinite',
+                pointerEvents:'none',
+              }}>{item.emoji}</div>
+            ))}
+
+            {/* Catch effects */}
+            {g.items.filter(i => i.caught && i.y < 100).map((item) => (
+              <div key={'c-'+item.id} style={{
+                position:'absolute',
+                left:laneX(item.lane),
+                top:item.y + '%',
+                transform:'translate(-50%,-50%)',
+                fontSize:28,
+                animation:'catchBurst 0.3s ease-out forwards',
+                pointerEvents:'none',
+              }}>✨</div>
+            ))}
+          </div>
+
+          {/* 3 catch buttons */}
+          <div style={{ display:'flex', gap:6 }}>
+            {[0, 1, 2].map((lane) => (
+              <button key={lane}
+                onClick={() => handleCatch(lane)}
+                style={{
+                  ...bs, flex:1, height:70, borderRadius:'0 0 16px 16px',
+                  background:'#E8652E',
+                  border:'none',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 -2px 8px rgba(232,101,46,0.2)',
+                  fontSize:20, fontWeight:900, color:'white',
+                  userSelect:'none', WebkitUserSelect:'none',
+                }}>
+                キャッチ！
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const total = g.maxSpawns;
+        const pct = g.caught / total;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すごい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:80, marginBottom:16, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:32, fontWeight:900, color:'#E8652E', marginBottom:12 }}>{msg}</div>
+            <div style={{ background:'white', borderRadius:24, padding:'20px 40px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:8 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:48, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:20, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:16, marginBottom:8 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:'#2E7D32' }}>🎯 {g.caught}こ キャッチ</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#C62828' }}>💨 {g.dropped}こ おちた</div>
+            </div>
+            <div style={{ fontSize:20, fontWeight:700, color:'#6B6B6B', marginBottom:40 }}>{g.caught} / {total}</div>
+            <button onClick={startGame} style={{
+              ...bs, fontSize:24, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'22px 48px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

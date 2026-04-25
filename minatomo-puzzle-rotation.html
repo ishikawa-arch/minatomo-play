@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>パズル回転 | みなともPlay</title>
+<meta name="description" content="形を回転させて判断 - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== SHAPE GENERATORS ==========
+// Generate random L/T/Z-like polyomino shapes using grid cells
+function generateShape(complexity) {
+  const cells = new Set();
+  cells.add('2,2'); // Start at center
+  const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+  const targetSize = complexity;
+
+  while (cells.size < targetSize) {
+    const existing = [...cells];
+    const base = existing[Math.floor(Math.random() * existing.length)];
+    const [bx, by] = base.split(',').map(Number);
+    const [dx, dy] = dirs[Math.floor(Math.random() * dirs.length)];
+    const nx = bx + dx, ny = by + dy;
+    if (nx >= 0 && nx < 5 && ny >= 0 && ny < 5) {
+      cells.add(`${nx},${ny}`);
+    }
+  }
+
+  return [...cells].map(c => c.split(',').map(Number));
+}
+
+// Normalize shape to top-left corner
+function normalize(cells) {
+  const minX = Math.min(...cells.map(c => c[0]));
+  const minY = Math.min(...cells.map(c => c[1]));
+  const shifted = cells.map(([x, y]) => [x - minX, y - minY]);
+  shifted.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  return shifted;
+}
+
+// Rotate shape 90 degrees clockwise
+function rotate90(cells) {
+  return cells.map(([x, y]) => [y, -x]);
+}
+
+// Mirror shape horizontally
+function mirror(cells) {
+  return cells.map(([x, y]) => [-x, y]);
+}
+
+// Get shape key for comparison
+function shapeKey(cells) {
+  return normalize(cells).map(c => c.join(',')).join('|');
+}
+
+// Rotate by N * 90 degrees
+function rotateN(cells, n) {
+  let result = [...cells.map(c => [...c])];
+  for (let i = 0; i < (((n % 4) + 4) % 4); i++) {
+    result = rotate90(result);
+  }
+  return normalize(result);
+}
+
+// Generate all unique rotations of a shape
+function allRotations(cells) {
+  const rots = new Set();
+  for (let r = 0; r < 4; r++) {
+    rots.add(shapeKey(rotateN(cells, r)));
+  }
+  return rots;
+}
+
+// Check if two shapes are the same (under rotation)
+function isSameUnderRotation(a, b) {
+  const rotsA = allRotations(a);
+  return rotsA.has(shapeKey(normalize(b)));
+}
+
+// Check if shape is mirrored version (not rotatable to match)
+function isMirrorOnly(a, b) {
+  const mirroredB = mirror(b);
+  return isSameUnderRotation(a, mirroredB) && !isSameUnderRotation(a, b);
+}
+
+// ========== RENDER SHAPE ==========
+function ShapeView({ cells, size = 120, color = '#FF6B35', rotation = 0, opacity = 1 }) {
+  const normalized = normalize(cells);
+  const maxX = Math.max(...normalized.map(c => c[0])) + 1;
+  const maxY = Math.max(...normalized.map(c => c[1])) + 1;
+  const cellSize = Math.min(size / Math.max(maxX, maxY, 3), 28);
+  const offsetX = (size - maxX * cellSize) / 2;
+  const offsetY = (size - maxY * cellSize) / 2;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: `rotate(${rotation}deg)`, transition: 'transform 0.3s' }}>
+      {normalized.map(([x, y], i) => (
+        <rect key={i}
+          x={offsetX + x * cellSize + 1}
+          y={offsetY + y * cellSize + 1}
+          width={cellSize - 2}
+          height={cellSize - 2}
+          fill={color}
+          opacity={opacity}
+          rx={3}
+        />
+      ))}
+    </svg>
+  );
+}
+
+// ========== QUESTION GENERATION ==========
+// Generate a shape that has distinct rotations AND distinct mirror
+function generateGoodShape(complexity) {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const shape = generateShape(complexity);
+    const norm = normalize(shape);
+    const rots = allRotations(norm);
+    const mirrorNorm = normalize(mirror(norm));
+    const mirrorRots = allRotations(mirrorNorm);
+    // Need: at least 4 distinct rotations, and mirror must be different from all rotations
+    if (rots.size >= 3 && !rots.has(shapeKey(mirrorNorm))) {
+      return norm;
+    }
+  }
+  return normalize(generateShape(complexity));
+}
+
+// Create a "1-cell-off" variant: remove one cell and add another adjacent one
+function create1CellOff(cells, complexity) {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const cellsCopy = cells.map(c => [...c]);
+    // Remove a non-critical cell (that won't disconnect the shape)
+    const removeIdx = 1 + Math.floor(Math.random() * (cellsCopy.length - 1));
+    const removed = cellsCopy.splice(removeIdx, 1)[0];
+    // Add a new cell adjacent to an existing one
+    const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+    const existing = cellsCopy[Math.floor(Math.random() * cellsCopy.length)];
+    const [dx, dy] = dirs[Math.floor(Math.random() * dirs.length)];
+    const newCell = [existing[0]+dx, existing[1]+dy];
+    // Check it's not already in the shape
+    if (!cellsCopy.some(c => c[0]===newCell[0] && c[1]===newCell[1]) &&
+        !(newCell[0]===removed[0] && newCell[1]===removed[1])) {
+      cellsCopy.push(newCell);
+      const variant = normalize(cellsCopy);
+      if (!isSameUnderRotation(cells, variant)) {
+        return variant;
+      }
+    }
+  }
+  return null;
+}
+
+function generateQ(diff) {
+  const complexity = diff === 'easy' ? 5 : diff === 'normal' ? 6 : 7 + Math.floor(Math.random() * 2);
+
+  const baseCells = generateGoodShape(complexity);
+
+  // Correct answer: randomly rotated version
+  const correctRotation = 1 + Math.floor(Math.random() * 3);
+  const correctCells = rotateN(baseCells, correctRotation);
+
+  // Wrong options - all very similar to make it hard
+  const wrongs = [];
+  const usedKeys = new Set();
+  usedKeys.add(shapeKey(correctCells));
+  // Also mark all rotations of correct as used
+  allRotations(correctCells).forEach(k => usedKeys.add(k));
+
+  // Wrong type 1: Mirror rotations (looks very similar but flipped)
+  for (let r = 0; r < 4 && wrongs.length < 3; r++) {
+    const mirrorRot = rotateN(normalize(mirror(baseCells)), r);
+    const key = shapeKey(mirrorRot);
+    if (!usedKeys.has(key) && !isSameUnderRotation(baseCells, mirrorRot)) {
+      wrongs.push(mirrorRot);
+      usedKeys.add(key);
+      allRotations(mirrorRot).forEach(k => usedKeys.add(k));
+    }
+  }
+
+  // Wrong type 2: 1-cell-off variants (same size, almost same shape)
+  if (diff !== 'easy') {
+    for (let attempt = 0; attempt < 10 && wrongs.length < 3; attempt++) {
+      const variant = create1CellOff(baseCells, complexity);
+      if (variant) {
+        const key = shapeKey(variant);
+        if (!usedKeys.has(key)) {
+          const variantRot = rotateN(variant, Math.floor(Math.random() * 4));
+          wrongs.push(variantRot);
+          usedKeys.add(key);
+          allRotations(variantRot).forEach(k => usedKeys.add(k));
+        }
+      }
+    }
+  }
+
+  // Fill remaining with random shapes of same complexity
+  let fillTries = 0;
+  while (wrongs.length < 3 && fillTries < 100) {
+    fillTries++;
+    const filler = normalize(generateShape(complexity));
+    const key = shapeKey(filler);
+    if (!usedKeys.has(key) && !isSameUnderRotation(baseCells, filler)) {
+      const fillerRot = rotateN(filler, Math.floor(Math.random() * 4));
+      wrongs.push(fillerRot);
+      usedKeys.add(key);
+    }
+  }
+  while (wrongs.length < 3) {
+    wrongs.push(normalize(generateShape(complexity)));
+  }
+
+  // Build options array
+  const correctIdx = Math.floor(Math.random() * 4);
+  const options = [...wrongs.slice(0, 3)];
+  options.splice(correctIdx, 0, correctCells);
+
+  const colors = ['#1E88E5', '#43A047', '#FF6D00', '#7B1FA2'];
+
+  return { base: baseCells, options, correctIdx, colors, complexity };
+}
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'5マス・4択', rounds:10, timeLimit:0 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'6マス・鏡像＋似た形', rounds:12, timeLimit:0 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'7〜8マス・10秒制限', rounds:12, timeLimit:10 },
+};
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    questions: [],
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    selected: null,
+    feedback: null,
+    results: [],
+    timeLeft: 0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const startTimer = (seconds) => {
+    g.timeLeft = seconds;
+    clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      g.timeLeft--;
+      rerender();
+      if (g.timeLeft <= 0) {
+        clearInterval(intervalRef.current);
+        if (g.selected === null) {
+          g.selected = -1;
+          g.feedback = 'timeout';
+          g.results.push({ q: g.questions[g.currentQ], selected: -1, correct: false });
+          rerender();
+          timerRef.current = setTimeout(() => {
+            if (g.currentQ + 1 >= g.questions.length) finishGame();
+            else { g.currentQ++; g.selected = null; g.feedback = null; const c = DIFF[difficulty]; if (c.timeLimit > 0) startTimer(c.timeLimit); rerender(); }
+          }, 1500);
+        }
+      }
+    }, 1000);
+  };
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const questions = [];
+    for (let i = 0; i < cfg.rounds; i++) questions.push(generateQ(diff));
+    g.questions = questions;
+    g.currentQ = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.selected = null;
+    g.feedback = null;
+    g.results = [];
+    g.phase = 'playing';
+    setShowConfetti(false);
+    setScreen('game');
+    if (cfg.timeLimit > 0) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const handleAnswer = (idx) => {
+    if (g.selected !== null) return;
+    clearInterval(intervalRef.current);
+    const q = g.questions[g.currentQ];
+    g.selected = idx;
+    const isCorrect = idx === q.correctIdx;
+
+    if (isCorrect) {
+      g.score += 15;
+      g.correct++;
+      g.feedback = 'correct';
+    } else {
+      g.feedback = 'wrong';
+    }
+    g.results.push({ q, selected: idx, correct: isCorrect });
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.currentQ + 1 >= g.questions.length) finishGame();
+      else {
+        g.currentQ++; g.selected = null; g.feedback = null;
+        const c = DIFF[difficulty];
+        if (c.timeLimit > 0) startTimer(c.timeLimit);
+        rerender();
+      }
+    }, 1500);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.questions.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🧩 パズル回転</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentQ+1}/{g.questions.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🧩</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>パズル回転</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>同じ形を見つけよう！<br/>頭の中でくるっと回してみて</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 視空間認知・メンタルローテーションのトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 上にオレンジ色の「お手本」の形が出ます<br/>
+              ② 下の選択肢から同じ形を探してタップ<br/>
+              ③ 形は回転していますが、同じ形を選ぼう<br/>
+              ④ 裏返し（鏡像）はちがう形です！
+            </div>
+          </div>
+
+          {/* Example */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>💡 回転はOK、裏返しはNG</div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:16 }}>
+              <div style={{ textAlign:'center' }}>
+                <ShapeView cells={[[0,0],[1,0],[1,1],[2,1]]} size={60} color="#FF6B35" />
+                <div style={{ fontSize:10, color:'#6B6B6B', marginTop:2 }}>お手本</div>
+              </div>
+              <div style={{ textAlign:'center' }}>
+                <ShapeView cells={[[0,1],[1,0],[1,1],[2,0]]} size={60} color="#43A047" />
+                <div style={{ fontSize:10, color:'#43A047', marginTop:2 }}>⭕ 回転</div>
+              </div>
+              <div style={{ textAlign:'center' }}>
+                <ShapeView cells={[[0,1],[1,0],[1,1],[0,0]]} size={60} color="#E53935" />
+                <div style={{ fontSize:10, color:'#E53935', marginTop:2 }}>❌ 裏返し</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const q = g.questions[g.currentQ];
+        if (!q) return null;
+        const answered = g.selected !== null;
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status */}
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+              {[
+                {v:g.score,l:'スコア',c:'#FF6B35'},
+                {v:g.correct+'/'+(g.currentQ+(answered?1:0)),l:'正解',c:'#2EC4B6'},
+                {v:(g.currentQ+1)+'/'+g.questions.length,l:'問題',c:'#7B1FA2'},
+                ...(cfg.timeLimit > 0 && !answered ? [{v:g.timeLeft+'秒',l:'残り',c:g.timeLeft<=3?'#E53935':'#6B6B6B'}] : []),
+              ].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:8, color:'#9E9E9E', marginTop:1 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display:'flex', gap:3, marginBottom:8 }}>
+              {g.questions.map((_,i) => (
+                <div key={i} style={{ flex:1, height:5, borderRadius:3, background: i < g.results.length ? (g.results[i].correct ? '#66BB6A' : '#EF5350') : i === g.currentQ ? '#FFB74D' : '#E8E8E8' }} />
+              ))}
+            </div>
+
+            {/* Timer bar */}
+            {cfg.timeLimit > 0 && !answered && (
+              <div style={{ width:'100%', height:5, background:'#E8E8E8', borderRadius:3, marginBottom:8, overflow:'hidden' }}>
+                <div style={{ width:(g.timeLeft/cfg.timeLimit*100)+'%', height:'100%', background:g.timeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:3, transition:'width 1s linear' }} />
+              </div>
+            )}
+
+            <div style={{ animation:'fadeUp 0.3s ease-out' }} key={g.currentQ}>
+              {/* Question label */}
+              <div style={{ textAlign:'center', marginBottom:8 }}>
+                <span style={{ fontSize:14, fontWeight:900, color:'#7B1FA2', background:'#F3E5F5', padding:'6px 16px', borderRadius:50 }}>
+                  この形を回転させたのはどれ？
+                </span>
+              </div>
+
+              {/* Base shape - the reference */}
+              <div style={{ background:'white', borderRadius:20, padding:'20px', boxShadow:'0 4px 24px rgba(0,0,0,0.06)', marginBottom:16, display:'flex', justifyContent:'center' }}>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'#FF6B35', marginBottom:6 }}>お手本</div>
+                  <ShapeView cells={q.base} size={130} color="#FF6B35" />
+                </div>
+              </div>
+
+              {/* Options grid */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+                {q.options.map((opt, i) => {
+                  const isSelected = g.selected === i;
+                  const isCorrect = i === q.correctIdx;
+
+                  return (
+                    <button key={i} onClick={() => handleAnswer(i)} disabled={answered}
+                      style={{
+                        ...btnBase, padding:'14px 8px', borderRadius:16, textAlign:'center',
+                        background: answered && isCorrect ? '#E8F5E9' : answered && isSelected && !isCorrect ? '#FFEBEE' : 'white',
+                        border: `3px solid ${answered && isCorrect ? '#66BB6A' : answered && isSelected && !isCorrect ? '#EF5350' : '#E8E8E8'}`,
+                        opacity: answered && !isCorrect && !isSelected ? 0.3 : 1,
+                        display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                      }}>
+                      <ShapeView cells={opt} size={110} color={answered && isCorrect ? '#43A047' : answered && isSelected && !isCorrect ? '#E53935' : q.colors[i]} />
+                      {answered && isCorrect && <div style={{ fontSize:12, marginTop:4 }}>✅</div>}
+                      {answered && isSelected && !isCorrect && <div style={{ fontSize:12, marginTop:4 }}>❌</div>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Feedback */}
+              {g.feedback && (
+                <div style={{ textAlign:'center', marginTop:14, animation:'fadeUp 0.2s ease-out' }}>
+                  <div style={{ fontSize:16, fontWeight:900, color:g.feedback==='correct'?'#2E7D32':'#C62828' }}>
+                    {g.feedback === 'correct' ? '✅ 正解！' : g.feedback === 'timeout' ? '⏰ 時間切れ！' : '❌ ちがう形でした'}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{ height:24 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.questions.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'すばらしい空間認知力！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Review with mini shapes */}
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 回答の振り返り</div>
+              {g.results.map((r, i) => (
+                <div key={i} style={{ background:r.correct?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:6, borderLeft:`4px solid ${r.correct?'#66BB6A':'#FF6B35'}`, display:'flex', alignItems:'center', gap:10 }}>
+                  <div style={{ flexShrink:0 }}>
+                    <ShapeView cells={r.q.base} size={40} color="#FF6B35" />
+                  </div>
+                  <div style={{ flex:1, textAlign:'left' }}>
+                    <div style={{ fontSize:16, fontWeight:700 }}>
+                      {r.correct ? '✅ 正解' : '❌ 不正解'}
+                    </div>
+                    <div style={{ fontSize:11, color:'#9E9E9E' }}>{r.q.complexity}マスの形</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 コツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                形の「角」や「でっぱり」に注目しましょう。回転しても角の位置関係は変わりません。裏返し（鏡像）は角の方向が逆になります。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

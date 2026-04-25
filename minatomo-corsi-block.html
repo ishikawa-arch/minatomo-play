@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>順番記憶 | みなともPlay</title>
+<meta name="description" content="光ったブロックの順番を覚える - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== BLOCK LAYOUTS ==========
+// Fixed positions for blocks (% based) - designed to be spatially distinct
+const LAYOUTS = {
+  easy: [
+    { x: 20, y: 25 }, { x: 70, y: 20 }, { x: 45, y: 55 },
+    { x: 15, y: 75 }, { x: 75, y: 72 },
+  ],
+  normal: [
+    { x: 15, y: 18 }, { x: 55, y: 12 }, { x: 82, y: 25 },
+    { x: 30, y: 48 }, { x: 68, y: 50 }, { x: 12, y: 75 },
+    { x: 50, y: 78 }, { x: 80, y: 70 },
+  ],
+  hard: [
+    { x: 10, y: 12 }, { x: 42, y: 8 }, { x: 78, y: 15 },
+    { x: 22, y: 38 }, { x: 58, y: 35 }, { x: 85, y: 42 },
+    { x: 12, y: 65 }, { x: 45, y: 60 }, { x: 75, y: 68 },
+  ],
+};
+
+const DIFF = {
+  easy:   { label: 'かんたん', emoji: '🌱', desc: '5ブロック・2つから開始', blocks: 5, startLen: 2, maxLen: 5 },
+  normal: { label: 'ふつう', emoji: '🌿', desc: '8ブロック・3つから開始', blocks: 8, startLen: 3, maxLen: 8 },
+  hard:   { label: 'むずかしい', emoji: '🌳', desc: '9ブロック・4つから開始', blocks: 9, startLen: 4, maxLen: 9 },
+};
+
+const MSGS = ['いいね！👏','その調子！💪','すごい！✨','ナイス！🎉','覚えてた！🧠','お見事！👍','バッチリ！⭐','完璧！💯'];
+const COLORS = {
+  idle: '#E8E8E8',
+  highlight: '#FF6B35',
+  correct: '#66BB6A',
+  wrong: '#EF5350',
+  tap: '#2EC4B6',
+  matched: '#C8E6C9',
+};
+
+function formatTime(s) { return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60); }
+
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [blocks, setBlocks] = React.useState([]);
+  const [sequence, setSequence] = React.useState([]);
+  const [playerInput, setPlayerInput] = React.useState([]);
+  const [seqLength, setSeqLength] = React.useState(3);
+  const [round, setRound] = React.useState(1);
+  const [phase, setPhase] = React.useState('idle'); // idle, showing, input, feedback, gameover
+  const [activeBlock, setActiveBlock] = React.useState(null);
+  const [score, setScore] = React.useState(0);
+  const [maxReached, setMaxReached] = React.useState(0);
+  const [lives, setLives] = React.useState(2);
+  const [seconds, setSeconds] = React.useState(0);
+  const [progressMsg, setProgressMsg] = React.useState('');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [feedbackType, setFeedbackType] = React.useState(null); // 'correct' | 'wrong'
+  const [wrongBlock, setWrongBlock] = React.useState(null);
+  const [correctSequence, setCorrectSequence] = React.useState([]);
+  const timerRef = React.useRef(null);
+  const showTimeoutRef = React.useRef(null);
+
+  // Timer
+  React.useEffect(() => {
+    if (screen === 'game' && phase !== 'gameover') {
+      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+      return () => clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [screen, phase]);
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      clearInterval(timerRef.current);
+      clearTimeout(showTimeoutRef.current);
+    };
+  }, []);
+
+  const startGame = React.useCallback((diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const layout = LAYOUTS[diff].map((pos, i) => ({ id: i, ...pos }));
+    setBlocks(layout);
+    setSeqLength(cfg.startLen);
+    setRound(1);
+    setScore(0);
+    setMaxReached(cfg.startLen);
+    setLives(2);
+    setSeconds(0);
+    setFeedbackType(null);
+    setWrongBlock(null);
+    setCorrectSequence([]);
+    setProgressMsg('');
+    setShowConfetti(false);
+    setScreen('game');
+
+    // Generate first sequence
+    setTimeout(() => {
+      generateAndShowSequence(layout, cfg.startLen);
+    }, 800);
+  }, []);
+
+  const generateAndShowSequence = React.useCallback((blockList, len) => {
+    // Generate random sequence of block indices
+    const available = blockList.map(b => b.id);
+    const seq = [];
+    const pool = [...available];
+    for (let i = 0; i < len; i++) {
+      const idx = Math.floor(Math.random() * pool.length);
+      seq.push(pool[idx]);
+      pool.splice(idx, 1);
+      if (pool.length === 0) break;
+    }
+
+    setSequence(seq);
+    setPlayerInput([]);
+    setFeedbackType(null);
+    setWrongBlock(null);
+    setCorrectSequence([]);
+    setPhase('showing');
+    setActiveBlock(null);
+
+    // Show sequence one by one
+    seq.forEach((blockId, i) => {
+      showTimeoutRef.current = setTimeout(() => {
+        setActiveBlock(blockId);
+      }, (i + 1) * 800);
+
+      showTimeoutRef.current = setTimeout(() => {
+        setActiveBlock(null);
+      }, (i + 1) * 800 + 500);
+    });
+
+    // Switch to input phase
+    showTimeoutRef.current = setTimeout(() => {
+      setActiveBlock(null);
+      setPhase('input');
+    }, (seq.length + 1) * 800);
+  }, []);
+
+  const handleBlockTap = React.useCallback((blockId) => {
+    if (phase !== 'input') return;
+
+    const nextIndex = playerInput.length;
+    const newInput = [...playerInput, blockId];
+    setPlayerInput(newInput);
+
+    // Flash the tapped block
+    setActiveBlock(blockId);
+    setTimeout(() => setActiveBlock(null), 200);
+
+    if (blockId === sequence[nextIndex]) {
+      // Correct tap
+      if (newInput.length === sequence.length) {
+        // Completed sequence!
+        const newScore = score + seqLength * 10;
+        setScore(newScore);
+        setMaxReached(Math.max(maxReached, seqLength));
+        setFeedbackType('correct');
+        setPhase('feedback');
+
+        setProgressMsg(MSGS[Math.floor(Math.random() * MSGS.length)]);
+        setTimeout(() => setProgressMsg(''), 2000);
+
+        // Next round - increase length
+        setTimeout(() => {
+          const cfg = DIFF[difficulty];
+          const newLen = Math.min(seqLength + 1, cfg.maxLen);
+
+          if (seqLength >= cfg.maxLen) {
+            // Perfect clear!
+            finishGame(newScore, seqLength, true);
+          } else {
+            setSeqLength(newLen);
+            setRound(r => r + 1);
+            setFeedbackType(null);
+            generateAndShowSequence(blocks, newLen);
+          }
+        }, 1500);
+      }
+    } else {
+      // Wrong tap
+      setWrongBlock(blockId);
+      setCorrectSequence(sequence);
+      setFeedbackType('wrong');
+      setPhase('feedback');
+
+      const newLives = lives - 1;
+      setLives(newLives);
+
+      setTimeout(() => {
+        setWrongBlock(null);
+        setCorrectSequence([]);
+
+        if (newLives <= 0) {
+          finishGame(score, seqLength, false);
+        } else {
+          // Retry same length
+          setFeedbackType(null);
+          generateAndShowSequence(blocks, seqLength);
+        }
+      }, 2500);
+    }
+  }, [phase, playerInput, sequence, score, seqLength, maxReached, lives, difficulty, blocks]);
+
+  const finishGame = (finalScore, finalLen, perfect) => {
+    clearInterval(timerRef.current);
+    setPhase('gameover');
+    if (perfect || finalLen >= DIFF[difficulty].maxLen - 1) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 4000);
+    }
+
+    setHistory(prev => [{
+      diff: difficulty,
+      maxLen: finalLen,
+      score: finalScore,
+      time: seconds,
+      perfect,
+      date: new Date().toISOString(),
+    }, ...prev].slice(0, 20));
+
+    setScreen('result');
+  };
+
+  const goBack = () => {
+    clearInterval(timerRef.current);
+    clearTimeout(showTimeoutRef.current);
+    setPhase('idle');
+    setScreen('select');
+  };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  // Confetti
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{
+          position:'absolute', top:-10, left:Math.random()*100+'%',
+          width:6+Math.random()*8, height:6+Math.random()*8,
+          background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6],
+          borderRadius:Math.random()>0.5?'50%':2,
+          animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards`,
+        }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes glowPulse{0%,100%{box-shadow:0 0 20px rgba(255,107,53,0.4)}50%{box-shadow:0 0 40px rgba(255,107,53,0.8)}}
+        @keyframes ripple{0%{transform:scale(1);opacity:0.5}100%{transform:scale(2);opacity:0}}
+        @keyframes shake{0%,100%{transform:translate(-50%,-50%)}25%{transform:translate(calc(-50% - 6px),-50%)}75%{transform:translate(calc(-50% + 6px),-50%)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>💡 順番記憶</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{seqLength}個</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT SCREEN ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>💡</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>順番記憶</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>
+            ブロックが光る順番を覚えて、<br/>同じ順番でタップしよう！
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>
+            🧠 空間性短期記憶のトレーニングです
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div>
+                    <div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div>
+                    <div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* How to play */}
+          <div style={{ width:'100%', maxWidth:420, marginTop:28, background:'white', borderRadius:16, padding:'20px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① ブロックが順番に光ります<br/>
+              ② 光った順番を覚えましょう<br/>
+              ③ 同じ順番でブロックをタップ！<br/>
+              ④ 正解するとだんだん長くなります<br/>
+              ⑤ 2回間違えるとゲーム終了です
+            </div>
+          </div>
+
+          {/* History */}
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff];
+                const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:700}}>{hc.label}・最大{h.maxLen}個</div>
+                        <div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div>
+                      </div>
+                    </div>
+                    <div style={{textAlign:'right'}}>
+                      <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                      <div style={{fontSize:10,color:'#9E9E9E'}}>{h.perfect?'🏆 全クリア':''} {formatTime(h.time)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME SCREEN ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 12px' }}>
+          {/* Status bar */}
+          <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0' }}>
+            {[
+              { v: `R${round}`, l:'ラウンド', c:'#FF6B35' },
+              { v: score, l:'スコア', c:'#FF6B35' },
+              { v: formatTime(seconds), l:'時間', c:'#2EC4B6' },
+              { v: '❤️'.repeat(lives) + '🖤'.repeat(2-lives), l:'ライフ', c:'#E53935' },
+            ].map((s,i) => (
+              <div key={i} style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:20, fontWeight:800, color:s.c }}>{s.v}</div>
+                <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Phase indicator */}
+          <div style={{ textAlign:'center', padding:'12px 0', minHeight:48 }}>
+            {phase === 'showing' && (
+              <div style={{ fontSize:16, fontWeight:700, color:'#FF6B35', animation:'fadeUp 0.3s ease-out' }}>
+                👀 よく見て覚えてください...
+              </div>
+            )}
+            {phase === 'input' && (
+              <div style={{ fontSize:16, fontWeight:700, color:'#2EC4B6', animation:'fadeUp 0.3s ease-out' }}>
+                👆 同じ順番でタップ！（{playerInput.length}/{sequence.length}）
+              </div>
+            )}
+            {phase === 'feedback' && feedbackType === 'correct' && (
+              <div style={{ fontSize:16, fontWeight:700, color:'#66BB6A', animation:'fadeUp 0.3s ease-out' }}>
+                {progressMsg || '正解！✨'}
+              </div>
+            )}
+            {phase === 'feedback' && feedbackType === 'wrong' && (
+              <div style={{ fontSize:16, fontWeight:700, color:'#EF5350', animation:'fadeUp 0.3s ease-out' }}>
+                おしい！正しい順番を確認 👀
+              </div>
+            )}
+          </div>
+
+          {/* Block Area */}
+          <div style={{
+            position:'relative', width:'100%', maxWidth:500, margin:'0 auto',
+            aspectRatio:'1', background:'white', borderRadius:20,
+            boxShadow:'0 4px 24px rgba(0,0,0,0.06)',
+            border: phase === 'input' ? '3px solid #2EC4B6' : '3px solid #E8E8E8',
+            transition:'border-color 0.3s',
+            overflow:'hidden',
+          }}>
+            {/* Grid dots background */}
+            <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', opacity:0.05 }}>
+              {Array.from({length:10}, (_,r) => Array.from({length:10}, (_,c) => (
+                <circle key={r+'-'+c} cx={(c+1)*9.09+'%'} cy={(r+1)*9.09+'%'} r="2" fill="#2D2D2D" />
+              ))).flat()}
+            </svg>
+
+            {blocks.map((block) => {
+              const isActive = activeBlock === block.id;
+              const isWrong = wrongBlock === block.id;
+              const isInCorrectSeq = correctSequence.includes(block.id);
+              const tappedIndex = playerInput.indexOf(block.id);
+              const isTapped = tappedIndex !== -1 && phase === 'input';
+              const correctSeqIndex = correctSequence.indexOf(block.id);
+
+              let bg = COLORS.idle;
+              let shadow = '0 4px 12px rgba(0,0,0,0.08)';
+              let scale = 1;
+              let border = '3px solid transparent';
+
+              if (isActive) {
+                bg = COLORS.highlight;
+                shadow = '0 0 30px rgba(255,107,53,0.6)';
+                scale = 1.15;
+              } else if (isWrong) {
+                bg = COLORS.wrong;
+                shadow = '0 0 20px rgba(239,83,80,0.5)';
+              } else if (feedbackType === 'wrong' && isInCorrectSeq) {
+                bg = COLORS.highlight;
+                shadow = '0 0 16px rgba(255,107,53,0.3)';
+              } else if (feedbackType === 'correct' && isTapped) {
+                bg = COLORS.correct;
+              } else if (isTapped) {
+                bg = COLORS.tap;
+                shadow = '0 4px 16px rgba(46,196,182,0.3)';
+              }
+
+              return (
+                <div key={block.id}
+                  onClick={() => handleBlockTap(block.id)}
+                  style={{
+                    position:'absolute',
+                    left: block.x + '%', top: block.y + '%',
+                    transform: `translate(-50%, -50%) scale(${scale})`,
+                    width: 56, height: 56, borderRadius: 14,
+                    background: bg,
+                    boxShadow: shadow,
+                    border,
+                    cursor: phase === 'input' ? 'pointer' : 'default',
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    WebkitTapHighlightColor: 'transparent',
+                    animation: isWrong ? 'shake 0.4s ease-out' : undefined,
+                    zIndex: isActive ? 10 : 1,
+                  }}
+                >
+                  {/* Show order number in correct sequence during feedback */}
+                  {feedbackType === 'wrong' && isInCorrectSeq && (
+                    <span style={{ fontFamily:'Outfit', fontSize:20, fontWeight:800, color:'white' }}>
+                      {correctSeqIndex + 1}
+                    </span>
+                  )}
+                  {/* Show tap order during input */}
+                  {isTapped && feedbackType !== 'wrong' && (
+                    <span style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'white' }}>
+                      {tappedIndex + 1}
+                    </span>
+                  )}
+                  {/* Glow effect when active */}
+                  {isActive && (
+                    <div style={{
+                      position:'absolute', inset:-4, borderRadius:18,
+                      border:'3px solid rgba(255,107,53,0.5)',
+                      animation:'ripple 0.6s ease-out',
+                      pointerEvents:'none',
+                    }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Sequence length indicator */}
+          <div style={{ display:'flex', justifyContent:'center', gap:6, padding:'16px 0' }}>
+            {Array.from({ length: seqLength }, (_, i) => (
+              <div key={i} style={{
+                width: 12, height: 12, borderRadius: '50%',
+                background: i < playerInput.length
+                  ? (feedbackType === 'wrong' && i === playerInput.length - 1 ? COLORS.wrong : COLORS.tap)
+                  : '#E0E0E0',
+                transition:'background 0.2s',
+              }} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ===== RESULT SCREEN ===== */}
+      {screen === 'result' && (() => {
+        const perfect = history[0]?.perfect;
+        const max = history[0]?.maxLen || seqLength;
+        const maxPossible = DIFF[difficulty].maxLen;
+        const pct = max / maxPossible;
+        const stars = pct >= 0.9 ? '⭐⭐⭐' : pct >= 0.6 ? '⭐⭐' : '⭐';
+        const msg = perfect ? '全クリア！🏆' : pct >= 0.7 ? 'すばらしい！' : pct >= 0.4 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'calc(100vh - 56px)', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>
+              {cfg.label}モード・ラウンド{round}まで到達
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[
+                { v: max+'個', l:'最大記憶数' },
+                { v: score, l:'スコア' },
+                { v: formatTime(seconds), l:'プレイ時間' },
+              ].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:26, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Span visualization */}
+            <div style={{ width:'100%', maxWidth:360, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.35s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8 }}>📊 記憶スパン</div>
+              <div style={{ background:'white', borderRadius:16, padding:'16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+                <div style={{ display:'flex', gap:4, alignItems:'flex-end', justifyContent:'center', height:80 }}>
+                  {Array.from({ length: DIFF[difficulty].maxLen }, (_, i) => {
+                    const reached = i < max;
+                    return (
+                      <div key={i} style={{
+                        width: 28, borderRadius:'6px 6px 0 0',
+                        height: ((i + 1) / DIFF[difficulty].maxLen * 100) + '%',
+                        background: reached ? 'linear-gradient(180deg, #FF6B35, #FF8F5E)' : '#E8E8E8',
+                        transition:'background 0.5s',
+                        display:'flex', alignItems:'flex-start', justifyContent:'center',
+                        paddingTop:4,
+                      }}>
+                        <span style={{ fontSize:9, fontWeight:700, color: reached ? 'white' : '#9E9E9E' }}>{i+1}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ textAlign:'center', marginTop:8, fontSize:12, color:'#6B6B6B' }}>
+                  最大 <span style={{ fontWeight:900, color:'#FF6B35' }}>{max}個</span> の順番を記憶できました
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>
+                もう一度プレイ 🔄
+              </button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>
+                設定を変える
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

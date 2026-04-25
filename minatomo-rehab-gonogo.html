@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>とめて！タップ！ | みなともPlay</title>
+<meta name="description" content="とめて！タップ！ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="executive">
+<meta name="minatomo-category" content="リハビリ脳トレ">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【リハビリ脳トレ】とめて！タップ！ ==========
+// Go/No-Go with Reversal - 抑制＋反応切替
+
+const GO_EMOJIS = ['🍎','⭐','🌸','🎈','🐱','🍰','❤️','🍊','🐟','🌻'];
+const NOGO_EMOJI = '🛑';
+
+// Levels differ in speed and reversal
+const LEVELS = [
+  { trials:20, interval:1800, nogoRate:0.3, reversal:false, label:'レベル1', tag:'とめる練習' },
+  { trials:24, interval:1400, nogoRate:0.3, reversal:false, label:'レベル2', tag:'スピードUP' },
+  { trials:28, interval:1200, nogoRate:0.3, reversal:true, label:'レベル3', tag:'ルール切替あり' },
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    levelIdx:0, phase:'idle', // intro, playing, trial, levelEnd
+    trials:[], trialIdx:-1,
+    current:null,
+    rule:'go-on-normal', // 'go-on-normal' = tap normal, stop on 🛑
+                        // 'go-on-stop'    = tap 🛑, stop on normal (reversed)
+    hits:0, falseAlarms:0, misses:0, correctRejections:0,
+    score:0,
+    feedback:null, tapped:false,
+    timeLeft:0,
+    levelResults:[],
+    countdownNum:0,
+    showReversalAlert:false,
+  }).current;
+
+  const intervalRef = React.useRef(null);
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => { clearInterval(intervalRef.current); clearTimeout(timerRef.current); }, []);
+
+  const startGame = () => {
+    g.levelIdx = 0; g.levelResults = []; g.score = 0;
+    setScreen('play');
+    startLevel(0);
+  };
+
+  const startLevel = (lvlIdx) => {
+    g.levelIdx = lvlIdx;
+    const level = LEVELS[lvlIdx];
+
+    // Generate trial sequence
+    const trials = [];
+    for (let i = 0; i < level.trials; i++) {
+      const isNoGo = Math.random() < level.nogoRate;
+      trials.push({
+        emoji: isNoGo ? NOGO_EMOJI : GO_EMOJIS[Math.floor(Math.random() * GO_EMOJIS.length)],
+        isNoGo,
+      });
+    }
+    g.trials = trials;
+    g.trialIdx = -1;
+    g.rule = 'go-on-normal';
+    g.hits = 0; g.falseAlarms = 0; g.misses = 0; g.correctRejections = 0;
+    g.showReversalAlert = false;
+    g.countdownNum = 3;
+    g.phase = 'intro';
+    rerender();
+
+    const tick = () => {
+      g.countdownNum--;
+      if (g.countdownNum <= 0) {
+        g.phase = 'playing';
+        rerender();
+        showTrial(0);
+      } else {
+        rerender();
+        timerRef.current = setTimeout(tick, 700);
+      }
+    };
+    timerRef.current = setTimeout(tick, 800);
+  };
+
+  const showTrial = (tIdx) => {
+    const level = LEVELS[g.levelIdx];
+    if (tIdx >= g.trials.length) {
+      finishLevel();
+      return;
+    }
+
+    // Reversal: around midpoint
+    if (level.reversal && tIdx === Math.floor(level.trials / 2) && g.rule === 'go-on-normal') {
+      g.rule = 'go-on-stop';
+      g.showReversalAlert = true;
+      rerender();
+      timerRef.current = setTimeout(() => {
+        g.showReversalAlert = false;
+        rerender();
+        showTrial(tIdx);
+      }, 2000);
+      return;
+    }
+
+    g.trialIdx = tIdx;
+    g.current = g.trials[tIdx];
+    g.tapped = false;
+    g.feedback = null;
+    g.timeLeft = level.interval;
+    rerender();
+
+    intervalRef.current = setInterval(() => {
+      g.timeLeft -= 100;
+      if (g.timeLeft <= 0) {
+        clearInterval(intervalRef.current);
+        // No tap response
+        finalizeTrial(false);
+      } else {
+        rerender();
+      }
+    }, 100);
+  };
+
+  const handleTap = () => {
+    if (g.phase !== 'playing' || g.tapped || g.feedback) return;
+    clearInterval(intervalRef.current);
+    g.tapped = true;
+    finalizeTrial(true);
+  };
+
+  const finalizeTrial = (wasTapped) => {
+    const current = g.current;
+    const shouldTap = (g.rule === 'go-on-normal' && !current.isNoGo) ||
+                     (g.rule === 'go-on-stop' && current.isNoGo);
+
+    let fb;
+    if (wasTapped && shouldTap) {
+      g.hits++;
+      g.score += 10;
+      fb = 'hit';
+    } else if (wasTapped && !shouldTap) {
+      g.falseAlarms++;
+      g.score = Math.max(0, g.score - 5);
+      fb = 'falseAlarm';
+    } else if (!wasTapped && shouldTap) {
+      g.misses++;
+      fb = 'miss';
+    } else {
+      g.correctRejections++;
+      g.score += 5;
+      fb = 'correctReject';
+    }
+    g.feedback = fb;
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      showTrial(g.trialIdx + 1);
+    }, fb === 'hit' || fb === 'correctReject' ? 250 : 700);
+  };
+
+  const finishLevel = () => {
+    clearInterval(intervalRef.current);
+    const level = LEVELS[g.levelIdx];
+    g.levelResults.push({
+      label: level.label,
+      hits: g.hits, falseAlarms: g.falseAlarms,
+      misses: g.misses, correctRejections: g.correctRejections,
+    });
+    g.phase = 'levelEnd';
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.levelIdx + 1 >= LEVELS.length) {
+        setScreen('done'); rerender();
+      } else {
+        startLevel(g.levelIdx + 1);
+      }
+    }, 2500);
+  };
+
+  const level = LEVELS[g.levelIdx];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.1s' };
+
+  // Rule description
+  const ruleText = g.rule === 'go-on-normal'
+    ? { tap:'ふつうの絵', stop:'🛑' }
+    : { tap:'🛑', stop:'ふつうの絵' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @keyframes emojiPop{0%{transform:scale(0.4);opacity:0}50%{transform:scale(1.1);opacity:1}100%{transform:scale(1);opacity:1}}
+        @keyframes countPop{0%{transform:scale(0);opacity:0}50%{transform:scale(1.3);opacity:1}100%{transform:scale(1);opacity:1}}
+        @keyframes alertPulse{0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,0.5)}50%{box-shadow:0 0 0 20px rgba(198,40,40,0)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🛑 とめて！タップ！</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {level?.label}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'30px 20px', textAlign:'center', minHeight:'70vh' }}>
+          {/* Demo */}
+          <div style={{ display:'flex', gap:16, alignItems:'center', marginBottom:12 }}>
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+              <div style={{
+                width:70, height:70, borderRadius:16, background:'#F1F8E9',
+                border:'3px solid #66BB6A',
+                display:'flex', alignItems:'center', justifyContent:'center', marginBottom:4,
+              }}>
+                <span style={{ fontSize:13, fontWeight:900, color:'#2E7D32', textAlign:'center', lineHeight:1.2 }}>ふつうの<br />絵</span>
+              </div>
+              <span style={{ fontSize:13, fontWeight:900, color:'#2E7D32' }}>タップ！</span>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+              <div style={{
+                width:70, height:70, borderRadius:16, background:'#FFF5F5',
+                border:'3px solid #EF5350',
+                display:'flex', alignItems:'center', justifyContent:'center', marginBottom:4,
+              }}>
+                <span style={{ fontSize:40 }}>🛑</span>
+              </div>
+              <span style={{ fontSize:13, fontWeight:900, color:'#C62828' }}>とめる！</span>
+            </div>
+          </div>
+          <div style={{ fontSize:13, color:'#C62828', fontWeight:700, background:'#FFF5F5', padding:'8px 14px', borderRadius:12, marginBottom:16 }}>
+            💡 🛑を おしたら ❌
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            とめる ちからを きたえよう！
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            つい おしたくなるのを がまん
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:24 }}>
+            抑制機能（Go/No-Go）のトレーニング
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && level && (
+        <div style={{ padding:'12px 16px', maxWidth:560, margin:'0 auto' }}>
+          {/* Progress of levels */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:8 }}>
+            {LEVELS.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.levelIdx ? 20 : 14, height:6, borderRadius:3,
+                background: i < g.levelIdx ? '#8BC34A' : i === g.levelIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* INTRO */}
+          {g.phase === 'intro' && (
+            <div>
+              {/* Rules for this level */}
+              <div style={{ textAlign:'center', marginBottom:12 }}>
+                <div style={{ fontSize:16, fontWeight:900, color:'#E8652E', marginBottom:4 }}>
+                  {level.label}（{level.tag}）
+                </div>
+                {level.reversal && (
+                  <div style={{ fontSize:12, fontWeight:700, color:'#C62828', background:'#FFF5F5', padding:'6px 10px', borderRadius:10, display:'inline-block' }}>
+                    💡 途中でルールが切り替わる！
+                  </div>
+                )}
+              </div>
+              <div style={{ display:'flex', gap:14, justifyContent:'center', marginBottom:10 }}>
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+                  <div style={{ width:60, height:60, borderRadius:14, background:'#F1F8E9', border:'3px solid #66BB6A', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <span style={{ fontSize:11, fontWeight:900, color:'#2E7D32', textAlign:'center', lineHeight:1.2 }}>ふつうの<br />絵</span>
+                  </div>
+                  <span style={{ fontSize:11, fontWeight:900, color:'#2E7D32', marginTop:2 }}>タップ</span>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+                  <div style={{ width:60, height:60, borderRadius:14, background:'#FFF5F5', border:'3px solid #EF5350', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <span style={{ fontSize:36 }}>🛑</span>
+                  </div>
+                  <span style={{ fontSize:11, fontWeight:900, color:'#C62828', marginTop:2 }}>とめる</span>
+                </div>
+              </div>
+
+              <div style={{ textAlign:'center', padding:'20px 0' }}>
+                <div key={g.countdownNum} style={{
+                  fontFamily:'Outfit,sans-serif',
+                  fontSize:80, fontWeight:900, color:'#E8652E',
+                  animation:'countPop 0.5s ease-out',
+                }}>{g.countdownNum}</div>
+              </div>
+            </div>
+          )}
+
+          {/* PLAYING */}
+          {g.phase === 'playing' && g.current && (
+            <div>
+              {/* Stats bar */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:12, color:'#9E9E9E' }}>pt</span></span>
+                <div style={{ display:'flex', gap:10, fontSize:13, fontWeight:700 }}>
+                  <span style={{ color:'#2E7D32' }}>⭕{g.hits + g.correctRejections}</span>
+                  {(g.falseAlarms + g.misses) > 0 && <span style={{ color:'#C62828' }}>❌{g.falseAlarms + g.misses}</span>}
+                </div>
+              </div>
+
+              {/* Trial progress dots */}
+              <div style={{ display:'flex', gap:2, justifyContent:'center', marginBottom:10 }}>
+                {g.trials.map((_, i) => (
+                  <div key={i} style={{
+                    width: i === g.trialIdx ? 8 : 4, height:4, borderRadius:2,
+                    background: i < g.trialIdx ? '#8BC34A' : i === g.trialIdx ? '#E8652E' : '#E0E0E0',
+                  }} />
+                ))}
+              </div>
+
+              {/* Reversal alert */}
+              {g.showReversalAlert && (
+                <div style={{
+                  background:'#FFF5F5', border:'3px solid #C62828',
+                  borderRadius:16, padding:'16px', textAlign:'center',
+                  marginBottom:12, animation:'alertPulse 1s infinite',
+                }}>
+                  <div style={{ fontSize:32, marginBottom:4 }}>🔄</div>
+                  <div style={{ fontSize:18, fontWeight:900, color:'#C62828' }}>ルールが かわった！</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:'#555', marginTop:4 }}>
+                    こんどは <span style={{ color:'#2E7D32' }}>🛑</span>を タップ、<span style={{ color:'#C62828' }}>ふつうの絵</span>は とめる
+                  </div>
+                </div>
+              )}
+
+              {/* Current rule */}
+              <div style={{ textAlign:'center', marginBottom:8 }}>
+                <div style={{
+                  display:'inline-flex', gap:8, alignItems:'center',
+                  background:'white', padding:'6px 14px', borderRadius:50,
+                  boxShadow:'0 2px 6px rgba(0,0,0,0.04)',
+                }}>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#9E9E9E' }}>いまのルール：</span>
+                  <span style={{ fontSize:14, fontWeight:900, color:'#2E7D32' }}>{ruleText.tap}=タップ</span>
+                  <span style={{ fontSize:14, fontWeight:900, color:'#C62828' }}>{ruleText.stop}=とめる</span>
+                </div>
+              </div>
+
+              {/* Timer bar */}
+              <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:10, overflow:'hidden' }}>
+                <div style={{
+                  width:`${(g.timeLeft / level.interval) * 100}%`, height:'100%',
+                  background:'#E8652E', transition:'width 0.1s linear',
+                }} />
+              </div>
+
+              {/* Emoji - tap zone */}
+              <div
+                onClick={handleTap}
+                style={{
+                  width:'100%', height:240, borderRadius:24,
+                  background: g.feedback === 'hit' || g.feedback === 'correctReject' ? '#F1F8E9'
+                    : g.feedback === 'falseAlarm' || g.feedback === 'miss' ? '#FFF5F5'
+                    : 'white',
+                  border: `3px solid ${
+                    g.feedback === 'hit' || g.feedback === 'correctReject' ? '#66BB6A'
+                    : g.feedback === 'falseAlarm' || g.feedback === 'miss' ? '#EF5350'
+                    : '#E8E8E8'
+                  }`,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  cursor:'pointer',
+                  userSelect:'none', WebkitUserSelect:'none',
+                  transition:'background 0.15s, border 0.15s',
+                  animation: g.feedback === 'falseAlarm' ? 'shake 0.3s' : undefined,
+                }}>
+                <div key={g.trialIdx} style={{ animation:'emojiPop 0.2s ease-out' }}>
+                  <span style={{ fontSize:120, lineHeight:1 }}>{g.current.emoji}</span>
+                </div>
+              </div>
+
+              {/* Feedback text */}
+              {g.feedback && (
+                <div style={{ textAlign:'center', marginTop:8 }}>
+                  {g.feedback === 'hit' && <span style={{ fontSize:20, fontWeight:900, color:'#2E7D32' }}>⭕ +10</span>}
+                  {g.feedback === 'correctReject' && <span style={{ fontSize:20, fontWeight:900, color:'#2E7D32' }}>⭕ とめた！+5</span>}
+                  {g.feedback === 'falseAlarm' && <span style={{ fontSize:20, fontWeight:900, color:'#C62828' }}>❌ おしちゃった！-5</span>}
+                  {g.feedback === 'miss' && <span style={{ fontSize:20, fontWeight:900, color:'#999' }}>💨 のがした</span>}
+                </div>
+              )}
+              {!g.feedback && <div style={{ height:28, marginTop:8 }} />}
+            </div>
+          )}
+
+          {/* LEVEL END */}
+          {g.phase === 'levelEnd' && (
+            <div style={{ textAlign:'center', padding:'40px 0', animation:'fadeUp 0.3s' }}>
+              <div style={{ fontSize:48, marginBottom:8 }}>🎯</div>
+              <div style={{ fontSize:22, fontWeight:900, color:'#E8652E', marginBottom:4 }}>{level.label}クリア！</div>
+              <div style={{ fontSize:14, fontWeight:700, color:'#555' }}>
+                ⭕{g.hits + g.correctRejections} ／ ❌{g.falseAlarms + g.misses}
+              </div>
+              {g.levelIdx + 1 < LEVELS.length && (
+                <div style={{ fontSize:13, fontWeight:700, color:'#C62828', marginTop:10 }}>
+                  つぎは「{LEVELS[g.levelIdx + 1].tag}」！
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const totalFA = g.levelResults.reduce((a, r) => a + r.falseAlarms, 0);
+        const totalHits = g.levelResults.reduce((a, r) => a + r.hits, 0);
+        const emoji = totalFA <= 2 ? '🎉' : totalFA <= 5 ? '👍' : '😊';
+        const msg = totalFA <= 2 ? 'すばらしい！' : totalFA <= 5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ background:'white', borderRadius:16, padding:'14px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:20, minWidth:280 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginBottom:8 }}>認知機能レポート</div>
+              {g.levelResults.map((r, i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:13 }}>
+                  <span style={{ fontWeight:700, color:'#555' }}>{r.label}</span>
+                  <span style={{ fontFamily:'Outfit', fontWeight:900 }}>
+                    <span style={{ color:'#2E7D32' }}>⭕{r.hits + r.correctRejections}</span>
+                    {r.falseAlarms > 0 && <span style={{ color:'#C62828', marginLeft:6 }}>抑制失敗{r.falseAlarms}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>おつり計算 | みなともPlay</title>
+<meta name="description" content="おつりを硬貨で作る - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+const PRODUCTS = [
+  { emoji:'🍎', name:'りんご', prices:[120,150,180,200] },
+  { emoji:'🍞', name:'食パン', prices:[150,180,200,250] },
+  { emoji:'🥛', name:'牛乳', prices:[180,200,220,250] },
+  { emoji:'🍙', name:'おにぎり', prices:[110,120,130,150] },
+  { emoji:'🍵', name:'お茶', prices:[100,120,150,160] },
+  { emoji:'🍌', name:'バナナ', prices:[100,130,150,200] },
+  { emoji:'🥚', name:'たまご', prices:[200,230,250,280] },
+  { emoji:'🍜', name:'カップめん', prices:[150,180,200,220] },
+  { emoji:'☕', name:'コーヒー', prices:[120,150,180,200] },
+  { emoji:'🧃', name:'ジュース', prices:[100,120,130,150] },
+  { emoji:'🍰', name:'ケーキ', prices:[300,350,400,450] },
+  { emoji:'🐟', name:'おさしみ', prices:[400,500,600,700] },
+  { emoji:'🥩', name:'お肉', prices:[300,400,500,600] },
+  { emoji:'💊', name:'のどあめ', prices:[150,200,250,300] },
+  { emoji:'🍦', name:'アイス', prices:[120,150,200,250] },
+  { emoji:'🧈', name:'バター', prices:[250,300,350,400] },
+  { emoji:'🫖', name:'紅茶', prices:[180,220,260,300] },
+  { emoji:'🍚', name:'お米(2kg)', prices:[700,800,900,1000] },
+];
+
+const COIN_TYPES = [
+  { value:1, label:'1', color:'#BDBDBD', size:28, textSize:10 },
+  { value:5, label:'5', color:'#FFB300', size:30, textSize:11 },
+  { value:10, label:'10', color:'#FF8A65', size:32, textSize:10 },
+  { value:50, label:'50', color:'#90A4AE', size:34, textSize:10 },
+  { value:100, label:'100', color:'#E0E0E0', size:36, textSize:10 },
+  { value:500, label:'500', color:'#FFD54F', size:40, textSize:10 },
+];
+
+const BILL_TYPES = [
+  { value:1000, label:'千', color:'#81C784', width:70, height:36 },
+  { value:5000, label:'五千', color:'#9575CD', width:74, height:38 },
+  { value:10000, label:'一万', color:'#4FC3F7', width:78, height:40 },
+];
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'1品・おつりを作ろう', items:1, rounds:8, mode:'change' },
+  normal: { label:'ふつう', emoji:'🌿', desc:'2品・合計して、おつりを作ろう', items:2, rounds:10, mode:'change' },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'2〜3品・合計して、おつりを作ろう', items:3, rounds:10, mode:'change' },
+};
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+function formatYen(n) { return n.toLocaleString() + '円'; }
+
+// Generate wallet contents that can cover the target
+function generateWallet(target) {
+  const wallet = [];
+  let remaining = target;
+
+  // All denominations from large to small (bills + coins)
+  const ALL_MONEY = [...BILL_TYPES, ...COIN_TYPES].sort((a,b) => b.value - a.value);
+
+  // Step 1: Build exact coverage
+  const usedCount = {};
+  for (const money of ALL_MONEY) {
+    const maxUse = money.value >= 1000 ? 4 : money.value >= 100 ? 6 : 9; // realistic limits
+    const count = Math.min(Math.floor(remaining / money.value), maxUse);
+    for (let i = 0; i < count; i++) {
+      wallet.push({ ...money, id: `m${money.value}-${wallet.length}` });
+      remaining -= money.value;
+    }
+    usedCount[money.value] = count;
+  }
+
+  // Step 2: Handle leftover with 1-yen coins
+  while (remaining > 0) {
+    wallet.push({ ...COIN_TYPES[0], id: `c1-extra-${wallet.length}` });
+    remaining--;
+  }
+
+  // Step 3: Add decoy money (same types but extra, won't exceed realistic amounts)
+  const decoyTypes = shuffle(ALL_MONEY).slice(0, 4 + Math.floor(Math.random() * 3));
+  for (const money of decoyTypes) {
+    const used = usedCount[money.value] || 0;
+    const maxTotal = money.value >= 1000 ? 4 : money.value >= 100 ? 7 : 9;
+    const canAdd = maxTotal - used;
+    if (canAdd > 0) {
+      const addCount = Math.min(1 + Math.floor(Math.random() * 2), canAdd);
+      for (let i = 0; i < addCount; i++) {
+        wallet.push({ ...money, id: `decoy-${money.value}-${wallet.length}` });
+      }
+    }
+  }
+
+  return shuffle(wallet);
+}
+
+function generateQ(diff) {
+  const cfg = DIFF[diff];
+  const itemCount = diff === 'easy' ? 1 : diff === 'normal' ? (Math.random() < 0.5 ? 1 : 2) : (2 + Math.floor(Math.random() * 2));
+  const items = shuffle(PRODUCTS).slice(0, itemCount).map(p => ({
+    ...p, price: p.prices[Math.floor(Math.random() * p.prices.length)]
+  }));
+  const total = items.reduce((s, it) => s + it.price, 0);
+
+  // Always change mode: pay with bill, make change with coins
+  let payment;
+  if (total <= 500) payment = [500, 1000][Math.floor(Math.random() * 2)];
+  else if (total <= 1000) payment = 1000;
+  else if (total <= 2000) payment = [2000, 5000][Math.floor(Math.random() * 2)];
+  else if (total <= 5000) payment = 5000;
+  else payment = 10000;
+
+  // Avoid trivially easy change (e.g. 1000 - 1000 = 0)
+  if (payment === total) payment = payment < 5000 ? 5000 : 10000;
+
+  const change = payment - total;
+  const wallet = generateWallet(change);
+
+  return { items, total, payment, change, target: change, wallet };
+}
+
+// ========== COIN COMPONENT ==========
+function CoinButton({ item, selected, onClick, disabled }) {
+  const isBill = item.value >= 1000;
+  if (isBill) {
+    return (
+      <button onClick={onClick} disabled={disabled}
+        style={{
+          width:item.width, height:item.height, borderRadius:6,
+          background: selected ? '#2E7D32' : item.color,
+          border: `2px solid ${selected ? '#1B5E20' : 'rgba(0,0,0,0.15)'}`,
+          color: selected ? 'white' : '#2D2D2D',
+          fontSize:13, fontWeight:900, fontFamily:"'Zen Maru Gothic',sans-serif",
+          cursor: disabled ? 'default' : 'pointer',
+          opacity: disabled && !selected ? 0.4 : 1,
+          transition:'all 0.15s',
+          transform: selected ? 'scale(0.95)' : 'scale(1)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          boxShadow: selected ? 'inset 0 2px 4px rgba(0,0,0,0.2)' : '0 2px 6px rgba(0,0,0,0.12)',
+        }}>
+        {item.label}
+      </button>
+    );
+  }
+  return (
+    <button onClick={onClick} disabled={disabled}
+      style={{
+        width:item.size+12, height:item.size+12, borderRadius:'50%',
+        background: selected ? '#2E7D32' : `radial-gradient(circle at 35% 35%, ${item.color}, ${item.color}dd)`,
+        border: `3px solid ${selected ? '#1B5E20' : 'rgba(0,0,0,0.12)'}`,
+        color: selected ? 'white' : '#2D2D2D',
+        fontSize:item.textSize, fontWeight:900, fontFamily:'Outfit, sans-serif',
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled && !selected ? 0.4 : 1,
+        transition:'all 0.15s',
+        transform: selected ? 'scale(0.92)' : 'scale(1)',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        boxShadow: selected ? 'inset 0 2px 4px rgba(0,0,0,0.3)' : '0 2px 6px rgba(0,0,0,0.15)',
+      }}>
+      {item.label}
+    </button>
+  );
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    questions: [],
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    selectedIds: new Set(),
+    currentSum: 0,
+    feedback: null,
+    results: [],
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const questions = [];
+    for (let i = 0; i < cfg.rounds; i++) questions.push(generateQ(diff));
+    g.questions = questions;
+    g.currentQ = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.selectedIds = new Set();
+    g.currentSum = 0;
+    g.feedback = null;
+    g.results = [];
+    g.phase = 'playing';
+    setShowConfetti(false);
+    setScreen('game');
+    rerender();
+  };
+
+  const toggleCoin = (item) => {
+    if (g.feedback) return;
+    const ids = new Set(g.selectedIds);
+    if (ids.has(item.id)) {
+      ids.delete(item.id);
+      g.currentSum -= item.value;
+    } else {
+      ids.add(item.id);
+      g.currentSum += item.value;
+    }
+    g.selectedIds = ids;
+    rerender();
+  };
+
+  const resetSelection = () => {
+    if (g.feedback) return;
+    g.selectedIds = new Set();
+    g.currentSum = 0;
+    rerender();
+  };
+
+  const submitAnswer = () => {
+    if (g.feedback) return;
+    const q = g.questions[g.currentQ];
+    const isCorrect = g.currentSum === q.target;
+
+    if (isCorrect) {
+      g.score += 15;
+      g.correct++;
+    }
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    g.results.push({ q, correct: isCorrect, selected: g.currentSum });
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.currentQ + 1 >= g.questions.length) finishGame();
+      else {
+        g.currentQ++;
+        g.selectedIds = new Set();
+        g.currentSum = 0;
+        g.feedback = null;
+        rerender();
+      }
+    }, isCorrect ? 1200 : 2500);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.questions.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🧮 おつり計算</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentQ+1}/{g.questions.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🧮</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>おつり計算</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>お財布の中のお金で<br/>ぴったり払おう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 計算力・お金の扱い方のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:12, textAlign:'left' }}>📝 2つのモード</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'#FFF3E0', borderRadius:12 }}>
+                <span style={{ fontSize:22 }}>💰</span>
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#FF6B35' }}>ぴったり払い</span>
+                  <div style={{ fontSize:11, color:'#6B6B6B' }}>硬貨と紙幣で代金ぴったりを作る</div>
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'#E8F5E9', borderRadius:12 }}>
+                <span style={{ fontSize:22 }}>🪙</span>
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:16, fontWeight:700, color:'#2E7D32' }}>おつり作り</span>
+                  <div style={{ fontSize:11, color:'#6B6B6B' }}>大きいお金で払った後のおつりを硬貨で作る</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 買い物の品物と値段が表示されます<br/>
+              ② 合計やおつりを自分で暗算！<br/>
+              ③ お財布の硬貨・紙幣をタップして選ぶ<br/>
+              ④ ぴったりの金額になったら「決定！」
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const q = g.questions[g.currentQ];
+        if (!q) return null;
+
+        // Separate bills and coins
+        const bills = q.wallet.filter(w => w.value >= 1000);
+        const coins = q.wallet.filter(w => w.value < 1000);
+        // Sort coins by value descending
+        const sortedCoins = [...coins].sort((a,b) => b.value - a.value);
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status */}
+            <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+              {[{v:g.score,l:'スコア',c:'#FF6B35'},{v:g.correct+'/'+(g.currentQ+(g.feedback?1:0)),l:'正解',c:'#2EC4B6'},{v:(g.currentQ+1)+'/'+g.questions.length,l:'問題',c:'#7B1FA2'}].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display:'flex', gap:3, marginBottom:10 }}>
+              {g.questions.map((_,i) => (
+                <div key={i} style={{ flex:1, height:5, borderRadius:3, background: i < g.results.length ? (g.results[i].correct ? '#66BB6A' : '#EF5350') : i === g.currentQ ? '#FFB74D' : '#E8E8E8' }} />
+              ))}
+            </div>
+
+            <div style={{ animation:'fadeUp 0.4s ease-out' }} key={g.currentQ}>
+              {/* Receipt */}
+              <div style={{ background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', marginBottom:10 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', textAlign:'center', marginBottom:6 }}>🛒 お買い物</div>
+                {q.items.map((it, i) => (
+                  <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 0' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      <span style={{ fontSize:20 }}>{it.emoji}</span>
+                      <span style={{ fontSize:16, fontWeight:700 }}>{it.name}</span>
+                    </div>
+                    <span style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800 }}>{formatYen(it.price)}</span>
+                  </div>
+                ))}
+                <div style={{ background:'#E8F5E9', borderRadius:10, padding:'8px 12px', marginTop:8, textAlign:'center' }}>
+                    <span style={{ fontSize:16, fontWeight:700, color:'#2E7D32' }}>💴 {formatYen(q.payment)} で支払いました</span>
+                  </div>
+              </div>
+
+              {/* Task label */}
+              <div style={{ textAlign:'center', marginBottom:8 }}>
+                <span style={{
+                  fontSize:14, fontWeight:900, padding:'6px 18px', borderRadius:50,
+                  color: '#2E7D32', background: '#E8F5E9',
+                }}>
+                  🪙 おつりを作ろう
+                </span>
+              </div>
+
+              {/* Current sum display */}
+              <div style={{
+                background:'white', borderRadius:14, padding:'10px 16px', marginBottom:10,
+                boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center',
+                border: '3px solid #E8E8E8',
+              }}>
+                <div style={{ fontSize:11, color:'#9E9E9E', marginBottom:2 }}>選んだ金額</div>
+                <span style={{
+                  fontFamily:'Outfit', fontSize:32, fontWeight:800,
+                  color: g.currentSum > 0 ? '#2D2D2D' : '#BDBDBD',
+                }}>
+                  {formatYen(g.currentSum)}
+                </span>
+              </div>
+
+              {/* Wallet */}
+              {!g.feedback && (
+                <div style={{ background:'#8D6E63', borderRadius:20, padding:'16px', marginBottom:12, boxShadow:'inset 0 4px 12px rgba(0,0,0,0.2)' }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'#D7CCC8', marginBottom:10, textAlign:'center' }}>👛 おさいふ — タップして選んでね</div>
+
+                  {/* Bills */}
+                  {bills.length > 0 && (
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:8, justifyContent:'center', marginBottom:10 }}>
+                      {bills.map(b => (
+                        <CoinButton key={b.id} item={b} selected={g.selectedIds.has(b.id)} onClick={() => toggleCoin(b)} />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Coins */}
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:8, justifyContent:'center' }}>
+                    {sortedCoins.map(c => (
+                      <CoinButton key={c.id} item={c} selected={g.selectedIds.has(c.id)} onClick={() => toggleCoin(c)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Buttons */}
+              {!g.feedback && (
+                <div style={{ display:'flex', gap:10 }}>
+                  <button onClick={resetSelection} disabled={g.selectedIds.size === 0}
+                    style={{...btnBase, flex:1, fontSize:13, fontWeight:700, padding:'14px', borderRadius:50, border:'2px solid #E0E0E0', background:'white', color:'#6B6B6B', opacity:g.selectedIds.size===0?0.4:1 }}>
+                    やり直す
+                  </button>
+                  <button onClick={submitAnswer} disabled={g.currentSum === 0}
+                    style={{...btnBase, flex:2, fontSize:16, fontWeight:700, padding:'14px', borderRadius:50, border:'none', background:'linear-gradient(135deg,#FF6B35,#FF8F5E)', color:'white', opacity:g.currentSum===0?0.4:1, boxShadow:'0 4px 16px rgba(255,107,53,0.3)' }}>
+                    この金額で決定！
+                  </button>
+                </div>
+              )}
+
+              {/* Feedback */}
+              {g.feedback && (
+                <div style={{
+                  textAlign:'center', padding:'16px', borderRadius:16,
+                  background: g.feedback === 'correct' ? '#E8F5E9' : '#FFEBEE',
+                  border: `2px solid ${g.feedback === 'correct' ? '#66BB6A' : '#EF5350'}`,
+                  animation:'fadeUp 0.3s ease-out',
+                }}>
+                  <div style={{ fontSize:36, marginBottom:4 }}>{g.feedback === 'correct' ? '🎉' : '🤔'}</div>
+                  <div style={{ fontSize:18, fontWeight:900, color:g.feedback==='correct'?'#2E7D32':'#C62828' }}>
+                    {g.feedback === 'correct' ? 'ぴったり正解！' : 'おしい！'}
+                  </div>
+                  {g.feedback === 'wrong' && (
+                    <div style={{ fontSize:12, color:'#6B6B6B', marginTop:8, lineHeight:1.8 }}>
+                      {q.items.length > 1 && <div>合計: {q.items.map(it => formatYen(it.price)).join(' + ')} = <strong>{formatYen(q.total)}</strong></div>}
+                      <div>{formatYen(q.payment)} − {formatYen(q.total)} = おつり <strong>{formatYen(q.change)}</strong></div>
+                      <div style={{ marginTop:4, color:'#9E9E9E' }}>あなた: {formatYen(g.currentSum)}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div style={{ height:24 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.questions.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'おつり名人！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Review */}
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 回答の振り返り</div>
+              {g.results.map((r, i) => (
+                <div key={i} style={{ background:r.correct?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:6, borderLeft:`4px solid ${r.correct?'#66BB6A':'#FF6B35'}`, display:'flex', alignItems:'center', gap:10 }}>
+                  <div style={{ display:'flex', gap:1, flexShrink:0 }}>
+                    {r.q.items.map((it,j) => <span key={j} style={{ fontSize:16 }}>{it.emoji}</span>)}
+                  </div>
+                  <div style={{ flex:1, textAlign:'left' }}>
+                    <div style={{ fontSize:12, fontWeight:700 }}>
+                      {r.correct ? '✅' : '❌'} おつり {formatYen(r.q.target)}
+                    </div>
+                    {!r.correct && <div style={{ fontSize:11, color:'#E65100' }}>出した金額: {formatYen(r.selected)}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.45s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

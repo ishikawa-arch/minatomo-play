@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>ことばとえ | みなともPlay</title>
+<meta name="description" content="ことばとえ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="memory">
+<meta name="minatomo-category" content="リハビリ脳トレ">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【リハビリ脳トレ】ことばとえ ==========
+// Word-Picture Matching - 語彙アクセス・言語理解
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// Word-emoji pairs grouped by category (for natural distractor generation)
+const CATEGORIES = {
+  animals: [
+    { word:'いぬ', kanji:'犬', emoji:'🐶' },
+    { word:'ねこ', kanji:'猫', emoji:'🐱' },
+    { word:'うま', kanji:'馬', emoji:'🐴' },
+    { word:'ぞう', kanji:'象', emoji:'🐘' },
+    { word:'うさぎ', kanji:'兎', emoji:'🐰' },
+    { word:'くま', kanji:'熊', emoji:'🐻' },
+    { word:'ぶた', kanji:'豚', emoji:'🐷' },
+    { word:'とり', kanji:'鳥', emoji:'🐦' },
+    { word:'さかな', kanji:'魚', emoji:'🐟' },
+    { word:'かえる', kanji:'蛙', emoji:'🐸' },
+  ],
+  fruits: [
+    { word:'りんご', kanji:'林檎', emoji:'🍎' },
+    { word:'みかん', kanji:'蜜柑', emoji:'🍊' },
+    { word:'ぶどう', kanji:'葡萄', emoji:'🍇' },
+    { word:'いちご', kanji:'苺', emoji:'🍓' },
+    { word:'バナナ', kanji:null, emoji:'🍌' },
+    { word:'もも', kanji:'桃', emoji:'🍑' },
+    { word:'なし', kanji:'梨', emoji:'🍐' },
+    { word:'すいか', kanji:'西瓜', emoji:'🍉' },
+    { word:'さくらんぼ', kanji:'桜桃', emoji:'🍒' },
+  ],
+  vehicles: [
+    { word:'くるま', kanji:'車', emoji:'🚗' },
+    { word:'バス', kanji:null, emoji:'🚌' },
+    { word:'でんしゃ', kanji:'電車', emoji:'🚃' },
+    { word:'ひこうき', kanji:'飛行機', emoji:'✈️' },
+    { word:'ふね', kanji:'船', emoji:'⛵' },
+    { word:'じてんしゃ', kanji:'自転車', emoji:'🚲' },
+    { word:'タクシー', kanji:null, emoji:'🚕' },
+    { word:'しんかんせん', kanji:'新幹線', emoji:'🚄' },
+  ],
+  food: [
+    { word:'おにぎり', kanji:null, emoji:'🍙' },
+    { word:'すし', kanji:'寿司', emoji:'🍣' },
+    { word:'ラーメン', kanji:null, emoji:'🍜' },
+    { word:'ケーキ', kanji:null, emoji:'🍰' },
+    { word:'パン', kanji:null, emoji:'🍞' },
+    { word:'たまご', kanji:'卵', emoji:'🥚' },
+    { word:'カレー', kanji:null, emoji:'🍛' },
+    { word:'ピザ', kanji:null, emoji:'🍕' },
+    { word:'ハンバーガー', kanji:null, emoji:'🍔' },
+    { word:'だんご', kanji:'団子', emoji:'🍡' },
+  ],
+  nature: [
+    { word:'くも', kanji:'雲', emoji:'☁️' },
+    { word:'たいよう', kanji:'太陽', emoji:'☀️' },
+    { word:'つき', kanji:'月', emoji:'🌙' },
+    { word:'ほし', kanji:'星', emoji:'⭐' },
+    { word:'あめ', kanji:'雨', emoji:'🌧️' },
+    { word:'ゆき', kanji:'雪', emoji:'❄️' },
+    { word:'にじ', kanji:'虹', emoji:'🌈' },
+    { word:'やま', kanji:'山', emoji:'⛰️' },
+    { word:'うみ', kanji:'海', emoji:'🌊' },
+    { word:'はな', kanji:'花', emoji:'🌸' },
+    { word:'き', kanji:'木', emoji:'🌳' },
+  ],
+  everyday: [
+    { word:'いえ', kanji:'家', emoji:'🏠' },
+    { word:'とけい', kanji:'時計', emoji:'🕐' },
+    { word:'でんわ', kanji:'電話', emoji:'📞' },
+    { word:'てがみ', kanji:'手紙', emoji:'✉️' },
+    { word:'ほん', kanji:'本', emoji:'📖' },
+    { word:'かばん', kanji:null, emoji:'👜' },
+    { word:'かさ', kanji:'傘', emoji:'☂️' },
+    { word:'くすり', kanji:'薬', emoji:'💊' },
+    { word:'おかね', kanji:'お金', emoji:'💴' },
+    { word:'かぎ', kanji:'鍵', emoji:'🔑' },
+  ],
+};
+
+const ALL_ITEMS = Object.values(CATEGORIES).flat();
+
+// Deduplicate by emoji
+const UNIQUE_ITEMS = [];
+const seenEmojis = new Set();
+for (const item of ALL_ITEMS) {
+  if (!seenEmojis.has(item.emoji)) {
+    seenEmojis.add(item.emoji);
+    UNIQUE_ITEMS.push(item);
+  }
+}
+
+const LEVELS = [
+  { rounds:5, mode:'kana-to-emoji', label:'レベル1', tag:'ひらがな→え' },
+  { rounds:5, mode:'kanji-to-emoji', label:'レベル2', tag:'かんじ→え' },
+  { rounds:5, mode:'emoji-to-kana', label:'レベル3', tag:'え→ひらがな' },
+];
+
+function genRound(mode) {
+  const pickable = mode === 'kanji-to-emoji'
+    ? ALL_ITEMS.filter(i => i.kanji !== null)
+    : UNIQUE_ITEMS;
+
+  const target = pickable[Math.floor(Math.random() * pickable.length)];
+
+  // Find target's category for natural distractors
+  let targetCategory = null;
+  for (const [catName, items] of Object.entries(CATEGORIES)) {
+    if (items.some(i => i.emoji === target.emoji)) {
+      targetCategory = catName;
+      break;
+    }
+  }
+
+  // Wrongs: mix from same category (harder) and different category (easier)
+  const sameCategory = targetCategory
+    ? CATEGORIES[targetCategory].filter(i => i.emoji !== target.emoji)
+    : [];
+  const otherCategory = UNIQUE_ITEMS.filter(i => {
+    if (i.emoji === target.emoji) return false;
+    if (targetCategory && CATEGORIES[targetCategory].some(s => s.emoji === i.emoji)) return false;
+    return true;
+  });
+
+  // Pick 1 from same category (semantic distractor) + 2 from other
+  const wrongs = [];
+  if (sameCategory.length > 0) {
+    wrongs.push(sameCategory[Math.floor(Math.random() * sameCategory.length)]);
+  }
+  const others = shuffle(otherCategory).slice(0, 3 - wrongs.length);
+  wrongs.push(...others);
+
+  const choices = shuffle([target, ...wrongs]);
+  return { mode, target, choices };
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    levelIdx:0, roundIdx:0,
+    rounds:[],
+    feedback:null, selectedIdx:null,
+    correct:0, score:0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.levelIdx = 0; g.correct = 0; g.score = 0;
+    setScreen('play');
+    startLevel(0);
+  };
+
+  const startLevel = (lvlIdx) => {
+    g.levelIdx = lvlIdx;
+    const level = LEVELS[lvlIdx];
+    g.rounds = [];
+    for (let i = 0; i < level.rounds; i++) {
+      g.rounds.push(genRound(level.mode));
+    }
+    g.roundIdx = 0;
+    g.feedback = null; g.selectedIdx = null;
+    rerender();
+  };
+
+  const handleTap = (idx) => {
+    if (g.feedback) return;
+    const round = g.rounds[g.roundIdx];
+    const isCorrect = round.choices[idx].emoji === round.target.emoji;
+    g.selectedIdx = idx;
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    if (isCorrect) {
+      g.correct++;
+      g.score += 10 + g.levelIdx * 5;
+    }
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.feedback = null; g.selectedIdx = null;
+      if (g.roundIdx + 1 >= g.rounds.length) {
+        if (g.levelIdx + 1 >= LEVELS.length) {
+          setScreen('done'); rerender();
+        } else {
+          startLevel(g.levelIdx + 1);
+        }
+      } else {
+        g.roundIdx++;
+        rerender();
+      }
+    }, isCorrect ? 800 : 1800);
+  };
+
+  const level = LEVELS[g.levelIdx];
+  const round = g.rounds[g.roundIdx];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @keyframes wordPop{0%{transform:scale(0.6);opacity:0}50%{transform:scale(1.1);opacity:1}100%{transform:scale(1);opacity:1}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🗣 ことばとえ</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {level?.label}　{g.roundIdx + 1}/{level?.rounds}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'30px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:14, alignItems:'center', marginBottom:14 }}>
+            <div style={{
+              background:'white', borderRadius:14, padding:'14px 20px',
+              border:'3px solid #E8652E',
+            }}>
+              <span style={{ fontSize:28, fontWeight:900, color:'#E8652E' }}>ねこ</span>
+            </div>
+            <span style={{ fontSize:24, color:'#9E9E9E' }}>→</span>
+            <div style={{
+              background:'white', borderRadius:14, padding:'10px 14px',
+              border:'3px solid #66BB6A',
+            }}>
+              <span style={{ fontSize:40 }}>🐱</span>
+            </div>
+          </div>
+          <div style={{ fontSize:13, color:'#2E7D32', fontWeight:700, marginBottom:24 }}>
+            ことばと えを むすびつけよう！
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            ことばと えを あわせて！
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            ひらがな・かんじ・絵 をむすぶ
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:24 }}>
+            語彙アクセス・言語理解
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && level && round && (
+        <div style={{ padding:'12px 16px', maxWidth:520, margin:'0 auto' }}>
+
+          {/* Level progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:8 }}>
+            {LEVELS.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.levelIdx ? 20 : 14, height:6, borderRadius:3,
+                background: i < g.levelIdx ? '#8BC34A' : i === g.levelIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Round progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:10 }}>
+            {g.rounds.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.roundIdx ? 10 : 6, height:6, borderRadius:3,
+                background: i < g.roundIdx ? '#8BC34A' : i === g.roundIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:12, color:'#9E9E9E' }}>pt</span></span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#555' }}>{level.tag}</span>
+          </div>
+
+          {/* Question prompt */}
+          <div style={{ textAlign:'center', marginBottom:8 }}>
+            <span style={{ fontSize:14, fontWeight:700, color:'#9E9E9E' }}>
+              {round.mode === 'emoji-to-kana' ? 'このえの ことばは？' : 'このことばは どれ？'}
+            </span>
+          </div>
+
+          {/* Target display */}
+          <div style={{
+            background:'white', borderRadius:20, padding:'30px 20px',
+            boxShadow:'0 4px 16px rgba(0,0,0,0.06)',
+            textAlign:'center', marginBottom:16, minHeight:140,
+            display:'flex', alignItems:'center', justifyContent:'center',
+          }} key={g.roundIdx + '-' + g.levelIdx}>
+            {round.mode === 'kana-to-emoji' && (
+              <span style={{ fontSize:56, fontWeight:900, color:'#E8652E', animation:'wordPop 0.3s ease-out', letterSpacing:'0.08em' }}>
+                {round.target.word}
+              </span>
+            )}
+            {round.mode === 'kanji-to-emoji' && (
+              <div style={{ animation:'wordPop 0.3s ease-out' }}>
+                <div style={{ fontSize:72, fontWeight:900, color:'#E8652E' }}>
+                  {round.target.kanji}
+                </div>
+              </div>
+            )}
+            {round.mode === 'emoji-to-kana' && (
+              <span style={{ fontSize:100, lineHeight:1, animation:'wordPop 0.3s ease-out' }}>
+                {round.target.emoji}
+              </span>
+            )}
+          </div>
+
+          {/* Feedback */}
+          {g.feedback && (
+            <div style={{ textAlign:'center', marginBottom:10, animation:'fadeUp 0.2s' }}>
+              <span style={{ fontSize:40 }}>{g.feedback === 'correct' ? '⭕' : '❌'}</span>
+              {g.feedback === 'wrong' && (
+                <div style={{ fontSize:15, fontWeight:900, color:'#C62828', marginTop:4 }}>
+                  {round.mode === 'emoji-to-kana'
+                    ? `こたえは「${round.target.word}」`
+                    : `こたえは ${round.target.emoji}`}
+                </div>
+              )}
+            </div>
+          )}
+          {!g.feedback && <div style={{ height:54 }} />}
+
+          {/* Choices */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+            {round.choices.map((c, i) => {
+              const isSelected = g.selectedIdx === i;
+              const isAnswer = c.emoji === round.target.emoji;
+              const showCorrect = g.feedback && isAnswer;
+              const showWrong = g.feedback === 'wrong' && isSelected;
+              return (
+                <button key={i} onClick={() => handleTap(i)}
+                  disabled={!!g.feedback}
+                  style={{
+                    ...bs, height:88, borderRadius:16,
+                    background: showCorrect ? '#F1F8E9' : showWrong ? '#FFF5F5' : 'white',
+                    border: `4px solid ${showCorrect ? '#66BB6A' : showWrong ? '#EF5350' : '#E8E8E8'}`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    animation: showWrong ? 'shake 0.3s' : showCorrect ? 'pop 0.3s' : undefined,
+                    opacity: g.feedback && !showCorrect && !showWrong ? 0.3 : 1,
+                    boxShadow:'0 3px 10px rgba(0,0,0,0.05)',
+                  }}>
+                  {round.mode === 'emoji-to-kana' ? (
+                    <span style={{
+                      fontSize:22, fontWeight:900,
+                      color: showCorrect ? '#2E7D32' : showWrong ? '#C62828' : '#333',
+                    }}>{c.word}</span>
+                  ) : (
+                    <span style={{ fontSize:52, lineHeight:1 }}>{c.emoji}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const totalRounds = LEVELS.reduce((a, l) => a + l.rounds, 0);
+        const pct = g.correct / totalRounds;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すばらしい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize:16, fontWeight:700, color:'#555', marginBottom:20 }}>
+              {g.correct}もん せいかい / {totalRounds}もん
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

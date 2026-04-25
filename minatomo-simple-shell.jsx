@@ -1,0 +1,301 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【シンプル】どこにいった？ ==========
+const ITEMS = ['⭐','🍎','🐱','🎈','❤️','🐟','🌸','🍰'];
+
+function genRounds(count) {
+  const rounds = [];
+  for (let i = 0; i < count; i++) {
+    const numCups = i < 3 ? 2 : 3;
+    let swaps;
+    if (i < 3) swaps = 1;
+    else if (i < 6) swaps = 2;
+    else if (i < 9) swaps = 3;
+    else swaps = 4;
+    const speed = Math.max(350, 650 - i * 25);
+    const ballCup = Math.floor(Math.random() * numCups);
+    const item = ITEMS[Math.floor(Math.random() * ITEMS.length)];
+
+    // Pre-generate swap pairs (slot indices)
+    const swapSeq = [];
+    for (let s = 0; s < swaps; s++) {
+      let a, b;
+      do {
+        a = Math.floor(Math.random() * numCups);
+        b = Math.floor(Math.random() * numCups);
+      } while (a === b);
+      swapSeq.push([a, b]);
+    }
+
+    rounds.push({ numCups, ballCup, item, swapSeq, speed });
+  }
+  return rounds;
+}
+
+export default function SimpleShellGame() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  // cupSlots[cupId] = which slot (0,1,2) the cup is in
+  const g = useRef({
+    rounds:[], currentR:0, score:0, correct:0,
+    phase:'idle', // showing, hiding, swapping, pick, feedback
+    cupSlots:[0,1,2], // cupSlots[cupId] = slotIndex
+    ballCup:0, // which cupId has the ball
+    feedback:null, selected:null, item:'⭐',
+    animating:false,
+  }).current;
+
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.rounds = genRounds(12);
+    g.currentR = 0; g.score = 0; g.correct = 0;
+    g.feedback = null; g.selected = null;
+    setScreen('play');
+    rerender();
+    startRound(0);
+  };
+
+  const startRound = (idx) => {
+    g.currentR = idx;
+    const round = g.rounds[idx];
+    g.ballCup = round.ballCup;
+    g.item = round.item;
+    g.feedback = null; g.selected = null;
+    g.animating = false;
+
+    // Reset positions: cup i is in slot i
+    g.cupSlots = [];
+    for (let i = 0; i < round.numCups; i++) g.cupSlots[i] = i;
+
+    // Show ball
+    g.phase = 'showing';
+    rerender();
+
+    // Hide
+    timerRef.current = setTimeout(() => {
+      g.phase = 'hiding';
+      rerender();
+
+      // Start swaps
+      timerRef.current = setTimeout(() => {
+        doSwaps(round, 0);
+      }, 700);
+    }, 1500);
+  };
+
+  const doSwaps = (round, swapI) => {
+    if (swapI >= round.swapSeq.length) {
+      g.phase = 'pick';
+      g.animating = false;
+      rerender();
+      return;
+    }
+
+    const [slotA, slotB] = round.swapSeq[swapI];
+
+    // Find which cups are in slotA and slotB
+    const cupInA = g.cupSlots.indexOf(slotA);
+    const cupInB = g.cupSlots.indexOf(slotB);
+
+    // Swap their slots
+    g.cupSlots[cupInA] = slotB;
+    g.cupSlots[cupInB] = slotA;
+    g.phase = 'swapping';
+    g.animating = true;
+    rerender();
+
+    // Wait for animation to complete, then next swap
+    timerRef.current = setTimeout(() => {
+      g.animating = false;
+      rerender();
+      timerRef.current = setTimeout(() => {
+        doSwaps(round, swapI + 1);
+      }, 120);
+    }, round.speed);
+  };
+
+  const handlePick = (cupId) => {
+    if (g.phase !== 'pick') return;
+    g.selected = cupId;
+    const isCorrect = cupId === g.ballCup;
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    if (isCorrect) { g.correct++; g.score += 10; }
+    g.phase = 'feedback';
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.currentR + 1 >= g.rounds.length) {
+        setScreen('done');
+        rerender();
+      } else {
+        startRound(g.currentR + 1);
+      }
+    }, isCorrect ? 1000 : 1800);
+  };
+
+  const round = g.currentR < g.rounds.length ? g.rounds[g.currentR] : null;
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer' };
+
+  // Slot positions as percentages of container width
+  const getSlotX = (slot, numCups) => {
+    if (numCups === 2) return slot === 0 ? 25 : 75;
+    return slot === 0 ? 15 : slot === 1 ? 50 : 85;
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:translate(-50%,-50%) scale(0.5)}60%{transform:translate(-50%,-50%) scale(1.15)}100%{transform:translate(-50%,-50%) scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>👀 どこにいった？</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>{g.currentR + 1} / {g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:16, marginBottom:8 }}>
+            <span style={{ fontSize:56 }}>🥤</span>
+            <span style={{ fontSize:56 }}>🥤</span>
+            <span style={{ fontSize:56 }}>🥤</span>
+          </div>
+          <div style={{ fontSize:40, marginBottom:20 }}>⭐</div>
+          <div style={{ fontSize:26, fontWeight:900, color:'#333', marginBottom:8, letterSpacing:'0.06em' }}>どこにかくれた？</div>
+          <div style={{ fontSize:16, color:'#9E9E9E', marginBottom:40 }}>よーくみてタップ！</div>
+          <button onClick={startGame} style={{
+            ...bs, fontSize:28, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'24px 64px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && round && (
+        <div style={{ padding:'16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:12 }}>
+            {g.rounds.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.currentR ? 12 : 8, height:8, borderRadius:4,
+                background: i < g.currentR ? '#8BC34A' : i === g.currentR ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Score */}
+          <div style={{ textAlign:'center', marginBottom:12 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:24, fontWeight:900, color:'#E8652E' }}>{g.score}</span>
+            <span style={{ fontSize:14, fontWeight:700, color:'#9E9E9E', marginLeft:4 }}>てん</span>
+          </div>
+
+          {/* Phase text */}
+          <div style={{ textAlign:'center', marginBottom:10, minHeight:52 }}>
+            {g.phase === 'showing' && <span style={{ fontSize:22, fontWeight:900, color:'#E8652E', animation:'fadeUp 0.3s' }}>ここにいるよ！</span>}
+            {g.phase === 'hiding' && <span style={{ fontSize:22, fontWeight:900, color:'#8D6E63' }}>かくれた！</span>}
+            {g.phase === 'swapping' && <span style={{ fontSize:22, fontWeight:900, color:'#555' }}>よーくみてね…</span>}
+            {g.phase === 'pick' && <span style={{ fontSize:24, fontWeight:900, color:'#333', animation:'fadeUp 0.3s' }}>どこにいった？</span>}
+            {g.phase === 'feedback' && (
+              <span style={{ fontSize:48 }}>{g.feedback === 'correct' ? '⭕' : '❌'}</span>
+            )}
+          </div>
+
+          {/* Cup area - relative container with absolute cups */}
+          <div style={{ position:'relative', width:'100%', height:180, marginBottom:16 }} key={g.currentR}>
+            {Array.from({ length: round.numCups }).map((_, cupId) => {
+              const slot = g.cupSlots[cupId];
+              const xPct = getSlotX(slot, round.numCups);
+              const hasBall = cupId === g.ballCup;
+              const isSelected = g.selected === cupId;
+              const isCorrect = g.phase === 'feedback' && g.feedback === 'correct' && isSelected;
+              const isWrong = g.phase === 'feedback' && g.feedback === 'wrong' && isSelected;
+              const cupSize = round.numCups <= 2 ? 110 : 90;
+
+              return (
+                <div key={cupId}
+                  onClick={() => handlePick(cupId)}
+                  style={{
+                    ...bs,
+                    position:'absolute',
+                    left: xPct + '%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    transition: `left ${round.speed}ms ease-in-out`,
+                    pointerEvents: g.phase === 'pick' ? 'auto' : 'none',
+                    zIndex: isSelected ? 10 : 1,
+                  }}>
+
+                  {/* Ball above cup during showing */}
+                  {g.phase === 'showing' && hasBall && (
+                    <div style={{ textAlign:'center', marginBottom:6, animation:'fadeUp 0.3s' }}>
+                      <span style={{ fontSize:42 }}>{g.item}</span>
+                    </div>
+                  )}
+
+                  {/* Cup body */}
+                  <div style={{
+                    width:cupSize, height:cupSize + 10, borderRadius:18,
+                    background: isCorrect ? '#F1F8E9' : isWrong ? '#FFF5F5' : '#8D6E63',
+                    border: `4px solid ${isCorrect ? '#66BB6A' : isWrong ? '#EF5350' : '#6D4C41'}`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    boxShadow: g.phase === 'pick' ? '0 6px 20px rgba(0,0,0,0.18)' : '0 3px 10px rgba(0,0,0,0.12)',
+                    animation: isWrong ? 'shake 0.3s' : undefined,
+                    opacity: (g.phase === 'feedback' && !isSelected && !hasBall) ? 0.35 : 1,
+                  }}>
+                    {/* Cup emoji normally */}
+                    {!(g.phase === 'feedback' && hasBall) && (
+                      <span style={{ fontSize:round.numCups <= 2 ? 52 : 42 }}>🥤</span>
+                    )}
+                    {/* Reveal ball on feedback */}
+                    {g.phase === 'feedback' && hasBall && (
+                      <span style={{ fontSize:round.numCups <= 2 ? 44 : 36 }}>{g.item}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const total = g.rounds.length;
+        const pct = g.correct / total;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すごい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:80, marginBottom:16, animation:'fadeUp 0.5s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:32, fontWeight:900, color:'#E8652E', marginBottom:12 }}>{msg}</div>
+            <div style={{ background:'white', borderRadius:24, padding:'20px 40px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:12 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:48, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:20, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+            <div style={{ fontSize:20, fontWeight:700, color:'#6B6B6B', marginBottom:40 }}>{g.correct}もん せいかい / {total}もん</div>
+            <button onClick={startGame} style={{
+              ...bs, fontSize:24, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'22px 48px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

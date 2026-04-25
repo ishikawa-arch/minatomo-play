@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>おりょうり手順 | みなともPlay</title>
+<meta name="description" content="料理の手順を覚える - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+const RECIPES = [
+  {
+    name:'たまごやき', icon:'🥚', color:'#FDD835',
+    steps: [
+      { text:'たまごを3つ割る', icon:'🥚', action:'割る', item:'たまご', amount:'3つ' },
+      { text:'砂糖と醤油を入れてまぜる', icon:'🥄', action:'まぜる', item:'砂糖と醤油', amount:'' },
+      { text:'フライパンに油をひく', icon:'🍳', action:'油をひく', item:'油', amount:'' },
+      { text:'たまご液を少しずつ流す', icon:'🫗', action:'流す', item:'たまご液', amount:'少しずつ' },
+      { text:'くるくる巻いて形を整える', icon:'🌀', action:'巻く', item:'', amount:'' },
+    ],
+  },
+  {
+    name:'みそ汁', icon:'🍲', color:'#8D6E63',
+    steps: [
+      { text:'鍋に水を400ml入れる', icon:'💧', action:'入れる', item:'水', amount:'400ml' },
+      { text:'だしの素を入れる', icon:'🧂', action:'入れる', item:'だしの素', amount:'' },
+      { text:'豆腐をさいの目に切る', icon:'🔪', action:'切る', item:'豆腐', amount:'' },
+      { text:'わかめと豆腐を入れて煮る', icon:'🍲', action:'煮る', item:'わかめと豆腐', amount:'' },
+      { text:'火を止めてみそを溶かす', icon:'🥄', action:'溶かす', item:'みそ', amount:'' },
+    ],
+  },
+  {
+    name:'おにぎり', icon:'🍙', color:'#4CAF50',
+    steps: [
+      { text:'ごはんを茶碗1杯分とる', icon:'🍚', action:'とる', item:'ごはん', amount:'茶碗1杯' },
+      { text:'手に水と塩をつける', icon:'💧', action:'つける', item:'水と塩', amount:'' },
+      { text:'ごはんの真ん中に具を入れる', icon:'🐟', action:'入れる', item:'具', amount:'' },
+      { text:'三角形ににぎる', icon:'🔺', action:'にぎる', item:'', amount:'' },
+      { text:'のりを巻く', icon:'🌿', action:'巻く', item:'のり', amount:'' },
+    ],
+  },
+  {
+    name:'カレーライス', icon:'🍛', color:'#FF6F00',
+    steps: [
+      { text:'じゃがいもと人参を一口大に切る', icon:'🔪', action:'切る', item:'じゃがいもと人参', amount:'一口大' },
+      { text:'たまねぎを薄切りにする', icon:'🧅', action:'切る', item:'たまねぎ', amount:'薄切り' },
+      { text:'鍋で肉と野菜を炒める', icon:'🍳', action:'炒める', item:'肉と野菜', amount:'' },
+      { text:'水を入れて20分煮る', icon:'💧', action:'煮る', item:'水', amount:'20分' },
+      { text:'カレールーを入れて溶かす', icon:'🧊', action:'溶かす', item:'カレールー', amount:'' },
+      { text:'とろみがつくまで煮込む', icon:'🍛', action:'煮込む', item:'', amount:'' },
+    ],
+  },
+  {
+    name:'ホットケーキ', icon:'🥞', color:'#FFB74D',
+    steps: [
+      { text:'ボウルにホットケーキミックスを入れる', icon:'🥣', action:'入れる', item:'ミックス', amount:'' },
+      { text:'たまごと牛乳を加えてまぜる', icon:'🥛', action:'まぜる', item:'たまごと牛乳', amount:'' },
+      { text:'フライパンを弱火で温める', icon:'🍳', action:'温める', item:'フライパン', amount:'弱火' },
+      { text:'生地を丸く流し入れる', icon:'🫗', action:'流す', item:'生地', amount:'' },
+      { text:'表面にぷつぷつ出たら裏返す', icon:'🔄', action:'裏返す', item:'', amount:'' },
+    ],
+  },
+  {
+    name:'サラダ', icon:'🥗', color:'#66BB6A',
+    steps: [
+      { text:'レタスを手でちぎる', icon:'🥬', action:'ちぎる', item:'レタス', amount:'' },
+      { text:'トマトをくし切りにする', icon:'🍅', action:'切る', item:'トマト', amount:'くし切り' },
+      { text:'きゅうりを輪切りにする', icon:'🥒', action:'切る', item:'きゅうり', amount:'輪切り' },
+      { text:'お皿に盛りつける', icon:'🍽️', action:'盛る', item:'野菜', amount:'' },
+      { text:'ドレッシングをかける', icon:'🫗', action:'かける', item:'ドレッシング', amount:'' },
+    ],
+  },
+  {
+    name:'焼きそば', icon:'🍝', color:'#FF7043',
+    steps: [
+      { text:'キャベツとにんじんを切る', icon:'🔪', action:'切る', item:'キャベツとにんじん', amount:'' },
+      { text:'フライパンに油をひいて豚肉を炒める', icon:'🥩', action:'炒める', item:'豚肉', amount:'' },
+      { text:'野菜を加えて炒める', icon:'🥬', action:'炒める', item:'野菜', amount:'' },
+      { text:'めんを入れて水を少し加える', icon:'🍜', action:'入れる', item:'めん', amount:'' },
+      { text:'ソースを入れてまぜる', icon:'🥄', action:'まぜる', item:'ソース', amount:'' },
+    ],
+  },
+  {
+    name:'目玉焼き', icon:'🍳', color:'#FFCA28',
+    steps: [
+      { text:'フライパンに油をひく', icon:'🍳', action:'油をひく', item:'油', amount:'' },
+      { text:'弱火にかける', icon:'🔥', action:'かける', item:'火', amount:'弱火' },
+      { text:'たまごをそっと割り入れる', icon:'🥚', action:'割る', item:'たまご', amount:'' },
+      { text:'ふたをして3分焼く', icon:'⏱️', action:'焼く', item:'', amount:'3分' },
+      { text:'塩こしょうをふる', icon:'🧂', action:'ふる', item:'塩こしょう', amount:'' },
+    ],
+  },
+];
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'4ステップ・順番を覚える', maxSteps:4, qCount:3, viewTime:15, rounds:4 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'5ステップ・材料も聞く', maxSteps:5, qCount:4, viewTime:14, rounds:4 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'6ステップ・全部聞く・短い時間', maxSteps:6, qCount:5, viewTime:12, rounds:4 },
+};
+
+function generateRound(diff) {
+  const cfg = DIFF[diff];
+  const recipe = RECIPES[Math.floor(Math.random() * RECIPES.length)];
+  const steps = recipe.steps.slice(0, cfg.maxSteps);
+
+  // Generate questions
+  const allQ = [];
+
+  // Q1: What was step N?
+  for (let i = 0; i < steps.length; i++) {
+    const ordinal = ['最初','2番目','3番目','4番目','5番目','最後'][i === steps.length - 1 ? 5 : i];
+    const wrongs = shuffle(steps.filter((_,j) => j !== i)).slice(0, 3).map(s => s.text.slice(0, 15) + '…');
+    allQ.push({
+      question: `${ordinal}にすることは？`,
+      answer: steps[i].text.slice(0, 15) + '…',
+      fullAnswer: steps[i].text,
+      opts: shuffle([steps[i].text.slice(0, 15) + '…', ...wrongs]),
+      type: 'order',
+    });
+  }
+
+  // Q2: What comes after step N?
+  for (let i = 0; i < steps.length - 1; i++) {
+    const wrongs = shuffle(steps.filter((_,j) => j !== i + 1)).slice(0, 3).map(s => s.text.slice(0, 15) + '…');
+    allQ.push({
+      question: `「${steps[i].text.slice(0, 12)}…」の次は？`,
+      answer: steps[i+1].text.slice(0, 15) + '…',
+      fullAnswer: steps[i+1].text,
+      opts: shuffle([steps[i+1].text.slice(0, 15) + '…', ...wrongs]),
+      type: 'next',
+    });
+  }
+
+  // Q3: What ingredient/item?
+  const itemSteps = steps.filter(s => s.item);
+  itemSteps.forEach(s => {
+    const otherItems = shuffle(steps.filter(st => st.item && st.item !== s.item)).slice(0, 2).map(st => st.item);
+    const extraWrongs = shuffle(['バター','砂糖','酢','ケチャップ','マヨネーズ','片栗粉','しょうが']).slice(0, 3 - otherItems.length);
+    allQ.push({
+      question: `「${s.action}」したものは？`,
+      answer: s.item,
+      fullAnswer: s.item,
+      opts: shuffle([s.item, ...otherItems, ...extraWrongs].slice(0, 4)),
+      type: 'item',
+    });
+  });
+
+  // Q4: How many steps?
+  allQ.push({
+    question: '工程は全部でいくつ？',
+    answer: String(steps.length),
+    fullAnswer: String(steps.length) + 'つ',
+    opts: shuffle([String(steps.length), String(steps.length - 1), String(steps.length + 1), String(steps.length + 2)]).filter((v,i,a) => a.indexOf(v) === i && parseInt(v) >= 2).slice(0, 4),
+    type: 'count',
+  });
+
+  // Q5: What action at step N?
+  steps.forEach(s => {
+    if (s.action) {
+      const otherActions = shuffle(steps.filter(st => st.action !== s.action).map(st => st.action));
+      const extraActions = shuffle(['焼く','蒸す','揚げる','こねる','冷ます','洗う']);
+      const wrongs = [...otherActions, ...extraActions].filter(a => a !== s.action).slice(0, 3);
+      allQ.push({
+        question: `「${s.item || s.text.slice(0, 8)}」をどうする？`,
+        answer: s.action,
+        fullAnswer: s.action,
+        opts: shuffle([s.action, ...wrongs]),
+        type: 'action',
+      });
+    }
+  });
+
+  const questions = shuffle(allQ).slice(0, cfg.qCount);
+  return { recipe, steps, questions };
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    rounds: [],
+    currentR: 0,
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    perfectRounds: 0,
+    roundCorrect: 0,
+    selected: null,
+    feedback: null,
+    results: [],
+    viewTimeLeft: 0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => { clearInterval(timerRef.current); clearTimeout(timerRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    const usedRecipes = new Set();
+    for (let i = 0; i < cfg.rounds; i++) {
+      let round;
+      do { round = generateRound(diff); } while (usedRecipes.has(round.recipe.name) && usedRecipes.size < RECIPES.length);
+      usedRecipes.add(round.recipe.name);
+      rounds.push(round);
+    }
+    g.rounds = rounds; g.currentR = 0; g.score = 0; g.correct = 0;
+    g.perfectRounds = 0; g.results = [];
+    setShowConfetti(false); setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    const cfg = DIFF[diff || difficulty];
+    g.currentR = idx; g.currentQ = 0;
+    g.selected = null; g.feedback = null; g.roundCorrect = 0;
+    g.viewTimeLeft = cfg.viewTime;
+    g.phase = 'viewing'; rerender();
+
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      g.viewTimeLeft--;
+      rerender();
+      if (g.viewTimeLeft <= 0) { clearInterval(timerRef.current); g.phase = 'questioning'; rerender(); }
+    }, 1000);
+  };
+
+  const skipToQ = () => { clearInterval(timerRef.current); g.phase = 'questioning'; rerender(); };
+
+  const handleAnswer = (opt) => {
+    if (g.selected !== null) return;
+    const round = g.rounds[g.currentR];
+    const q = round.questions[g.currentQ];
+    g.selected = opt;
+    const isCorrect = opt === q.answer;
+    if (isCorrect) { g.score += 10; g.correct++; g.roundCorrect++; g.feedback = 'correct'; }
+    else { g.feedback = 'wrong'; }
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.selected = null; g.feedback = null; g.currentQ++;
+      if (g.currentQ >= round.questions.length) {
+        const perfect = g.roundCorrect === round.questions.length;
+        if (perfect) { g.perfectRounds++; g.score += 15; }
+        g.results.push({ round, roundCorrect: g.roundCorrect, roundTotal: round.questions.length, perfect });
+        g.phase = 'round-end';
+      }
+      rerender();
+    }, isCorrect ? 600 : 1500);
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.perfectRounds / g.rounds.length;
+    if (pct >= 0.5) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.perfectRounds, total: g.rounds.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearInterval(timerRef.current); clearTimeout(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily: "'Zen Maru Gothic',sans-serif", cursor: 'pointer', transition: 'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  // Step card component
+  const StepCard = ({ step, index, total, compact }) => (
+    <div style={{ display:'flex', alignItems:'flex-start', gap:10, padding: compact ? '8px 10px' : '10px 14px', background:'white', borderRadius:12, boxShadow:'0 2px 6px rgba(0,0,0,0.04)', borderLeft:`4px solid ${['#FF6B35','#1E88E5','#43A047','#7B1FA2','#00ACC1','#E53935'][index%6]}` }}>
+      <div style={{ width: compact ? 26 : 30, height: compact ? 26 : 30, borderRadius:'50%', background:['#FF6B35','#1E88E5','#43A047','#7B1FA2','#00ACC1','#E53935'][index%6], display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+        <span style={{ fontFamily:'Outfit', fontSize: compact ? 12 : 14, fontWeight:900, color:'white' }}>{index+1}</span>
+      </div>
+      <div style={{ flex:1 }}>
+        <div style={{ fontSize: compact ? 12 : 14, fontWeight:700, lineHeight:1.5 }}>
+          <span style={{ marginRight:6 }}>{step.icon}</span>{step.text}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🧑‍🍳 おりょうり手順</span>
+        </div>
+        {screen === 'game' && g.phase !== 'idle' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🧑‍🍳</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>おりょうり手順</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>料理の手順を覚えて<br/>質問に答えよう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 手順記憶・遂行機能のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 料理の手順が順番に表示されます<br/>
+              ② 何番目に何をするか覚えてください<br/>
+              ③ 手順が消えた後、質問に答えます<br/>
+              ④ 「最初にすることは？」「次は何？」など
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>🍳 こんなレシピが出ます</div>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center' }}>
+              {RECIPES.slice(0, 6).map((r, i) => (
+                <div key={i} style={{ padding:'6px 12px', background:`${r.color}22`, borderRadius:50, fontSize:12, fontWeight:700 }}>
+                  {r.icon} {r.name}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}パーフェクト</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:6 }}>
+              {[{v:g.score,l:'スコア',c:'#FF6B35'},{v:g.correct+'/'+g.results.reduce((s,r)=>s+r.roundTotal,0)+(g.phase==='questioning'?'+'+g.currentQ:''),l:'正解',c:'#2EC4B6'},{v:(g.currentR+1)+'/'+g.rounds.length,l:'ラウンド',c:'#7B1FA2'}].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Progress */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', gap:3, marginBottom:8 }}>
+              {g.rounds.map((_,i) => (
+                <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].perfect?'#66BB6A':'#EF5350'):i===g.currentR?'#FFB74D':'#E8E8E8' }} />
+              ))}
+            </div>
+          )}
+
+          {/* VIEWING */}
+          {g.phase === 'viewing' && (() => {
+            const round = g.rounds[g.currentR];
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+                {/* Recipe header */}
+                <div style={{ background: round.recipe.color + '22', borderRadius:14, padding:'12px 16px', marginBottom:8, display:'flex', alignItems:'center', gap:10, border:`2px solid ${round.recipe.color}44` }}>
+                  <span style={{ fontSize:36 }}>{round.recipe.icon}</span>
+                  <div>
+                    <div style={{ fontSize:22, fontWeight:900, color:'#2D2D2D' }}>{round.recipe.name}</div>
+                    <div style={{ fontSize:11, color:'#6B6B6B' }}>{round.steps.length}つの手順を覚えよう</div>
+                  </div>
+                  <div style={{ marginLeft:'auto', textAlign:'right' }}>
+                    <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:g.viewTimeLeft<=3?'#E53935':'#FF6B35', animation:g.viewTimeLeft<=3?'pulse 0.5s infinite':undefined }}>{g.viewTimeLeft}秒</div>
+                  </div>
+                </div>
+
+                <div style={{ width:'100%', height:5, background:'#E8E8E8', borderRadius:3, marginBottom:10, overflow:'hidden' }}>
+                  <div style={{ width:(g.viewTimeLeft/cfg.viewTime*100)+'%', height:'100%', background:g.viewTimeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:3, transition:'width 1s linear' }} />
+                </div>
+
+                {/* Steps */}
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {round.steps.map((s, i) => (
+                    <StepCard key={i} step={s} index={i} total={round.steps.length} />
+                  ))}
+                </div>
+
+                <button onClick={skipToQ} style={{...btnBase, marginTop:10, width:'100%', fontSize:14, fontWeight:700, padding:'12px', borderRadius:50, border:'2px solid #E0E0E0', background:'white', color:'#6B6B6B'}}>
+                  覚えた！質問へ →
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* QUESTIONING */}
+          {g.phase === 'questioning' && (() => {
+            const round = g.rounds[g.currentR];
+            const q = round.questions[g.currentQ];
+            if (!q) return null;
+            const answered = g.selected !== null;
+
+            return (
+              <div style={{ animation:'fadeUp 0.3s ease-out' }} key={`${g.currentR}-${g.currentQ}`}>
+                {/* Recipe badge */}
+                <div style={{ textAlign:'center', marginBottom:8 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', background:round.recipe.color+'22', padding:'4px 14px', borderRadius:50 }}>
+                    {round.recipe.icon} {round.recipe.name}
+                  </span>
+                </div>
+
+                <div style={{ display:'flex', gap:4, marginBottom:8, justifyContent:'center' }}>
+                  {round.questions.map((_,i) => (
+                    <div key={i} style={{ width:28, height:6, borderRadius:3, background: i<g.currentQ?'#66BB6A':i===g.currentQ?'#FF6B35':'#E0E0E0' }} />
+                  ))}
+                </div>
+
+                <div style={{ background:'white', borderRadius:18, padding:'22px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:12, textAlign:'center' }}>
+                  <div style={{ fontSize:22, fontWeight:900, color:'#2D2D2D', lineHeight:1.5 }}>{q.question}</div>
+                </div>
+
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {q.opts.map((opt, i) => {
+                    const isSelected = g.selected === opt;
+                    const isCorrect = opt === q.answer;
+                    return (
+                      <button key={i} onClick={() => handleAnswer(opt)} disabled={answered}
+                        style={{
+                          ...btnBase, fontSize:17, fontWeight:700, padding:'16px 18px', borderRadius:14, textAlign:'left',
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                          opacity:answered&&!isCorrect&&!isSelected?0.3:1,
+                          color:answered&&isCorrect?'#2E7D32':answered&&isSelected&&!isCorrect?'#C62828':'#2D2D2D',
+                        }}>
+                        {opt} {answered && isCorrect ? '✅' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {g.feedback === 'wrong' && (
+                  <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#C62828' }}>
+                    ❌ 正解は「{q.fullAnswer}」
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ROUND END */}
+          {g.phase === 'round-end' && (() => {
+            const result = g.results[g.results.length - 1];
+            const round = result.round;
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ textAlign:'center', marginBottom:10 }}>
+                  <div style={{ fontSize:42, marginBottom:6 }}>{result.perfect ? '🎉' : '🤔'}</div>
+                  <div style={{ fontSize:20, fontWeight:900, color:result.perfect?'#2E7D32':'#E65100' }}>
+                    {result.perfect ? 'パーフェクト！' : `${result.roundCorrect}/${result.roundTotal}問 正解`}
+                  </div>
+                </div>
+
+                <div style={{ background:round.recipe.color+'22', borderRadius:12, padding:'10px 14px', marginBottom:8, display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={{ fontSize:24 }}>{round.recipe.icon}</span>
+                  <span style={{ fontSize:14, fontWeight:900 }}>{round.recipe.name}の手順</span>
+                </div>
+
+                <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                  {round.steps.map((s,i) => <StepCard key={i} step={s} index={i} total={round.steps.length} compact />)}
+                </div>
+
+                <button onClick={nextRound} style={{...btnBase, marginTop:12, width:'100%', fontSize:15, fontWeight:700, padding:'14px', borderRadius:50, background:result.perfect?'#66BB6A':'#FF6B35', border:'none', color:'white'}}>
+                  {g.currentR+1 >= g.rounds.length ? '結果を見る →' : '次のレシピへ →'}
+                </button>
+              </div>
+            );
+          })()}
+
+          <div style={{ height:16 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const totalQ = g.results.reduce((s,r) => s+r.roundTotal, 0);
+        const pct = totalQ > 0 ? g.correct / totalQ : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'お料理名人！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.perfectRounds}/${total}`,l:'パーフェクト'},{v:`${g.correct}/${totalQ}`,l:'正解数'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 結果の振り返り</div>
+              {g.results.map((r,i) => (
+                <div key={i} style={{ background:r.perfect?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:6, borderLeft:`4px solid ${r.perfect?'#66BB6A':'#FF6B35'}`, textAlign:'left' }}>
+                  <div style={{ fontSize:16, fontWeight:700 }}>
+                    {r.perfect ? '✅' : '❌'} {r.round.recipe.icon} {r.round.recipe.name} — {r.roundCorrect}/{r.roundTotal}問
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 手順記憶のコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                料理の手順は「①準備 → ②加工 → ③調理 → ④仕上げ」という流れがあります。「まず切って、次に炒めて、最後に味付け」のように大きな流れを掴むと覚えやすくなります。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

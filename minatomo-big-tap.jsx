@@ -1,0 +1,636 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== おおきくタップ ==========
+// Trains deliberate large-amplitude movements.
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'ゆっくり・大きな的', rounds:8, modes:['inflate','reach'], targetTolerance:0.2 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'ふつう速度・全モード', rounds:10, modes:['inflate','reach','stretch','alternate'], targetTolerance:0.15 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'速く・正確に・全モード', rounds:12, modes:['inflate','reach','stretch','alternate'], targetTolerance:0.1 },
+};
+
+// ========== MAIN ==========
+export default function BigTap() {
+  const [screen, setScreen] = useState('select');
+  const [difficulty, setDifficulty] = useState('normal');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    phase:'idle',
+    rounds:[], currentR:0,
+    score:0, greatCount:0, goodCount:0, smallCount:0,
+    results:[],
+    // Inflate mode
+    inflateSize:0, inflateTarget:0, inflateActive:false, inflateResult:null,
+    // Reach mode
+    reachTargets:[], reachTapped:[], reachPhase:'waiting',
+    // Stretch mode
+    stretchStart:null, stretchEnd:null, stretchTarget:0, stretchResult:null, stretchLine:null,
+    // Alternate mode
+    altTargets:[], altCurrent:0, altTapped:0, altTotal:0, altStartTime:0,
+  }).current;
+
+  const timerRef = useRef(null);
+  const intervalRef = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const generateRound = (diff) => {
+    const cfg = DIFF[diff];
+    const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+    return { mode };
+  };
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff));
+    g.rounds = rounds; g.currentR = 0;
+    g.score = 0; g.greatCount = 0; g.goodCount = 0; g.smallCount = 0;
+    g.results = [];
+    setShowConfetti(false); setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    const d = diff || difficulty;
+    g.currentR = idx;
+    const round = g.rounds[idx];
+    g.inflateResult = null; g.stretchResult = null;
+
+    if (round.mode === 'inflate') {
+      g.inflateSize = 0;
+      g.inflateTarget = 60 + Math.floor(Math.random() * 60); // 60-120
+      g.inflateActive = false;
+      g.phase = 'inflate';
+    } else if (round.mode === 'reach') {
+      // 3-5 targets at edges of screen
+      const count = 3 + Math.floor(Math.random() * 2);
+      const positions = [];
+      const edgePositions = [
+        { x:15, y:15 }, { x:85, y:15 }, { x:15, y:85 }, { x:85, y:85 },
+        { x:50, y:8 }, { x:8, y:50 }, { x:92, y:50 }, { x:50, y:92 },
+        { x:20, y:50 }, { x:80, y:50 }, { x:50, y:20 }, { x:50, y:80 },
+      ];
+      const shuffled = [...edgePositions].sort(() => Math.random() - 0.5);
+      for (let i = 0; i < count; i++) positions.push(shuffled[i]);
+      g.reachTargets = positions;
+      g.reachTapped = [];
+      g.reachPhase = 'showing';
+      g.phase = 'reach';
+      // Show targets for 2 seconds then start
+      timerRef.current = setTimeout(() => {
+        g.reachPhase = 'tapping';
+        rerender();
+      }, 1500);
+    } else if (round.mode === 'stretch') {
+      g.stretchTarget = 70 + Math.floor(Math.random() * 20); // 70-90% of width
+      g.stretchStart = null; g.stretchEnd = null; g.stretchLine = null; g.stretchResult = null;
+      g.phase = 'stretch';
+    } else if (round.mode === 'alternate') {
+      const count = 4 + Math.floor(Math.random() * 3); // 4-6 taps
+      // Alternate left-right or top-bottom
+      const targets = [];
+      for (let i = 0; i < count; i++) {
+        const isLeft = i % 2 === 0;
+        targets.push({
+          x: isLeft ? 12 + Math.random() * 15 : 73 + Math.random() * 15,
+          y: 20 + Math.random() * 60,
+          side: isLeft ? 'left' : 'right',
+        });
+      }
+      g.altTargets = targets;
+      g.altCurrent = 0; g.altTapped = 0; g.altTotal = count;
+      g.altStartTime = Date.now();
+      g.phase = 'alternate';
+    }
+    rerender();
+  };
+
+  // === INFLATE HANDLERS ===
+  const startInflate = () => {
+    if (g.inflateActive || g.inflateResult) return;
+    g.inflateActive = true;
+    g.inflateSize = 0;
+    clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      g.inflateSize = Math.min(g.inflateSize + 1.5, 160);
+      rerender();
+    }, 20);
+    rerender();
+  };
+
+  const stopInflate = () => {
+    if (!g.inflateActive) return;
+    g.inflateActive = false;
+    clearInterval(intervalRef.current);
+    const cfg = DIFF[difficulty];
+    const ratio = g.inflateSize / g.inflateTarget;
+    let result;
+    if (ratio >= 1 - cfg.targetTolerance && ratio <= 1 + cfg.targetTolerance) {
+      result = 'great'; g.greatCount++; g.score += 20;
+    } else if (ratio >= 0.7 && ratio <= 1.3) {
+      result = 'good'; g.goodCount++; g.score += 10;
+    } else {
+      result = 'small'; g.smallCount++; g.score += 3;
+    }
+    g.inflateResult = { result, size:g.inflateSize, target:g.inflateTarget, ratio };
+    g.results.push({ mode:'inflate', result, ratio });
+    rerender();
+    timerRef.current = setTimeout(() => nextRound(), 1500);
+  };
+
+  // === REACH HANDLERS ===
+  const tapReachTarget = (idx) => {
+    if (g.reachPhase !== 'tapping') return;
+    if (g.reachTapped.includes(idx)) return;
+    g.reachTapped = [...g.reachTapped, idx];
+    rerender();
+    if (g.reachTapped.length + 1 === g.reachTargets.length + 1 || g.reachTapped.length === g.reachTargets.length) {
+      const allTapped = g.reachTapped.length === g.reachTargets.length;
+      if (allTapped) { g.greatCount++; g.score += 20; }
+      else { g.goodCount++; g.score += 10; }
+      g.results.push({ mode:'reach', result:allTapped?'great':'good', tapped:g.reachTapped.length, total:g.reachTargets.length });
+      g.reachPhase = 'done';
+      rerender();
+      timerRef.current = setTimeout(() => nextRound(), 1200);
+    }
+  };
+
+  // === STRETCH HANDLERS ===
+  const handleStretchStart = (e) => {
+    if (g.stretchResult) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const touch = e.touches ? e.touches[0] : e;
+    g.stretchStart = { x:touch.clientX - rect.left, y:touch.clientY - rect.top };
+    g.stretchEnd = null; g.stretchLine = null;
+    rerender();
+  };
+
+  const handleStretchMove = (e) => {
+    if (!g.stretchStart || g.stretchResult) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const touch = e.touches ? e.touches[0] : e;
+    g.stretchEnd = { x:touch.clientX - rect.left, y:touch.clientY - rect.top };
+    g.stretchLine = { x1:g.stretchStart.x, y1:g.stretchStart.y, x2:g.stretchEnd.x, y2:g.stretchEnd.y };
+    rerender();
+  };
+
+  const handleStretchEnd = () => {
+    if (!g.stretchStart || !g.stretchEnd || g.stretchResult) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const dx = g.stretchEnd.x - g.stretchStart.x;
+    const dy = g.stretchEnd.y - g.stretchStart.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const maxDist = rect.width;
+    const ratio = (dist / maxDist) * 100;
+    const cfg = DIFF[difficulty];
+    let result;
+    if (ratio >= g.stretchTarget * (1 - cfg.targetTolerance)) {
+      result = 'great'; g.greatCount++; g.score += 20;
+    } else if (ratio >= g.stretchTarget * 0.7) {
+      result = 'good'; g.goodCount++; g.score += 10;
+    } else {
+      result = 'small'; g.smallCount++; g.score += 3;
+    }
+    g.stretchResult = { result, ratio:Math.round(ratio), target:g.stretchTarget };
+    g.results.push({ mode:'stretch', result, ratio:Math.round(ratio) });
+    rerender();
+    timerRef.current = setTimeout(() => nextRound(), 1500);
+  };
+
+  // === ALTERNATE HANDLERS ===
+  const tapAltTarget = (idx) => {
+    if (idx !== g.altCurrent) return;
+    g.altCurrent++;
+    g.altTapped++;
+    rerender();
+    if (g.altCurrent >= g.altTotal) {
+      const elapsed = (Date.now() - g.altStartTime) / 1000;
+      const fast = elapsed < g.altTotal * 0.8;
+      if (fast) { g.greatCount++; g.score += 20; }
+      else { g.goodCount++; g.score += 10; }
+      g.results.push({ mode:'alternate', result:fast?'great':'good', time:elapsed.toFixed(1), taps:g.altTotal });
+      timerRef.current = setTimeout(() => nextRound(), 1200);
+    }
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.greatCount / g.rounds.length;
+    if (pct >= 0.3) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, great:g.greatCount, good:g.goodCount, small:g.smallCount, total:g.rounds.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#E8652E','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  const ResultBadge = ({ result }) => {
+    if (result === 'great') return <span style={{ fontSize:16, fontWeight:900, color:'#2E7D32', background:'#F1F8E9', padding:'6px 16px', borderRadius:50 }}>🎉 おおきい！</span>;
+    if (result === 'good') return <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', background:'#FFF3E0', padding:'6px 16px', borderRadius:50 }}>👍 いいね！</span>;
+    return <span style={{ fontSize:16, fontWeight:900, color:'#C62828', background:'#FFF5F5', padding:'6px 16px', borderRadius:50 }}>もっと大きく！</span>;
+  };
+
+  const MODE_LABELS = {
+    inflate:'🎈 ふくらませよう',
+    reach:'👆 とおくにタッチ',
+    stretch:'↔️ のばしてスワイプ',
+    alternate:'👐 はしからはし',
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+        @keyframes growPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+        @keyframes targetGlow{0%,100%{box-shadow:0 0 0 0 rgba(232,101,46,0.4)}50%{box-shadow:0 0 0 15px rgba(232,101,46,0)}}
+        @media (min-width: 768px) { #root { zoom: 1.25; } }
+        @media (min-width: 1200px) { #root { zoom: 1.8; } }
+        @media (min-width: 1920px) { #root { zoom: 2.4; } }
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>✋ おおきくタップ</span>
+        </div>
+        {screen === 'game' && g.phase !== 'idle' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#888', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 3s ease-in-out infinite' }}>✋</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:6 }}>おおきくタップ</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.9, letterSpacing:'0.03em' }}>大きく！もっと大きく！<br/>動きの大きさをトレーニング</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:28, background:'#F5F5F0', padding:'10px 18px', borderRadius:12 }}>🧠 動きの大きさ・運動振幅のトレーニングです<br/>「もっと大きく！」を意識する訓練です</div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'20px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12, letterSpacing:'0.05em' }}>🎯 4つのモード</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {[
+                { icon:'🎈', name:'ふくらませよう', desc:'長押しで丸を膨らませて、目標の大きさでぴったり止める' },
+                { icon:'👆', name:'とおくにタッチ', desc:'画面のはしに出る的をすべてタップ。手を大きく伸ばそう' },
+                { icon:'↔️', name:'のばしてスワイプ', desc:'画面のはしからはしまで、できるだけ長くスワイプする' },
+                { icon:'👐', name:'はしからはし', desc:'左右に交互に出る的を、大きく腕を振ってタップ' },
+              ].map((m,i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                  <span style={{ fontSize:22, flexShrink:0, marginTop:2 }}>{m.icon}</span>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:700, letterSpacing:'0.03em' }}>{m.name}</div>
+                    <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.6 }}>{m.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, letterSpacing:'0.05em' }}>💡 なぜ「おおきく」が大切？</div>
+            <div style={{ fontSize:13, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+              加齢や疾患によって、自分では大きく動いているつもりでも実際の動きが小さくなることがあります。「もっと大きく！」と意識して動くことで、日常動作の改善につながります。
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left', letterSpacing:'0.05em' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'2px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:480, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, letterSpacing:'0.05em' }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:'#F5F5F0' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:13,fontWeight:700}}>{hc.label}・🎉{h.great} 👍{h.good}</div><div style={{fontSize:11,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:18,fontWeight:800,color:'#E8652E'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase !== 'idle' && g.phase !== 'result' && (
+        <div style={{ padding:'0 16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Status */}
+          <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'8px 14px', background:'white', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+            {[{v:g.score,l:'スコア'},{v:`🎉${g.greatCount} 👍${g.goodCount}`,l:'判定'},{v:`${g.currentR+1}/${g.rounds.length}`,l:'ラウンド'}].map((s,i) => (
+              <div key={i} style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#555' }}>{s.v}</div>
+                <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Progress */}
+          <div style={{ display:'flex', gap:2, marginBottom:10 }}>
+            {g.rounds.map((_,i) => (
+              <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].result==='great'?'#8BC34A':g.results[i].result==='good'?'#FFB74D':'#EF9A9A'):i===g.currentR?'#FFB74D':'#E8E8E8' }} />
+            ))}
+          </div>
+
+          {/* Mode label */}
+          <div style={{ textAlign:'center', marginBottom:8 }}>
+            <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', background:'#FFF3E0', padding:'6px 18px', borderRadius:50, letterSpacing:'0.04em' }}>
+              {MODE_LABELS[g.phase] || '✋'}
+            </span>
+          </div>
+
+          {/* === INFLATE MODE === */}
+          {g.phase === 'inflate' && (
+            <div style={{ animation:'fadeUp 0.3s ease-out', textAlign:'center' }}>
+              <div style={{ fontSize:18, fontWeight:900, color:'#333', marginBottom:6, letterSpacing:'0.04em' }}>
+                長押しでふくらませて、<br/>目標の大きさで離そう！
+              </div>
+              <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:16 }}>
+                小さすぎず、大きすぎず
+              </div>
+
+              <div style={{ position:'relative', width:'100%', height:280, display:'flex', alignItems:'center', justifyContent:'center', background:'white', borderRadius:18, boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+                {/* Target ring */}
+                <div style={{
+                  width:g.inflateTarget*2, height:g.inflateTarget*2, borderRadius:'50%',
+                  border:'3px dashed #BDBDBD', position:'absolute',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                  <span style={{ fontSize:10, color:'#BDBDBD', position:'absolute', bottom:-18 }}>目標</span>
+                </div>
+
+                {/* Growing circle */}
+                <div style={{
+                  width:g.inflateSize*2, height:g.inflateSize*2, borderRadius:'50%',
+                  background: g.inflateResult
+                    ? g.inflateResult.result === 'great' ? '#C8E6C9' : g.inflateResult.result === 'good' ? '#FFE0B2' : '#FFCDD2'
+                    : `radial-gradient(circle, #FFB74D, #E8652E)`,
+                  transition: g.inflateActive ? 'none' : 'all 0.3s',
+                  boxShadow: g.inflateActive ? '0 0 30px rgba(232,101,46,0.3)' : 'none',
+                }} />
+
+                {/* Size indicator */}
+                {g.inflateActive && (
+                  <div style={{ position:'absolute', bottom:12, fontSize:14, fontWeight:700, color:'#E8652E' }}>
+                    {Math.round(g.inflateSize / g.inflateTarget * 100)}%
+                  </div>
+                )}
+              </div>
+
+              {/* Result */}
+              {g.inflateResult && (
+                <div style={{ marginTop:12, animation:'fadeUp 0.3s ease-out' }}>
+                  <ResultBadge result={g.inflateResult.result} />
+                  <div style={{ fontSize:13, color:'#9E9E9E', marginTop:6 }}>
+                    {Math.round(g.inflateResult.ratio * 100)}%（目標: 100%）
+                  </div>
+                </div>
+              )}
+
+              {/* Press button */}
+              {!g.inflateResult && (
+                <button
+                  onMouseDown={startInflate} onMouseUp={stopInflate} onMouseLeave={stopInflate}
+                  onTouchStart={(e)=>{e.preventDefault();startInflate()}} onTouchEnd={stopInflate}
+                  style={{...btnBase, marginTop:16, width:'80%', fontSize:20, fontWeight:900, padding:'20px', borderRadius:60,
+                    background: g.inflateActive ? '#C62828' : '#E8652E', border:'none', color:'white',
+                    letterSpacing:'0.1em', animation: g.inflateActive ? 'pulse 0.3s infinite' : undefined,
+                    userSelect:'none', WebkitUserSelect:'none',
+                  }}>
+                  {g.inflateActive ? '✋ はなして止める！' : '👇 おしてふくらませる'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* === REACH MODE === */}
+          {g.phase === 'reach' && (
+            <div style={{ animation:'fadeUp 0.3s ease-out', textAlign:'center' }}>
+              <div style={{ fontSize:18, fontWeight:900, color:'#333', marginBottom:6, letterSpacing:'0.04em' }}>
+                {g.reachPhase === 'showing' ? '的の場所をおぼえてね' : '画面のはしまで手をのばしてタッチ！'}
+              </div>
+
+              <div style={{ position:'relative', width:'100%', height:320, background:'white', borderRadius:18, boxShadow:'0 2px 8px rgba(0,0,0,0.04)', overflow:'hidden' }}>
+                {g.reachTargets.map((t,i) => {
+                  const tapped = g.reachTapped.includes(i);
+                  return (
+                    <button key={i} onClick={() => tapReachTarget(i)}
+                      style={{
+                        ...btnBase, position:'absolute',
+                        left:`${t.x}%`, top:`${t.y}%`, transform:'translate(-50%,-50%)',
+                        width:56, height:56, borderRadius:'50%',
+                        background: tapped ? '#C8E6C9' : '#E8652E',
+                        border: tapped ? '3px solid #66BB6A' : '3px solid #E8652E',
+                        color:'white', fontSize:22, fontWeight:900,
+                        opacity: g.reachPhase === 'showing' ? 0.5 : 1,
+                        animation: !tapped && g.reachPhase === 'tapping' ? 'targetGlow 1.5s infinite' : undefined,
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                      }}>
+                      {tapped ? '✓' : i+1}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginTop:8 }}>
+                {g.reachTapped.length}/{g.reachTargets.length} タッチ済み
+              </div>
+            </div>
+          )}
+
+          {/* === STRETCH MODE === */}
+          {g.phase === 'stretch' && (
+            <div style={{ animation:'fadeUp 0.3s ease-out', textAlign:'center' }}>
+              <div style={{ fontSize:18, fontWeight:900, color:'#333', marginBottom:6, letterSpacing:'0.04em' }}>
+                はしからはしまでスワイプ！
+              </div>
+              <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:10 }}>
+                目標: 画面幅の{g.stretchTarget}%以上
+              </div>
+
+              <div ref={containerRef}
+                onMouseDown={handleStretchStart} onMouseMove={handleStretchMove} onMouseUp={handleStretchEnd}
+                onTouchStart={handleStretchStart} onTouchMove={handleStretchMove} onTouchEnd={handleStretchEnd}
+                style={{ position:'relative', width:'100%', height:200, background:'white', borderRadius:18, boxShadow:'0 2px 8px rgba(0,0,0,0.04)', touchAction:'none', overflow:'hidden', cursor:'crosshair' }}>
+                {/* Target bar */}
+                <div style={{ position:'absolute', bottom:0, left:0, width:`${g.stretchTarget}%`, height:6, background:'#E0E0E0', borderRadius:3 }}>
+                  <span style={{ position:'absolute', right:-4, top:-16, fontSize:10, color:'#9E9E9E' }}>目標</span>
+                </div>
+
+                {/* Drawn line */}
+                {g.stretchLine && (
+                  <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
+                    <line x1={g.stretchLine.x1} y1={g.stretchLine.y1} x2={g.stretchLine.x2} y2={g.stretchLine.y2}
+                      stroke={g.stretchResult ? (g.stretchResult.result==='great'?'#66BB6A':'#FFB74D') : '#E8652E'}
+                      strokeWidth="6" strokeLinecap="round" />
+                  </svg>
+                )}
+
+                {/* Start dot */}
+                {g.stretchStart && (
+                  <div style={{ position:'absolute', left:g.stretchStart.x-8, top:g.stretchStart.y-8, width:16, height:16, borderRadius:'50%', background:'#E8652E' }} />
+                )}
+
+                {!g.stretchStart && !g.stretchResult && (
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', fontSize:16, color:'#BDBDBD', fontWeight:700 }}>
+                    ← 指でスワイプ →
+                  </div>
+                )}
+              </div>
+
+              {g.stretchResult && (
+                <div style={{ marginTop:12, animation:'fadeUp 0.3s ease-out' }}>
+                  <ResultBadge result={g.stretchResult.result} />
+                  <div style={{ fontSize:13, color:'#9E9E9E', marginTop:6 }}>
+                    あなた: {g.stretchResult.ratio}%（目標: {g.stretchTarget}%）
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* === ALTERNATE MODE === */}
+          {g.phase === 'alternate' && (
+            <div style={{ animation:'fadeUp 0.3s ease-out', textAlign:'center' }}>
+              <div style={{ fontSize:18, fontWeight:900, color:'#333', marginBottom:6, letterSpacing:'0.04em' }}>
+                左右の的を順番にタップ！
+              </div>
+              <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:10 }}>
+                大きく腕を振って、はやくタッチ
+              </div>
+
+              <div style={{ position:'relative', width:'100%', height:320, background:'white', borderRadius:18, boxShadow:'0 2px 8px rgba(0,0,0,0.04)', overflow:'hidden' }}>
+                {/* Left/Right labels */}
+                <div style={{ position:'absolute', top:8, left:12, fontSize:12, fontWeight:700, color:'#BDBDBD' }}>← ひだり</div>
+                <div style={{ position:'absolute', top:8, right:12, fontSize:12, fontWeight:700, color:'#BDBDBD' }}>みぎ →</div>
+                {/* Center divider */}
+                <div style={{ position:'absolute', top:'15%', left:'50%', width:1, height:'70%', background:'#F0F0F0' }} />
+
+                {g.altTargets.map((t,i) => {
+                  const isCurrent = i === g.altCurrent;
+                  const isDone = i < g.altCurrent;
+                  const isFuture = i > g.altCurrent;
+                  return (
+                    <button key={i} onClick={() => tapAltTarget(i)}
+                      style={{
+                        ...btnBase, position:'absolute',
+                        left:`${t.x}%`, top:`${t.y}%`, transform:'translate(-50%,-50%)',
+                        width:isCurrent?60:44, height:isCurrent?60:44, borderRadius:'50%',
+                        background: isDone ? '#C8E6C9' : isCurrent ? '#E8652E' : '#E8E8E8',
+                        border: isDone ? '3px solid #66BB6A' : isCurrent ? '3px solid #E8652E' : '2px solid #BDBDBD',
+                        color: isDone ? '#66BB6A' : isCurrent ? 'white' : '#BDBDBD',
+                        fontSize: isCurrent ? 22 : 16, fontWeight:900,
+                        animation: isCurrent ? 'growPulse 0.8s infinite' : undefined,
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        transition:'all 0.2s',
+                      }}>
+                      {isDone ? '✓' : i+1}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginTop:8 }}>
+                {g.altCurrent}/{g.altTotal}
+              </div>
+            </div>
+          )}
+
+          <div style={{ height:20 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const pct = total > 0 ? g.greatCount / total : 0;
+        const stars = pct >= 0.6 ? '⭐⭐⭐' : pct >= 0.3 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.6 ? 'おおきく動けました！' : pct >= 0.3 ? 'いい調子！' : 'もっと大きく！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', marginBottom:6, letterSpacing:'0.08em' }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:20 }}>
+              {[
+                {v:`🎉 ${g.greatCount}`,l:'おおきい！',c:'#2E7D32'},
+                {v:`👍 ${g.goodCount}`,l:'いいね',c:'#E8652E'},
+                {v:`${g.smallCount}`,l:'もっと大きく',c:'#999'},
+              ].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ background:'white', borderRadius:16, padding:'14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', width:'100%', maxWidth:360, marginBottom:24 }}>
+              <div style={{ fontFamily:'Outfit', fontSize:32, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{fontSize:16}}>pt</span></div>
+              <div style={{ fontSize:11, color:'#9E9E9E' }}>トータルスコア</div>
+            </div>
+
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24, padding:'14px 16px', background:'#FAFAF8', border:'1px solid #E8E8E8', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6, letterSpacing:'0.05em' }}>💡 トレーニングのコツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+                「自分では大きいと思っても、実際はまだ小さい」ということがあります。「やりすぎかな？」と思うくらい大げさに動くのがちょうどいいサイズです。日常の動作でも「おおきく！」を意識してみましょう。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#E8652E', border:'none', padding:'16px 32px', borderRadius:60, letterSpacing:'0.06em'}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}

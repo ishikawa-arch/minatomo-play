@@ -1,0 +1,252 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【シンプル】まって…タップ！ ==========
+export default function SimpleReaction() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    round:0, totalRounds:8,
+    phase:'idle', // waiting, ready, go, result, tooEarly
+    score:0, rts:[], bestRT:9999,
+    startTime:0,
+  }).current;
+
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.round = 0; g.score = 0; g.rts = []; g.bestRT = 9999;
+    setScreen('play'); rerender();
+    startRound();
+  };
+
+  const startRound = () => {
+    g.round++;
+    g.phase = 'waiting';
+    rerender();
+
+    // Random wait 1.5-4 seconds
+    const wait = 1500 + Math.random() * 2500;
+    timerRef.current = setTimeout(() => {
+      g.phase = 'go';
+      g.startTime = Date.now();
+      rerender();
+
+      // Auto-miss after 3 seconds
+      timerRef.current = setTimeout(() => {
+        if (g.phase === 'go') {
+          g.phase = 'result';
+          g.rts.push(3000);
+          rerender();
+          timerRef.current = setTimeout(nextOrEnd, 1500);
+        }
+      }, 3000);
+    }, wait);
+  };
+
+  const handleTap = () => {
+    if (g.phase === 'waiting') {
+      // Too early!
+      clearTimeout(timerRef.current);
+      g.phase = 'tooEarly';
+      rerender();
+      timerRef.current = setTimeout(startRound, 1500);
+      return;
+    }
+
+    if (g.phase === 'go') {
+      clearTimeout(timerRef.current);
+      const rt = Date.now() - g.startTime;
+      g.rts.push(rt);
+      if (rt < g.bestRT) g.bestRT = rt;
+      g.score += Math.max(0, Math.round((500 - rt) / 5) + 10);
+      g.phase = 'result';
+      rerender();
+      timerRef.current = setTimeout(nextOrEnd, 1200);
+    }
+  };
+
+  const nextOrEnd = () => {
+    if (g.round >= g.totalRounds) {
+      setScreen('done'); rerender();
+    } else {
+      startRound();
+    }
+  };
+
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+  const avgRT = g.rts.length > 0 ? Math.round(g.rts.filter(r => r < 3000).reduce((a,b) => a+b, 0) / g.rts.filter(r => r < 3000).length) || 0 : 0;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.8)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>⏱ まって…タップ！</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>{g.round} / {g.totalRounds}</span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:16, alignItems:'center', marginBottom:20 }}>
+            <div style={{ width:60, height:60, borderRadius:'50%', background:'#E53935', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <span style={{ fontSize:20, fontWeight:900, color:'white' }}>まって</span>
+            </div>
+            <span style={{ fontSize:24, color:'#9E9E9E' }}>→</span>
+            <div style={{ width:60, height:60, borderRadius:'50%', background:'#43A047', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <span style={{ fontSize:20, fontWeight:900, color:'white' }}>タップ!</span>
+            </div>
+          </div>
+
+          <div style={{ fontSize:26, fontWeight:900, color:'#333', marginBottom:8, letterSpacing:'0.06em' }}>
+            みどりでタップ！
+          </div>
+          <div style={{ fontSize:16, color:'#9E9E9E', marginBottom:6 }}>
+            あかいときは まってね
+          </div>
+          <div style={{ fontSize:14, color:'#C62828', fontWeight:700, marginBottom:36 }}>
+            はやすぎると やりなおし！
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:28, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'24px 64px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && (
+        <div style={{ padding:'0', maxWidth:580, margin:'0 auto' }}>
+          {/* Full screen tap area */}
+          <div
+            onClick={handleTap}
+            style={{
+              width:'100%', height:'calc(100vh - 56px)',
+              display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+              background: g.phase === 'waiting' ? '#E53935'
+                : g.phase === 'go' ? '#43A047'
+                : g.phase === 'tooEarly' ? '#333'
+                : g.phase === 'result' ? '#FAFAF8'
+                : '#FAFAF8',
+              transition:'background 0.08s',
+              cursor:'pointer',
+              userSelect:'none', WebkitUserSelect:'none',
+            }}>
+
+            {/* WAITING - red screen */}
+            {g.phase === 'waiting' && (
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:28, fontWeight:900, color:'white', animation:'pulse 1.5s ease-in-out infinite' }}>
+                  まって…
+                </div>
+              </div>
+            )}
+
+            {/* GO - green screen */}
+            {g.phase === 'go' && (
+              <div style={{ textAlign:'center', animation:'pop 0.15s ease-out' }}>
+                <div style={{ fontSize:48, fontWeight:900, color:'white', letterSpacing:'0.1em' }}>
+                  タップ！
+                </div>
+              </div>
+            )}
+
+            {/* TOO EARLY */}
+            {g.phase === 'tooEarly' && (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.3s' }}>
+                <div style={{ fontSize:40, marginBottom:8 }}>🚫</div>
+                <div style={{ fontSize:24, fontWeight:900, color:'white' }}>はやすぎ！</div>
+                <div style={{ fontSize:16, fontWeight:700, color:'#999', marginTop:6 }}>もういちど…</div>
+              </div>
+            )}
+
+            {/* RESULT */}
+            {g.phase === 'result' && (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.3s' }}>
+                {g.rts[g.rts.length - 1] < 3000 ? (
+                  <div>
+                    <div style={{ fontFamily:'Outfit,sans-serif', fontSize:64, fontWeight:900, color:'#E8652E' }}>
+                      {g.rts[g.rts.length - 1]}<span style={{ fontSize:24 }}>ms</span>
+                    </div>
+                    <div style={{ fontSize:20, fontWeight:900, color: g.rts[g.rts.length-1] < 300 ? '#2E7D32' : g.rts[g.rts.length-1] < 500 ? '#E8652E' : '#999', marginTop:4 }}>
+                      {g.rts[g.rts.length-1] < 250 ? 'はやい！🔥' : g.rts[g.rts.length-1] < 400 ? 'いいね！⭐' : g.rts[g.rts.length-1] < 600 ? 'まあまあ 👍' : 'もっとはやく！'}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize:40 }}>⏰</div>
+                    <div style={{ fontSize:20, fontWeight:900, color:'#999' }}>おそい！</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const good = g.rts.filter(r => r < 3000);
+        const best = good.length > 0 ? Math.min(...good) : 0;
+        const avg = avgRT;
+        const emoji = avg > 0 && avg < 350 ? '🔥' : avg < 500 ? '🎉' : '👍';
+        const msg = avg > 0 && avg < 350 ? 'すばやい！' : avg < 500 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:80, marginBottom:16, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:32, fontWeight:900, color:'#E8652E', marginBottom:16 }}>{msg}</div>
+
+            <div style={{ display:'flex', gap:16, marginBottom:20 }}>
+              <div style={{ background:'white', borderRadius:20, padding:'16px 24px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginBottom:4 }}>へいきん</div>
+                <div style={{ fontFamily:'Outfit,sans-serif', fontSize:36, fontWeight:900, color:'#E8652E' }}>
+                  {avg}<span style={{ fontSize:16 }}>ms</span>
+                </div>
+              </div>
+              <div style={{ background:'white', borderRadius:20, padding:'16px 24px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginBottom:4 }}>さいそく</div>
+                <div style={{ fontFamily:'Outfit,sans-serif', fontSize:36, fontWeight:900, color:'#2E7D32' }}>
+                  {best}<span style={{ fontSize:16 }}>ms</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Individual results */}
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'center', marginBottom:24 }}>
+              {g.rts.map((rt, i) => (
+                <div key={i} style={{
+                  padding:'4px 10px', borderRadius:50, fontSize:13, fontWeight:800,
+                  fontFamily:'Outfit,sans-serif',
+                  background: rt < 300 ? '#E8F5E9' : rt < 500 ? '#FFF3E0' : rt >= 3000 ? '#FAFAFA' : '#FFF5F5',
+                  color: rt < 300 ? '#2E7D32' : rt < 500 ? '#E8652E' : rt >= 3000 ? '#999' : '#C62828',
+                }}>
+                  {rt < 3000 ? rt + 'ms' : '⏰'}
+                </div>
+              ))}
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:24, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'22px 48px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

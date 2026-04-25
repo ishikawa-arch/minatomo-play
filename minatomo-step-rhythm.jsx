@@ -1,0 +1,636 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== ステップリズム - 歩行リズムトレーニング ==========
+// Alternate left-right tapping to train walking rhythm.
+
+function createBeep(audioCtx, freq, duration) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+  osc.start(); osc.stop(audioCtx.currentTime + duration);
+}
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'ゆっくり・光でガイド', bpmRange:[50,65], rounds:5, modes:['steady','guided'] },
+  normal: { label:'ふつう', emoji:'🌿', desc:'ふつう速度・ストップ&ゴー', bpmRange:[60,80], rounds:6, modes:['steady','guided','stopgo'] },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'速め・テンポ変化・ストップ', bpmRange:[70,100], rounds:7, modes:['steady','stopgo','change','sprint'] },
+};
+
+function generateRound(diff) {
+  const cfg = DIFF[diff];
+  const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+  const bpm = cfg.bpmRange[0] + Math.floor(Math.random() * (cfg.bpmRange[1] - cfg.bpmRange[0]));
+
+  if (mode === 'steady') {
+    return { mode, bpm, totalSteps:12, title:'一定のリズムで', desc:'左右交互にテンポよくタップ' };
+  }
+  if (mode === 'guided') {
+    return { mode, bpm, guidedSteps:6, freeSteps:8, title:'テンポをおぼえて', desc:'ガイドが消えても同じテンポで歩こう' };
+  }
+  if (mode === 'stopgo') {
+    return { mode, bpm, totalSteps:14, title:'ストップ＆ゴー', desc:'🔴ストップの合図で止まって、🟢ゴーで再開' };
+  }
+  if (mode === 'change') {
+    const endBpm = Math.random() < 0.5 ? bpm + 20 : Math.max(40, bpm - 15);
+    return { mode, bpm, endBpm, totalSteps:14, title:'テンポチェンジ', desc:'だんだんテンポが変わるよ' };
+  }
+  if (mode === 'sprint') {
+    return { mode, bpm, sprintBpm:bpm+30, totalSteps:16, title:'ダッシュ＆スロー', desc:'途中で速くなる！ついていこう' };
+  }
+  return { mode:'steady', bpm, totalSteps:12, title:'一定のリズムで' };
+}
+
+// ========== MAIN ==========
+export default function StepRhythm() {
+  const [screen, setScreen] = useState('select');
+  const [difficulty, setDifficulty] = useState('normal');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    phase:'idle',
+    rounds:[], currentR:0,
+    score:0, perfectCount:0, goodCount:0, missCount:0,
+    results:[],
+    // Game state
+    gamePhase:'waiting',
+    currentSide:'left', // which foot should be tapped next
+    stepIndex:0, totalSteps:0,
+    tapTimes:[], expectedTimes:[], tapSides:[],
+    flashSide:null, // which side is flashing
+    guidedPhase:true,
+    stopped:false, // for stop-and-go
+    currentBpm:0,
+    wrongTaps:0, // taps during stop
+  }).current;
+
+  const audioRef = useRef(null);
+  const timerRef = useRef(null);
+  const beatRef = useRef(null);
+
+  useEffect(() => () => { clearTimeout(timerRef.current); clearTimeout(beatRef.current); }, []);
+
+  const getAudio = () => {
+    if (!audioRef.current) audioRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioRef.current.state === 'suspended') audioRef.current.resume();
+    return audioRef.current;
+  };
+
+  const playStep = (isLeft) => {
+    try { createBeep(getAudio(), isLeft ? 440 : 554, 0.08); } catch(e) {}
+  };
+
+  const playTap = () => {
+    try { createBeep(getAudio(), 330, 0.04); } catch(e) {}
+  };
+
+  const playStop = () => {
+    try { createBeep(getAudio(), 220, 0.2); } catch(e) {}
+  };
+
+  const playGo = () => {
+    try { createBeep(getAudio(), 660, 0.15); } catch(e) {}
+  };
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff));
+    g.rounds = rounds; g.currentR = 0;
+    g.score = 0; g.perfectCount = 0; g.goodCount = 0; g.missCount = 0;
+    g.results = [];
+    setShowConfetti(false); setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    g.currentR = idx;
+    const round = g.rounds[idx];
+    g.stepIndex = 0; g.tapTimes = []; g.expectedTimes = []; g.tapSides = [];
+    g.currentSide = 'left'; g.flashSide = null; g.guidedPhase = true;
+    g.stopped = false; g.wrongTaps = 0;
+    g.currentBpm = round.bpm;
+    g.gamePhase = 'countdown';
+    rerender();
+
+    let count = 3;
+    const cd = () => {
+      g.stepIndex = count; rerender();
+      if (count > 0) { count--; timerRef.current = setTimeout(cd, 600); }
+      else {
+        g.gamePhase = 'playing'; g.stepIndex = 0;
+        g.totalSteps = round.totalSteps || (round.guidedSteps || 0) + (round.freeSteps || 0);
+        rerender();
+        startBeats(round);
+      }
+    };
+    timerRef.current = setTimeout(cd, 500);
+  };
+
+  const startBeats = (round) => {
+    let step = 0;
+    let total;
+    let stopAt = -1, resumeAt = -1;
+
+    if (round.mode === 'steady' || round.mode === 'guided' || round.mode === 'change' || round.mode === 'sprint') {
+      total = round.totalSteps || (round.guidedSteps + round.freeSteps);
+    } else if (round.mode === 'stopgo') {
+      total = round.totalSteps;
+      stopAt = 4 + Math.floor(Math.random() * 3); // stop at step 4-6
+      resumeAt = stopAt + 2; // resume 2 beats later
+    }
+
+    const tick = () => {
+      if (step >= total) {
+        // Wait for last taps then judge
+        timerRef.current = setTimeout(() => judgeRound(round), 60000 / g.currentBpm);
+        return;
+      }
+
+      // Calculate current BPM
+      let bpm = round.bpm;
+      if (round.mode === 'change') {
+        const progress = step / (total - 1);
+        bpm = round.bpm + (round.endBpm - round.bpm) * progress;
+        g.currentBpm = Math.round(bpm);
+      }
+      if (round.mode === 'sprint') {
+        const sprintStart = Math.floor(total * 0.4);
+        const sprintEnd = Math.floor(total * 0.7);
+        if (step >= sprintStart && step < sprintEnd) {
+          bpm = round.sprintBpm;
+          g.currentBpm = bpm;
+        } else {
+          g.currentBpm = round.bpm;
+        }
+      }
+
+      const interval = 60000 / bpm;
+
+      // Stop-and-go logic
+      if (round.mode === 'stopgo') {
+        if (step === stopAt) {
+          g.stopped = true;
+          playStop();
+          rerender();
+          // Skip beats during stop
+          step += 2;
+          beatRef.current = setTimeout(() => {
+            g.stopped = false;
+            playGo();
+            rerender();
+            beatRef.current = setTimeout(tick, interval * 0.5);
+          }, interval * 2);
+          return;
+        }
+      }
+
+      // Guided or free phase
+      if (round.mode === 'guided') {
+        g.guidedPhase = step < round.guidedSteps;
+      }
+
+      const isLeft = step % 2 === 0;
+      g.currentSide = isLeft ? 'left' : 'right';
+
+      // Flash and sound (only in guided phase or steady modes)
+      const showGuide = round.mode !== 'guided' || g.guidedPhase;
+      if (showGuide) {
+        g.flashSide = isLeft ? 'left' : 'right';
+        playStep(isLeft);
+      }
+
+      g.expectedTimes.push({ time:Date.now(), side:isLeft?'left':'right', step });
+      rerender();
+
+      // Clear flash
+      if (showGuide) {
+        setTimeout(() => { g.flashSide = null; rerender(); }, 150);
+      }
+
+      step++;
+      g.stepIndex = step;
+      beatRef.current = setTimeout(tick, interval);
+    };
+
+    tick();
+  };
+
+  const handleTap = (side) => {
+    if (g.gamePhase !== 'playing') return;
+    if (g.stopped) {
+      // Tapped during stop! Penalty
+      g.wrongTaps++;
+      rerender();
+      return;
+    }
+    playTap();
+    g.tapTimes.push(Date.now());
+    g.tapSides.push(side);
+    rerender();
+  };
+
+  const judgeRound = (round) => {
+    clearTimeout(beatRef.current);
+    g.gamePhase = 'judging';
+
+    const expected = g.expectedTimes;
+    const interval = 60000 / round.bpm;
+    const tolerance = interval * 0.4;
+
+    // Check timing accuracy
+    let timingMatches = 0;
+    expected.forEach(exp => {
+      const match = g.tapTimes.find(t => Math.abs(t - exp.time) < tolerance);
+      if (match) timingMatches++;
+    });
+
+    // Check side accuracy (left-right alternation)
+    let sideCorrect = 0;
+    g.tapSides.forEach((s, i) => {
+      const expectedSide = i % 2 === 0 ? 'left' : 'right';
+      if (s === expectedSide) sideCorrect++;
+    });
+
+    const timingPct = expected.length > 0 ? Math.round((timingMatches / expected.length) * 100) : 0;
+    const sidePct = g.tapSides.length > 0 ? Math.round((sideCorrect / g.tapSides.length) * 100) : 0;
+    const combined = Math.round(timingPct * 0.6 + sidePct * 0.4);
+
+    // Penalty for wrong taps during stop
+    const penalty = g.wrongTaps * 5;
+    const finalScore = Math.max(0, combined - penalty);
+
+    let result;
+    if (finalScore >= 75) { result = 'perfect'; g.perfectCount++; g.score += 25; }
+    else if (finalScore >= 45) { result = 'good'; g.goodCount++; g.score += 12; }
+    else { result = 'miss'; g.missCount++; g.score += 3; }
+
+    g.results.push({ mode:round.mode, result, timingPct, sidePct, combined:finalScore, taps:g.tapSides.length, expected:expected.length, wrongTaps:g.wrongTaps });
+    rerender();
+    timerRef.current = setTimeout(() => nextRound(), 2200);
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; g.gamePhase = 'idle'; rerender();
+    const pct = g.perfectCount / g.rounds.length;
+    if (pct >= 0.3) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, perfect:g.perfectCount, good:g.goodCount, miss:g.missCount, total:g.rounds.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => {
+    clearTimeout(timerRef.current); clearTimeout(beatRef.current);
+    g.phase = 'idle'; g.gamePhase = 'idle'; setScreen('select'); rerender();
+  };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#E8652E','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  const MODE_LABELS = {
+    steady:'🚶 一定のリズム',
+    guided:'🎯 テンポおぼえ',
+    stopgo:'🚦 ストップ＆ゴー',
+    change:'📈 テンポチェンジ',
+    sprint:'💨 ダッシュ＆スロー',
+  };
+
+  // Foot button component
+  const FootButton = ({ side, active, flash, stopped, onTap }) => {
+    const isLeft = side === 'left';
+    return (
+      <button
+        onMouseDown={() => onTap(side)}
+        onTouchStart={(e) => { e.preventDefault(); onTap(side); }}
+        style={{
+          ...btnBase, flex:1, height:180, borderRadius:24,
+          background: stopped ? '#F5F5F5' :
+            flash ? (isLeft ? '#1E88E5' : '#E8652E') :
+            'white',
+          border: `3px solid ${stopped ? '#E0E0E0' : flash ? (isLeft ? '#1565C0' : '#D4551E') : '#E8E8E8'}`,
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8,
+          boxShadow: flash ? `0 0 30px ${isLeft ? 'rgba(30,136,229,0.3)' : 'rgba(232,101,46,0.3)'}` : 'none',
+          transition: flash ? 'none' : 'all 0.15s',
+          userSelect:'none', WebkitUserSelect:'none',
+          opacity: stopped ? 0.4 : 1,
+        }}>
+        <span style={{ fontSize:48, filter: stopped ? 'grayscale(1)' : 'none' }}>
+          {isLeft ? '👣' : '👣'}
+        </span>
+        <span style={{
+          fontSize:20, fontWeight:900,
+          color: flash ? 'white' : stopped ? '#BDBDBD' : (isLeft ? '#1E88E5' : '#E8652E'),
+          letterSpacing:'0.08em',
+        }}>
+          {isLeft ? 'ひだり' : 'みぎ'}
+        </span>
+      </button>
+    );
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+        @keyframes stopFlash{0%,100%{background:#FFF5F5}50%{background:#FFCDD2}}
+        @media (min-width: 768px) { #root { zoom: 1.25; } }
+        @media (min-width: 1200px) { #root { zoom: 1.8; } }
+        @media (min-width: 1920px) { #root { zoom: 2.4; } }
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>👣 ステップリズム</span>
+        </div>
+        {screen === 'game' && g.gamePhase !== 'idle' && (
+          <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#888', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 3s ease-in-out infinite' }}>👣</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:6 }}>ステップリズム</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.9, letterSpacing:'0.03em' }}>左右交互にリズムよく<br/>足踏みのようにタップ！</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:28, background:'#F5F5F0', padding:'10px 18px', borderRadius:12 }}>🧠 歩行リズム・左右交互運動のトレーニングです<br/>動きのタイミングと切り替えを鍛えます</div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'20px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12, letterSpacing:'0.05em' }}>🎯 5つのモード</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {[
+                { icon:'🚶', name:'一定のリズム', desc:'左→右→左→右…一定テンポで交互にタップ' },
+                { icon:'🎯', name:'テンポおぼえ', desc:'ガイドが消えても同じテンポでタップし続ける' },
+                { icon:'🚦', name:'ストップ＆ゴー', desc:'🔴で止まって、🟢で再開！信号のように' },
+                { icon:'📈', name:'テンポチェンジ', desc:'だんだん速く（遅く）なるテンポについていく' },
+                { icon:'💨', name:'ダッシュ＆スロー', desc:'途中で急に速くなる！素早く切り替え' },
+              ].map((m,i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                  <span style={{ fontSize:22, flexShrink:0, marginTop:2 }}>{m.icon}</span>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:700, letterSpacing:'0.03em' }}>{m.name}</div>
+                    <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.6 }}>{m.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, letterSpacing:'0.05em' }}>💡 なぜ「左右交互」が大切？</div>
+            <div style={{ fontSize:13, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+              歩くことは「左右を交互に動かす」リズム運動です。このリズムを意識して練習することで、歩行がスムーズになり転倒予防にもつながります。大型画面なら立って実際に足踏みしながら遊べます。
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left', letterSpacing:'0.05em' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'2px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:480, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:'#F5F5F0' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:13,fontWeight:700}}>{hc.label}・🎉{h.perfect} 👍{h.good}</div><div style={{fontSize:11,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:18,fontWeight:800,color:'#E8652E'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase !== 'result' && (
+        <div style={{ padding:'0 16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Status */}
+          <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'8px 14px', background:'white', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+            {[{v:g.score,l:'スコア'},{v:`🎉${g.perfectCount} 👍${g.goodCount}`,l:'判定'},{v:`${g.currentR+1}/${g.rounds.length}`,l:'ラウンド'}].map((s,i) => (
+              <div key={i} style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#555' }}>{s.v}</div>
+                <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Progress */}
+          <div style={{ display:'flex', gap:2, marginBottom:10 }}>
+            {g.rounds.map((_,i) => (
+              <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].result==='perfect'?'#8BC34A':g.results[i].result==='good'?'#FFB74D':'#EF9A9A'):i===g.currentR?'#FFB74D':'#E8E8E8' }} />
+            ))}
+          </div>
+
+          {/* Countdown */}
+          {g.gamePhase === 'countdown' && (
+            <div style={{ textAlign:'center', padding:'60px 20px', animation:'fadeUp 0.3s ease-out' }}>
+              <div style={{ fontSize:80, fontWeight:900, color:'#E8652E', fontFamily:'Outfit', animation:'pulse 0.6s infinite' }}>
+                {g.stepIndex > 0 ? g.stepIndex : 'GO!'}
+              </div>
+              <div style={{ fontSize:18, color:'#6B6B6B', marginTop:16, fontWeight:700 }}>
+                {g.rounds[g.currentR]?.title}
+              </div>
+              <div style={{ fontSize:14, color:'#9E9E9E', marginTop:4 }}>
+                {g.rounds[g.currentR]?.desc}
+              </div>
+            </div>
+          )}
+
+          {/* Playing */}
+          {g.gamePhase === 'playing' && (() => {
+            const round = g.rounds[g.currentR];
+            return (
+              <div style={{ textAlign:'center' }}>
+                {/* Mode label */}
+                <div style={{ marginBottom:6 }}>
+                  <span style={{ fontSize:14, fontWeight:900, color:'#E8652E', background:'#FFF3E0', padding:'5px 16px', borderRadius:50 }}>
+                    {MODE_LABELS[round.mode]}
+                  </span>
+                </div>
+
+                {/* BPM and state */}
+                <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:4 }}>
+                  ♩ = {g.currentBpm} BPM
+                  {round.mode === 'guided' && !g.guidedPhase && (
+                    <span style={{ color:'#E8652E', fontWeight:700 }}> 🔇 自分でキープ！</span>
+                  )}
+                  {round.mode === 'change' && (
+                    <span style={{ color:'#E8652E', fontWeight:700 }}> {round.bpm < round.endBpm ? '⬆️' : '⬇️'}</span>
+                  )}
+                </div>
+
+                {/* Stop signal */}
+                {g.stopped && (
+                  <div style={{ fontSize:22, fontWeight:900, color:'#C62828', background:'#FFCDD2', padding:'10px 24px', borderRadius:50, marginBottom:10, display:'inline-block', animation:'stopFlash 0.5s infinite' }}>
+                    🔴 ストップ！
+                  </div>
+                )}
+
+                {/* Step counter */}
+                <div style={{ display:'flex', gap:4, justifyContent:'center', marginBottom:12 }}>
+                  {Array.from({length:Math.min(g.totalSteps, 16)}).map((_,i) => (
+                    <div key={i} style={{
+                      width:10, height:10, borderRadius:'50%',
+                      background: i < g.stepIndex ? (i%2===0?'#1E88E5':'#E8652E') : '#E0E0E0',
+                    }} />
+                  ))}
+                </div>
+
+                {/* Tap count */}
+                <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:10 }}>
+                  タップ: <span style={{ fontFamily:'Outfit', fontWeight:800, color:'#555' }}>{g.tapSides.length}</span>
+                  {g.wrongTaps > 0 && <span style={{ color:'#C62828', fontWeight:700 }}> ⚠️ストップ中タップ{g.wrongTaps}</span>}
+                </div>
+
+                {/* LEFT / RIGHT FOOT BUTTONS */}
+                <div style={{ display:'flex', gap:12, padding:'0 8px' }}>
+                  <FootButton
+                    side="left"
+                    flash={g.flashSide === 'left'}
+                    stopped={g.stopped}
+                    onTap={handleTap}
+                  />
+                  <FootButton
+                    side="right"
+                    flash={g.flashSide === 'right'}
+                    stopped={g.stopped}
+                    onTap={handleTap}
+                  />
+                </div>
+
+                <div style={{ fontSize:12, color:'#BDBDBD', marginTop:8 }}>
+                  光った方を交互にタップ
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Judging */}
+          {g.gamePhase === 'judging' && (() => {
+            const r = g.results[g.results.length - 1];
+            return (
+              <div style={{ textAlign:'center', padding:'30px 20px', animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ fontSize:48, marginBottom:8 }}>
+                  {r.result === 'perfect' ? '🎉' : r.result === 'good' ? '👍' : '🤔'}
+                </div>
+                <div style={{ fontSize:22, fontWeight:900, color:r.result==='perfect'?'#2E7D32':r.result==='good'?'#E8652E':'#999', letterSpacing:'0.06em' }}>
+                  {r.result === 'perfect' ? 'ぴったり！' : r.result === 'good' ? 'いい感じ！' : 'もう少し！'}
+                </div>
+                <div style={{ display:'flex', justifyContent:'center', gap:16, marginTop:12 }}>
+                  <div style={{ textAlign:'center' }}>
+                    <div style={{ fontFamily:'Outfit', fontSize:20, fontWeight:800, color:'#555' }}>{r.timingPct}%</div>
+                    <div style={{ fontSize:10, color:'#9E9E9E' }}>タイミング</div>
+                  </div>
+                  <div style={{ textAlign:'center' }}>
+                    <div style={{ fontFamily:'Outfit', fontSize:20, fontWeight:800, color:'#555' }}>{r.sidePct}%</div>
+                    <div style={{ fontSize:10, color:'#9E9E9E' }}>左右の正確さ</div>
+                  </div>
+                </div>
+                {r.wrongTaps > 0 && (
+                  <div style={{ fontSize:12, color:'#C62828', marginTop:6 }}>⚠️ ストップ中に{r.wrongTaps}回タップ（-{r.wrongTaps*5}点）</div>
+                )}
+              </div>
+            );
+          })()}
+
+          <div style={{ height:20 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const pct = total > 0 ? g.perfectCount / total : 0;
+        const stars = pct >= 0.6 ? '⭐⭐⭐' : pct >= 0.3 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.6 ? 'リズム感バッチリ！' : pct >= 0.3 ? 'いい調子！' : 'もっと練習！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', marginBottom:6, letterSpacing:'0.08em' }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:20 }}>
+              {[
+                {v:`🎉 ${g.perfectCount}`,l:'ぴったり',c:'#2E7D32'},
+                {v:`👍 ${g.goodCount}`,l:'いい感じ',c:'#E8652E'},
+                {v:g.score+'pt',l:'スコア',c:'#555'},
+              ].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Round details */}
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📋 ラウンド別</div>
+              {g.results.map((r,i) => (
+                <div key={i} style={{ background:r.result==='perfect'?'#F1F8E9':r.result==='good'?'#FFF3E0':'#FAFAFA', borderRadius:12, padding:'8px 14px', marginBottom:4, borderLeft:`4px solid ${r.result==='perfect'?'#8BC34A':r.result==='good'?'#FFB74D':'#E0E0E0'}`, textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div style={{ fontSize:13, fontWeight:700 }}>
+                    {r.result==='perfect'?'🎉':r.result==='good'?'👍':'🤔'} {MODE_LABELS[r.mode]}
+                  </div>
+                  <div style={{ fontFamily:'Outfit', fontSize:12, fontWeight:800, color:'#555' }}>
+                    ⏱{r.timingPct}% 🔄{r.sidePct}%
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24, padding:'14px 16px', background:'#FAFAF8', border:'1px solid #E8E8E8', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6, letterSpacing:'0.05em' }}>💡 ステップのコツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+                「ひだり、みぎ、ひだり、みぎ」と心の中で声を出しながらタップすると、リズムが安定します。大型画面なら立って実際に足踏みしてみましょう。ストップ＆ゴーでは「止まる力」も大切です。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#E8652E', border:'none', padding:'16px 32px', borderRadius:60, letterSpacing:'0.06em'}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}

@@ -1,0 +1,427 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【リハビリ脳トレ】なかまはどれ？ ==========
+// Category Fluency / Semantic Categorization - 意味記憶・カテゴリ判断
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// Categories with their members
+const CATEGORIES = [
+  {
+    name: 'くだもの', icon: '🍎',
+    members: ['🍎','🍊','🍌','🍇','🍓','🍑','🍐','🍈','🍉','🥝','🍒'],
+    distractors: ['🥕','🥔','🍞','🧀','🥩','🍳'],
+  },
+  {
+    name: 'どうぶつ', icon: '🐶',
+    members: ['🐶','🐱','🐰','🐻','🐼','🦁','🐯','🐵','🐸','🐢','🦊','🐷'],
+    distractors: ['🐟','🐠','🦀','🐙','🦐','🐚'],
+  },
+  {
+    name: 'のりもの', icon: '🚗',
+    members: ['🚗','🚕','🚙','🚌','🚓','🚑','🚒','🚚','🚜','🏍️','🚲','✈️','🚢','🚂'],
+    distractors: ['🛋','🪑','🚪','🪟','📺','📱'],
+  },
+  {
+    name: 'たべもの', icon: '🍔',
+    members: ['🍔','🍕','🍜','🍙','🍱','🍣','🍞','🥐','🌮','🍝','🍩','🍰'],
+    distractors: ['👕','👖','👞','👜','🎩','⌚'],
+  },
+  {
+    name: 'はな', icon: '🌸',
+    members: ['🌸','🌺','🌻','🌷','🌹','💐','🏵️','🌼'],
+    distractors: ['🌲','🌳','🌴','🍀','🌾','🌱'],
+  },
+  {
+    name: 'スポーツ', icon: '⚽',
+    members: ['⚽','🏀','🏈','⚾','🎾','🏐','🏓','🏸','🥊','🏊','🚴','⛷️'],
+    distractors: ['📖','✏️','📐','🎨','🎭','🎤'],
+  },
+  {
+    name: 'がっき', icon: '🎸',
+    members: ['🎸','🎹','🎺','🎻','🥁','🎷','🪕','🎤'],
+    distractors: ['🔧','🔨','⚒️','🪚','📏','✂️'],
+  },
+  {
+    name: 'てんきとそら', icon: '☀️',
+    members: ['☀️','☁️','🌧️','❄️','⛈️','🌈','⭐','🌙','☃️','⛅'],
+    distractors: ['🔥','💧','🌊','🏔️','🏖️','🌋'],
+  },
+];
+
+const LEVELS = [
+  { rounds:4, showCount:6, targetMin:3, targetMax:4, label:'レベル1' },
+  { rounds:4, showCount:8, targetMin:4, targetMax:5, label:'レベル2' },
+  { rounds:4, showCount:10, targetMin:5, targetMax:6, label:'レベル3' },
+];
+
+function genRounds(levelSpec, count) {
+  const rounds = [];
+  const usedCategories = [];
+  for (let i = 0; i < count; i++) {
+    // Pick unused category
+    let cat;
+    do {
+      cat = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+    } while (usedCategories.includes(cat.name) && usedCategories.length < CATEGORIES.length);
+    usedCategories.push(cat.name);
+
+    // Pick target count within range, then distractors to fill
+    const numTargets = levelSpec.targetMin + Math.floor(Math.random() * (levelSpec.targetMax - levelSpec.targetMin + 1));
+    const numDistractors = levelSpec.showCount - numTargets;
+
+    const targets = shuffle([...cat.members]).slice(0, numTargets);
+    // Distractors can come from OTHER categories (more interesting than explicit distractors)
+    const otherCategories = CATEGORIES.filter(c => c.name !== cat.name);
+    const allOthers = otherCategories.flatMap(c => c.members);
+    const distractors = shuffle(allOthers).slice(0, numDistractors);
+
+    const items = shuffle([
+      ...targets.map(e => ({ emoji:e, isTarget:true, tapped:false })),
+      ...distractors.map(e => ({ emoji:e, isTarget:false, tapped:false })),
+    ]).map((item, idx) => ({ ...item, id:idx }));
+
+    rounds.push({
+      category: cat,
+      items,
+      numTargets,
+    });
+  }
+  return rounds;
+}
+
+export default function Category() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    levelIdx:0, roundIdx:0,
+    rounds:[],
+    items:[], found:0, errors:0, score:0,
+    phase:'idle', // intro, playing, roundEnd, levelEnd
+    levelResults:[],
+  }).current;
+
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.levelIdx = 0; g.levelResults = []; g.score = 0;
+    setScreen('play');
+    startLevel(0);
+  };
+
+  const startLevel = (lvlIdx) => {
+    g.levelIdx = lvlIdx;
+    const level = LEVELS[lvlIdx];
+    g.rounds = genRounds(level, level.rounds);
+    g.roundIdx = 0;
+    startRound(0);
+  };
+
+  const startRound = (rIdx) => {
+    g.roundIdx = rIdx;
+    const round = g.rounds[rIdx];
+    g.items = round.items.map(it => ({ ...it, tapped: false }));
+    g.found = 0;
+    g.errors = 0;
+    g.phase = 'intro';
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.phase = 'playing';
+      rerender();
+    }, 1800);
+  };
+
+  const handleTap = (itemId) => {
+    if (g.phase !== 'playing') return;
+    const item = g.items.find(it => it.id === itemId);
+    if (!item || item.tapped) return;
+
+    if (item.isTarget) {
+      item.tapped = true;
+      g.found++;
+      g.score += 10;
+      rerender();
+
+      const round = g.rounds[g.roundIdx];
+      if (g.found >= round.numTargets) {
+        finishRound();
+      }
+    } else {
+      item.tapped = true;
+      g.errors++;
+      g.score = Math.max(0, g.score - 5);
+      rerender();
+    }
+  };
+
+  const finishRound = () => {
+    g.phase = 'roundEnd';
+    rerender();
+    timerRef.current = setTimeout(() => {
+      if (g.roundIdx + 1 >= g.rounds.length) {
+        finishLevel();
+      } else {
+        startRound(g.roundIdx + 1);
+      }
+    }, 1400);
+  };
+
+  const finishLevel = () => {
+    const level = LEVELS[g.levelIdx];
+    // Aggregate level stats
+    const totalTargets = g.rounds.reduce((a, r) => a + r.numTargets, 0);
+    // Current round stats just tracked; need to accumulate but we reset each round
+    // Use running score diff for simplicity — track a separate counter next time.
+    g.levelResults.push({
+      label: level.label,
+      rounds: g.rounds.length,
+      totalTargets,
+    });
+    g.phase = 'levelEnd';
+    rerender();
+    timerRef.current = setTimeout(() => {
+      if (g.levelIdx + 1 >= LEVELS.length) {
+        setScreen('done'); rerender();
+      } else {
+        startLevel(g.levelIdx + 1);
+      }
+    }, 2200);
+  };
+
+  const level = LEVELS[g.levelIdx];
+  const round = g.rounds[g.roundIdx];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  // Dynamic grid columns based on item count
+  const cols = round && round.items.length <= 6 ? 3 : 4;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+        @keyframes fadeTap{0%{transform:scale(1);opacity:1}100%{transform:scale(0.8);opacity:0.3}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🗂 なかまはどれ？</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {level?.label}　{g.roundIdx + 1}/{level?.rounds}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'30px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:10, marginBottom:10 }}>
+            <div style={{
+              background:'white', borderRadius:12, padding:'6px 14px',
+              border:'3px solid #E8652E',
+              display:'flex', alignItems:'center', gap:6,
+            }}>
+              <span style={{ fontSize:22 }}>🍎</span>
+              <span style={{ fontSize:14, fontWeight:900, color:'#E8652E' }}>くだもの</span>
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:8, marginBottom:10, flexWrap:'wrap', justifyContent:'center', maxWidth:300 }}>
+            {[
+              {e:'🍎',t:true},{e:'🥕',t:false},{e:'🍌',t:true},
+              {e:'🐱',t:false},{e:'🍇',t:true},{e:'🚗',t:false},
+            ].map((it, i) => (
+              <div key={i} style={{
+                width:50, height:50, borderRadius:10,
+                background: it.t ? '#F1F8E9' : 'white',
+                border: `2px solid ${it.t ? '#66BB6A' : '#E8E8E8'}`,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:28,
+              }}>{it.e}</div>
+            ))}
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:20 }}>
+            くだものを ぜんぶえらんで！
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            なかまだけ みつけて！
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            ちがうものを おしたら −5
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:24 }}>
+            意味記憶・カテゴリ判断
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && level && round && (
+        <div style={{ padding:'12px 16px', maxWidth:560, margin:'0 auto' }}>
+
+          {/* Level progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:8 }}>
+            {LEVELS.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.levelIdx ? 20 : 14, height:6, borderRadius:3,
+                background: i < g.levelIdx ? '#8BC34A' : i === g.levelIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Round progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:10 }}>
+            {g.rounds.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.roundIdx ? 10 : 6, height:6, borderRadius:3,
+                background: i < g.roundIdx ? '#8BC34A' : i === g.roundIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Stats bar */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:12, color:'#9E9E9E' }}>pt</span></span>
+            <div style={{ display:'flex', gap:10, fontSize:13, fontWeight:700 }}>
+              <span style={{ color:'#2E7D32' }}>⭕{g.found}/{round.numTargets}</span>
+              {g.errors > 0 && <span style={{ color:'#C62828' }}>❌{g.errors}</span>}
+            </div>
+          </div>
+
+          {/* Category prompt */}
+          <div style={{ textAlign:'center', marginBottom:12 }}>
+            <div style={{
+              display:'inline-flex', gap:10, alignItems:'center',
+              background:'white', padding:'12px 24px', borderRadius:50,
+              boxShadow:'0 4px 12px rgba(232,101,46,0.15)',
+              border:'3px solid #E8652E',
+            }}>
+              <span style={{ fontSize:32 }}>{round.category.icon}</span>
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:'#9E9E9E', textAlign:'left' }}>みつけて</div>
+                <div style={{ fontSize:20, fontWeight:900, color:'#E8652E', letterSpacing:'0.05em' }}>{round.category.name}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* INTRO */}
+          {g.phase === 'intro' && (
+            <div style={{ textAlign:'center', padding:'60px 0' }}>
+              <div style={{ fontSize:20, fontWeight:900, color:'#E8652E', animation:'fadeUp 0.3s' }}>
+                まってね…
+              </div>
+            </div>
+          )}
+
+          {/* PLAYING */}
+          {(g.phase === 'playing' || g.phase === 'roundEnd') && (
+            <div>
+              <div style={{
+                display:'grid',
+                gridTemplateColumns:`repeat(${cols},1fr)`,
+                gap:10,
+                animation:'fadeUp 0.3s ease-out',
+              }} key={g.roundIdx + '-' + g.levelIdx}>
+                {g.items.map(item => {
+                  const isTarget = item.isTarget;
+                  const isTapped = item.tapped;
+                  const showCorrectReveal = g.phase === 'roundEnd' && isTarget;
+
+                  return (
+                    <button key={item.id}
+                      onClick={() => handleTap(item.id)}
+                      disabled={isTapped || g.phase !== 'playing'}
+                      style={{
+                        ...bs,
+                        height: cols === 3 ? 90 : 72,
+                        borderRadius:16,
+                        background: (isTapped && isTarget) || showCorrectReveal ? '#F1F8E9'
+                          : isTapped && !isTarget ? '#FFF5F5'
+                          : 'white',
+                        border: `3px solid ${
+                          (isTapped && isTarget) || showCorrectReveal ? '#66BB6A'
+                          : isTapped && !isTarget ? '#EF5350'
+                          : '#E8E8E8'
+                        }`,
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        animation: isTapped && !isTarget ? 'shake 0.3s' : undefined,
+                        opacity: isTapped && !isTarget ? 0.5 : 1,
+                        boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
+                        position:'relative',
+                      }}>
+                      <span style={{ fontSize: cols === 3 ? 46 : 38, lineHeight:1 }}>{item.emoji}</span>
+                      {isTapped && isTarget && (
+                        <div style={{ position:'absolute', top:4, right:4, fontSize:14, color:'#2E7D32', fontWeight:900 }}>⭕</div>
+                      )}
+                      {isTapped && !isTarget && (
+                        <div style={{ position:'absolute', top:4, right:4, fontSize:14, color:'#C62828', fontWeight:900 }}>❌</div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* LEVEL END */}
+          {g.phase === 'levelEnd' && (
+            <div style={{ textAlign:'center', padding:'40px 0', animation:'fadeUp 0.3s' }}>
+              <div style={{ fontSize:48, marginBottom:8 }}>🎯</div>
+              <div style={{ fontSize:22, fontWeight:900, color:'#E8652E', marginBottom:4 }}>{level.label}クリア！</div>
+              {g.levelIdx + 1 < LEVELS.length && (
+                <div style={{ fontSize:13, fontWeight:700, color:'#C62828', marginTop:10 }}>
+                  つぎは「{LEVELS[g.levelIdx + 1].label}」！
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const emoji = g.score >= 300 ? '🎉' : g.score >= 180 ? '👍' : '😊';
+        const msg = g.score >= 300 ? 'すばらしい！' : g.score >= 180 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:20 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

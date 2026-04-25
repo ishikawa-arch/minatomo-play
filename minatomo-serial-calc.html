@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>なぞり計算 | みなともPlay</title>
+<meta name="description" content="連続計算で答えをつなげる - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'足し算・引き算（1桁）', rounds:3, chainLength:8, ops:['+','-'], maxNum:9, startRange:[10,30] },
+  normal: { label:'ふつう', emoji:'🌿', desc:'混合計算（2桁）', rounds:3, chainLength:10, ops:['+','-','×'], maxNum:9, startRange:[20,50] },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'4種混合・制限時間', rounds:3, chainLength:12, ops:['+','-','×','÷'], maxNum:9, startRange:[30,80], timeLimit:60 },
+};
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+function generateChain(diff) {
+  const cfg = DIFF[diff];
+  const chain = [];
+  const start = cfg.startRange[0] + Math.floor(Math.random() * (cfg.startRange[1] - cfg.startRange[0]));
+  let current = start;
+  chain.push({ type:'start', value: start, runningTotal: start });
+
+  for (let i = 0; i < cfg.chainLength; i++) {
+    let op, num, result;
+    let valid = false;
+
+    for (let tries = 0; tries < 30 && !valid; tries++) {
+      op = cfg.ops[Math.floor(Math.random() * cfg.ops.length)];
+
+      if (op === '+') {
+        num = 2 + Math.floor(Math.random() * (cfg.maxNum - 1)); // 2-9
+        result = current + num;
+        if (result <= 500) valid = true;
+      } else if (op === '-') {
+        const maxSub = Math.min(cfg.maxNum, current - 2); // ensure result >= 2
+        if (maxSub >= 2) {
+          num = 2 + Math.floor(Math.random() * (maxSub - 1)); // 2-maxSub
+          result = current - num;
+          if (result >= 2) valid = true;
+        }
+      } else if (op === '×') {
+        num = 2 + Math.floor(Math.random() * 4); // 2-5
+        result = current * num;
+        if (result <= 500) valid = true;
+      } else if (op === '÷') {
+        const divisors = [];
+        for (let d = 2; d <= Math.min(9, Math.floor(current / 2)); d++) {
+          if (current % d === 0) divisors.push(d);
+        }
+        if (divisors.length > 0) {
+          num = divisors[Math.floor(Math.random() * divisors.length)];
+          result = current / num;
+          if (result >= 2) valid = true;
+        }
+      }
+    }
+
+    // Fallback: if no valid operation found, do simple addition
+    if (!valid) {
+      op = '+';
+      num = 2 + Math.floor(Math.random() * 7);
+      result = current + num;
+    }
+
+    chain.push({ type:'op', op, num, runningTotal: result });
+    current = result;
+  }
+
+  return chain;
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    chains: [],
+    currentChain: 0,
+    currentStep: 0,
+    inputValue: '',
+    score: 0,
+    correct: 0,
+    totalSteps: 0,
+    feedback: null,
+    results: [],
+    chainResults: [],
+    timeLeft: 0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const chains = [];
+    for (let i = 0; i < cfg.rounds; i++) chains.push(generateChain(diff));
+    g.chains = chains;
+    g.currentChain = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.totalSteps = 0;
+    g.results = [];
+    setShowConfetti(false);
+    setScreen('game');
+    startChain(0, diff);
+  };
+
+  const startChain = (idx, diff) => {
+    const cfg = DIFF[diff || difficulty];
+    g.currentChain = idx;
+    g.currentStep = 1; // Step 0 is the start value
+    g.inputValue = '';
+    g.feedback = null;
+    g.chainResults = [];
+    g.timeLeft = cfg.timeLimit || 0;
+    g.phase = 'calculating';
+    rerender();
+
+    if (cfg.timeLimit > 0) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => {
+        g.timeLeft--;
+        rerender();
+        if (g.timeLeft <= 0) {
+          clearInterval(intervalRef.current);
+          endChain();
+        }
+      }, 1000);
+    }
+  };
+
+  const tapKey = (key) => {
+    if (g.feedback) return;
+    if (key === 'del') {
+      g.inputValue = g.inputValue.slice(0, -1);
+    } else if (key === 'C') {
+      g.inputValue = '';
+    } else {
+      if (g.inputValue.length >= 4) return;
+      g.inputValue += key;
+    }
+    rerender();
+  };
+
+  const submitAnswer = () => {
+    if (g.feedback || !g.inputValue) return;
+    const chain = g.chains[g.currentChain];
+    const step = chain[g.currentStep];
+    const answer = parseInt(g.inputValue, 10);
+    const isCorrect = answer === step.runningTotal;
+
+    g.totalSteps++;
+    if (isCorrect) {
+      g.score += 10;
+      g.correct++;
+      g.feedback = 'correct';
+    } else {
+      g.feedback = 'wrong';
+    }
+    g.chainResults.push({ step, answer, correct: isCorrect });
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.feedback = null;
+      g.inputValue = '';
+      g.currentStep++;
+      if (g.currentStep >= chain.length) {
+        endChain();
+      } else {
+        rerender();
+      }
+    }, isCorrect ? 600 : 1500);
+  };
+
+  const endChain = () => {
+    clearInterval(intervalRef.current);
+    const chainCorrect = g.chainResults.filter(r => r.correct).length;
+    const chainTotal = g.chainResults.length;
+    g.results.push({ chainResults: [...g.chainResults], chainCorrect, chainTotal, chain: g.chains[g.currentChain] });
+    g.phase = 'chain-end';
+    rerender();
+  };
+
+  const nextChain = () => {
+    if (g.currentChain + 1 >= g.chains.length) finishGame();
+    else startChain(g.currentChain + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.totalSteps > 0 ? g.correct / g.totalSteps : 0;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.totalSteps, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  // Numpad with integrated submit
+  const Numpad = ({ onSubmit, canSubmit }) => (
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6, maxWidth:300, margin:'0 auto' }}>
+      {[1,2,3,'del',4,5,6,'C',7,8,9,'ok',null,0,null,null].map((key, idx) => {
+        if (key === null) return <div key={idx} />;
+        if (key === 'ok') return (
+          <button key={idx} onClick={onSubmit} disabled={!canSubmit}
+            style={{...btnBase, gridRow:'span 2', fontSize:14, fontWeight:900, padding:'8px', borderRadius:12,
+              border:'none', background:canSubmit?'#FF6B35':'#E0E0E0',
+              color:canSubmit?'white':'#9E9E9E', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            決定
+          </button>
+        );
+        return (
+          <button key={idx} onClick={() => key === 'del' || key === 'C' ? tapKey(key) : tapKey(String(key))}
+            style={{
+              ...btnBase, fontSize: key === 'del' ? 11 : key === 'C' ? 11 : 20, fontWeight:700,
+              fontFamily: typeof key === 'number' ? 'Outfit' : 'inherit',
+              padding:'12px 4px', borderRadius:10,
+              border:'2px solid #E8E8E8', background: key === 'C' ? '#FFEBEE' : key === 'del' ? '#FFF3E0' : 'white',
+              color: key === 'C' ? '#C62828' : key === 'del' ? '#E65100' : '#2D2D2D',
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>
+            {key === 'del' ? '←消す' : key === 'C' ? 'クリア' : key}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // Op symbol display
+  const opColor = (op) => op === '+' ? '#43A047' : op === '-' ? '#E53935' : op === '×' ? '#1E88E5' : '#FF6D00';
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>✒️ なぞり計算</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>第{g.currentChain+1}問</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>✒️</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>なぞり計算</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>つぎつぎ出てくる計算を<br/>連続で解いていこう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 計算力・ワーキングメモリのトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 最初の数が表示されます<br/>
+              ② 計算式が1つずつ出てきます<br/>
+              ③ 前の答えに計算して、新しい答えを入力<br/>
+              ④ 例: 25 → +7 → ? → −3 → ? → ×2 → ?
+            </div>
+          </div>
+
+          {/* Example */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>💡 こんな感じ</div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, flexWrap:'wrap' }}>
+              <span style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, background:'#FFF3E0', padding:'4px 10px', borderRadius:8 }}>25</span>
+              <span style={{ fontSize:18, fontWeight:900, color:'#43A047' }}>+7</span>
+              <span style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, background:'#E8F5E9', padding:'4px 10px', borderRadius:8, color:'#2E7D32' }}>32</span>
+              <span style={{ fontSize:18, fontWeight:900, color:'#E53935' }}>−3</span>
+              <span style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, background:'#E8F5E9', padding:'4px 10px', borderRadius:8, color:'#2E7D32' }}>29</span>
+              <span style={{ fontSize:18, fontWeight:900, color:'#1E88E5' }}>×2</span>
+              <span style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, background:'#E8F5E9', padding:'4px 10px', borderRadius:8, color:'#2E7D32' }}>58</span>
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'calculating' && (() => {
+        const chain = g.chains[g.currentChain];
+        const step = chain[g.currentStep];
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status - compact */}
+            <div style={{ display:'flex', justifyContent:'center', gap:14, padding:'8px 14px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:6 }}>
+              {[
+                {v:g.score,l:'スコア',c:'#FF6B35'},
+                {v:g.correct+'/'+g.totalSteps,l:'正解',c:'#2EC4B6'},
+                {v:`${g.currentStep}/${chain.length-1}`,l:'ステップ',c:'#7B1FA2'},
+                ...(cfg.timeLimit > 0 ? [{v:g.timeLeft+'秒',l:'残り',c:g.timeLeft<=10?'#E53935':'#6B6B6B'}] : []),
+              ].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c, animation:s.l==='残り'&&g.timeLeft<=10?'pulse 0.5s infinite':undefined }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Timer bar */}
+            {cfg.timeLimit > 0 && (
+              <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:6, overflow:'hidden' }}>
+                <div style={{ width:(g.timeLeft/cfg.timeLimit*100)+'%', height:'100%', background:g.timeLeft<=10?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:2, transition:'width 1s linear' }} />
+              </div>
+            )}
+
+            {/* Previous answer - compact but prominent */}
+            {(() => {
+              const prevCorrectAnswer = chain[g.currentStep - 1]?.runningTotal ?? chain[0].value;
+              return (
+                <div style={{ background:'#FF6B35', borderRadius:12, padding:'8px 14px', marginBottom:6, textAlign:'center' }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.7)' }}>いまの数</div>
+                  <div style={{ fontFamily:'Outfit', fontSize:38, fontWeight:900, color:'white' }}>{prevCorrectAnswer}</div>
+                </div>
+              );
+            })()}
+
+            {/* Current operation */}
+            {step?.type === 'op' && (
+              <div style={{ background:'white', borderRadius:12, padding:'10px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:6, textAlign:'center', animation:'fadeUp 0.3s ease-out' }} key={g.currentStep}>
+                <span style={{ fontSize:12, color:'#9E9E9E' }}>
+                  {step.op === '+' ? 'たす' : step.op === '-' ? 'ひく' : step.op === '×' ? 'かける' : 'わる'}
+                </span>
+                <div style={{ fontSize:44, fontWeight:900, color:opColor(step.op), letterSpacing:4 }}>
+                  {step.op === '-' ? '−' : step.op} {step.num}
+                </div>
+              </div>
+            )}
+
+            {/* History trail (compact) */}
+            {g.chainResults.length > 0 && (
+              <div style={{ display:'flex', alignItems:'center', gap:3, flexWrap:'wrap', justifyContent:'center', padding:'4px 8px', background:'#F5F5F5', borderRadius:8, marginBottom:6 }}>
+                <span style={{ fontFamily:'Outfit', fontSize:11, fontWeight:700, color:'#9E9E9E' }}>{chain[0].value}</span>
+                {g.chainResults.map((cr, i) => {
+                  const s = chain[i + 1];
+                  return (
+                    <span key={i} style={{ fontSize:10, fontWeight:700, color: cr.correct ? '#66BB6A' : '#EF5350' }}>
+                      →{s.op === '-' ? '−' : s.op}{s.num}→{cr.answer}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Input + Numpad combined */}
+            <div style={{ background:'white', borderRadius:12, padding:'8px 14px', marginBottom:6, boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center', border:'2px solid #E8E8E8' }}>
+              <span style={{ fontSize:11, fontWeight:700, color:'#6B6B6B' }}>こたえ → </span>
+              <span style={{ fontFamily:'Outfit', fontSize:30, fontWeight:800, color:g.inputValue ? '#2D2D2D' : '#BDBDBD', letterSpacing:4 }}>
+                {g.inputValue || '?'}
+              </span>
+            </div>
+
+            {/* Feedback */}
+            {g.feedback && (
+              <div style={{ textAlign:'center', marginBottom:6, animation:'fadeUp 0.2s ease-out' }}>
+                {g.feedback === 'correct' ? (
+                  <span style={{ fontSize:15, fontWeight:900, color:'#2E7D32' }}>✅ {step.runningTotal}！</span>
+                ) : (
+                  <span style={{ fontSize:16, fontWeight:700, color:'#C62828' }}>
+                    ❌ 正解は {step.runningTotal}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Numpad with integrated submit */}
+            {!g.feedback && <Numpad onSubmit={submitAnswer} canSubmit={!!g.inputValue} />}
+
+            <div style={{ height:10 }} />
+          </div>
+        );
+      })()}
+
+      {/* CHAIN END */}
+      {screen === 'game' && g.phase === 'chain-end' && (() => {
+        const result = g.results[g.results.length - 1];
+        const chain = result.chain;
+        const pct = result.chainTotal > 0 ? result.chainCorrect / result.chainTotal : 0;
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            <div style={{ textAlign:'center', marginBottom:14, animation:'fadeUp 0.4s ease-out' }}>
+              <div style={{ fontSize:36, marginBottom:6 }}>{pct >= 0.8 ? '🎉' : '🤔'}</div>
+              <div style={{ fontSize:18, fontWeight:900, color:pct>=0.8?'#2E7D32':'#E65100' }}>
+                第{g.currentChain+1}問: {result.chainCorrect}/{result.chainTotal} 正解
+              </div>
+            </div>
+
+            {/* Chain replay */}
+            <div style={{ background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', marginBottom:14 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:8 }}>📋 計算の流れ</div>
+              <div style={{ display:'flex', alignItems:'center', gap:4, flexWrap:'wrap' }}>
+                {chain.map((s, i) => {
+                  if (s.type === 'start') {
+                    return <span key={i} style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, background:'#FFF3E0', padding:'2px 8px', borderRadius:6 }}>{s.value}</span>;
+                  }
+                  const cr = result.chainResults[i-1];
+                  return (
+                    <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:2 }}>
+                      <span style={{ fontSize:13, fontWeight:900, color:opColor(s.op) }}>{s.op === '-' ? '−' : s.op}{s.num}</span>
+                      <span style={{ fontFamily:'Outfit', fontSize:13, fontWeight:800, padding:'1px 5px', borderRadius:4,
+                        background: cr?.correct ? '#C8E6C9' : '#FFCDD2',
+                        color: cr?.correct ? '#2E7D32' : '#C62828',
+                      }}>{cr ? cr.answer : '—'}</span>
+                      {!cr?.correct && <span style={{ fontSize:10, color:'#9E9E9E' }}>({s.runningTotal})</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button onClick={nextChain} style={{...btnBase, width:'100%', fontSize:15, fontWeight:700, padding:'16px', borderRadius:50, background:pct>=0.8?'#66BB6A':'#FF6B35', border:'none', color:'white'}}>
+              {g.currentChain+1 >= g.chains.length ? '結果を見る →' : '次の計算へ →'}
+            </button>
+            <div style={{ height:10 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const pct = g.totalSteps > 0 ? g.correct / g.totalSteps : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'すばらしい計算力！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${g.totalSteps}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Round breakdown */}
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 各問の結果</div>
+              {g.results.map((r, i) => (
+                <div key={i} style={{ background:r.chainCorrect===r.chainTotal?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:6, borderLeft:`4px solid ${r.chainCorrect===r.chainTotal?'#66BB6A':'#FF6B35'}`, textAlign:'left' }}>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:4 }}>
+                    {r.chainCorrect === r.chainTotal ? '✅' : '❌'} 第{i+1}問 — {r.chainCorrect}/{r.chainTotal}正解
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:3, flexWrap:'wrap' }}>
+                    {r.chain.map((s, j) => {
+                      if (s.type === 'start') return <span key={j} style={{ fontFamily:'Outfit', fontSize:12, fontWeight:800 }}>{s.value}</span>;
+                      const cr = r.chainResults[j-1];
+                      return (
+                        <span key={j} style={{ fontSize:11, fontWeight:700, color:cr?.correct?'#2E7D32':'#C62828' }}>
+                          {s.op === '-' ? '−' : s.op}{s.num}→{cr?.correct ? cr.answer : <span style={{textDecoration:'line-through'}}>{cr?.answer}</span>}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 コツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                前の答えを頭の中でしっかり覚えてから次の計算に進みましょう。声に出して答えを言うと覚えやすくなります。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

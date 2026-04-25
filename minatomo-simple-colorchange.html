@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>いろがかわる！ | みなともPlay</title>
+<meta name="description" content="いろがかわる！ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="attention">
+<meta name="minatomo-category" content="シンプル">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【シンプル】いろがかわる！ ==========
+const COLORS = [
+  { name:'あか', bg:'#E53935' },
+  { name:'あお', bg:'#1E88E5' },
+  { name:'きいろ', bg:'#FDD835' },
+  { name:'みどり', bg:'#43A047' },
+  { name:'オレンジ', bg:'#FB8C00' },
+  { name:'むらさき', bg:'#8E24AA' },
+];
+
+function genGame() {
+  // Pick target color
+  const targetIdx = Math.floor(Math.random() * 4);
+  const target = COLORS[targetIdx];
+
+  // 20 flashes, 7-8 are target
+  const totalFlashes = 20;
+  const targetCount = 7 + Math.floor(Math.random() * 2);
+
+  // Place targets at random positions (not first one)
+  const isTarget = new Array(totalFlashes).fill(false);
+  const positions = [];
+  for (let i = 1; i < totalFlashes; i++) positions.push(i);
+  // Shuffle and pick targetCount positions
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = positions[i]; positions[i] = positions[j]; positions[j] = tmp;
+  }
+  for (let i = 0; i < targetCount; i++) isTarget[positions[i]] = true;
+
+  // Generate sequence
+  const seq = [];
+  for (let i = 0; i < totalFlashes; i++) {
+    if (isTarget[i]) {
+      seq.push({ color: target, isTarget: true });
+    } else {
+      let c;
+      do { c = COLORS[Math.floor(Math.random() * 6)]; } while (c.name === target.name);
+      seq.push({ color: c, isTarget: false });
+    }
+  }
+
+  // Speed: starts moderate, gets slightly faster mid-game
+  const speeds = seq.map((_, i) => Math.max(550, 900 - i * 15));
+
+  return { target, seq, speeds, totalFlashes, targetCount };
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    game:null,
+    phase:'idle', // ready, running, feedback, done
+    seqIdx:0, currentColor:null, lastColor:null, lastIsTarget:false,
+    tapped:false,
+    score:0, hits:0, misses:0, falseAlarms:0,
+    lastFeedback:null, // 'hit','false-alarm', null
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const seqRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearTimeout(seqRef.current); }, []);
+
+  const startGame = () => {
+    g.game = genGame();
+    g.seqIdx = 0; g.currentColor = null; g.lastColor = null; g.lastIsTarget = false;
+    g.tapped = false; g.score = 0; g.hits = 0; g.misses = 0; g.falseAlarms = 0;
+    g.lastFeedback = null;
+    g.phase = 'ready';
+    setScreen('play'); rerender();
+    timerRef.current = setTimeout(() => {
+      g.phase = 'running';
+      rerender();
+      playFlash(0);
+    }, 1500);
+  };
+
+  const playFlash = (idx) => {
+    if (idx >= g.game.seq.length) {
+      g.currentColor = null; g.lastColor = null;
+      g.phase = 'done';
+      setScreen('done'); rerender();
+      return;
+    }
+
+    const flash = g.game.seq[idx];
+    g.seqIdx = idx;
+    g.currentColor = flash.color;
+    g.lastColor = flash.color;
+    g.lastIsTarget = flash.isTarget;
+    g.tapped = false;
+    g.lastFeedback = null;
+    rerender();
+
+    // After display time, check if missed
+    seqRef.current = setTimeout(() => {
+      if (!g.tapped && flash.isTarget) {
+        g.misses++;
+        g.lastFeedback = 'miss';
+      }
+      g.currentColor = null;
+      rerender();
+
+      // Gap - lastColor still active for late taps
+      seqRef.current = setTimeout(() => {
+        g.lastColor = null;
+        g.lastFeedback = null;
+        rerender();
+        playFlash(idx + 1);
+      }, 200);
+    }, g.game.speeds[idx]);
+  };
+
+  const handleTap = () => {
+    if (g.phase !== 'running' || g.tapped) return;
+    const checkColor = g.currentColor || g.lastColor;
+    if (!checkColor) return;
+    g.tapped = true;
+
+    const isTarget = g.currentColor ? g.game.seq[g.seqIdx].isTarget : g.lastIsTarget;
+
+    if (isTarget) {
+      g.hits++;
+      g.score += 10;
+      g.lastFeedback = 'hit';
+    } else {
+      g.falseAlarms++;
+      g.score = Math.max(0, g.score - 5);
+      g.lastFeedback = 'false-alarm';
+    }
+    rerender();
+  };
+
+  const game = g.game;
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.8)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🎯 いろがかわる！</span>
+        {screen === 'play' && game && (
+          <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:16, fontWeight:900, color:'#E8652E' }}>{g.score}pt</span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#9E9E9E' }}>{g.seqIdx + 1}/{game.totalFlashes}</span>
+          </div>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+            {['#E53935','#1E88E5','#FDD835','#43A047'].map((c,i) => (
+              <div key={i} style={{ width:40, height:40, borderRadius:'50%', background:c }} />
+            ))}
+          </div>
+          <div style={{ fontSize:16, color:'#9E9E9E', marginBottom:24 }}>いろがつぎつぎかわる！</div>
+
+          <div style={{ fontSize:26, fontWeight:900, color:'#333', marginBottom:6, letterSpacing:'0.06em' }}>
+            おなじ色でタップ！
+          </div>
+          <div style={{ fontSize:15, color:'#9E9E9E', marginBottom:6 }}>
+            うえの色とおなじになったらタップ！
+          </div>
+          <div style={{ fontSize:14, color:'#C62828', fontWeight:700, marginBottom:36 }}>
+            ちがう色でおすと −5てん！
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:28, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'24px 64px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && game && (
+        <div style={{ padding:'16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Progress bar */}
+          <div style={{ width:'100%', height:6, background:'#E8E8E8', borderRadius:3, marginBottom:12, overflow:'hidden' }}>
+            <div style={{ width:`${(g.seqIdx / game.totalFlashes) * 100}%`, height:'100%', background:'#E8652E', borderRadius:3, transition:'width 0.3s' }} />
+          </div>
+
+          {/* Stats */}
+          <div style={{ display:'flex', justifyContent:'center', gap:16, marginBottom:12 }}>
+            <span style={{ fontSize:14, fontWeight:700, color:'#2E7D32' }}>🎯 {g.hits}</span>
+            <span style={{ fontSize:14, fontWeight:700, color:'#C62828' }}>❌ {g.falseAlarms}</span>
+            <span style={{ fontSize:14, fontWeight:700, color:'#999' }}>💨 {g.misses}</span>
+          </div>
+
+          {/* Target color */}
+          <div style={{ textAlign:'center', marginBottom:10 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#9E9E9E', marginBottom:6 }}>この色でタップ！</div>
+            <div style={{
+              width:56, height:56, borderRadius:'50%', margin:'0 auto',
+              background:game.target.bg,
+              border:'4px solid white',
+              boxShadow:`0 0 0 3px ${game.target.bg}, 0 4px 12px ${game.target.bg}44`,
+            }} />
+          </div>
+
+          {/* Main tap area */}
+          <div
+            onClick={handleTap}
+            style={{
+              width:'100%', height:260, borderRadius:24,
+              background:'white', border:'2px solid #E8E8E8',
+              display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+              cursor:g.phase === 'running' ? 'pointer' : 'default',
+              userSelect:'none', WebkitUserSelect:'none',
+              marginBottom:10, position:'relative',
+            }}>
+
+            {g.phase === 'ready' && (
+              <div style={{ fontSize:22, fontWeight:900, color:'#E8652E', animation:'fadeUp 0.3s' }}>みててね…</div>
+            )}
+
+            {g.phase === 'running' && g.currentColor && (
+              <div style={{
+                width:150, height:150, borderRadius:'50%',
+                background:g.currentColor.bg,
+                boxShadow:`0 8px 32px ${g.currentColor.bg}44`,
+              }} />
+            )}
+
+            {g.phase === 'running' && !g.currentColor && (
+              <div style={{ width:150, height:150, borderRadius:'50%', background:'#F5F5F0' }} />
+            )}
+
+            {/* Inline feedback */}
+            {g.lastFeedback === 'hit' && (
+              <div style={{ position:'absolute', top:12, left:'50%', transform:'translateX(-50%)', animation:'fadeUp 0.2s ease-out' }}>
+                <span style={{ fontSize:28, fontWeight:900, color:'#2E7D32' }}>+10</span>
+              </div>
+            )}
+            {g.lastFeedback === 'false-alarm' && (
+              <div style={{ position:'absolute', top:12, left:'50%', transform:'translateX(-50%)', animation:'shake 0.3s' }}>
+                <span style={{ fontSize:28, fontWeight:900, color:'#C62828' }}>-5</span>
+              </div>
+            )}
+            {g.lastFeedback === 'miss' && (
+              <div style={{ position:'absolute', top:12, left:'50%', transform:'translateX(-50%)', animation:'fadeUp 0.2s' }}>
+                <span style={{ fontSize:22, fontWeight:900, color:'#999' }}>💨</span>
+              </div>
+            )}
+          </div>
+
+          {/* Reminder */}
+          {g.phase === 'running' && (
+            <div style={{ textAlign:'center', fontSize:13, fontWeight:700, color:'#9E9E9E' }}>
+              <span style={{ display:'inline-block', width:14, height:14, borderRadius:'50%', background:game.target.bg, verticalAlign:'middle', marginRight:4 }} />
+              この色でタップ！　ちがう色→おてつき！
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && game && (() => {
+        const pct = game.targetCount > 0 ? g.hits / game.targetCount : 0;
+        const emoji = pct >= 0.8 && g.falseAlarms <= 1 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 && g.falseAlarms <= 1 ? 'すごい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:80, marginBottom:16, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:32, fontWeight:900, color:'#E8652E', marginBottom:12 }}>{msg}</div>
+            <div style={{ background:'white', borderRadius:24, padding:'20px 40px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:48, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:20, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:16, marginBottom:12 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:'#2E7D32' }}>🎯 {g.hits}かい タッチ</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#C62828' }}>❌ {g.falseAlarms}かい おてつき</div>
+            </div>
+            <div style={{ fontSize:16, fontWeight:700, color:'#999', marginBottom:8 }}>💨 {g.misses}かい のがした</div>
+            <div style={{ fontSize:20, fontWeight:700, color:'#6B6B6B', marginBottom:40 }}>
+              {g.hits} / {game.targetCount} ターゲット
+            </div>
+            <button onClick={startGame} style={{
+              ...bs, fontSize:24, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'22px 48px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

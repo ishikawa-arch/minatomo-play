@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>Nバック | みなともPlay</title>
+<meta name="description" content="N個前と同じか判断 - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+const STIMULI_EMOJI = ['🍎','🍊','🌻','⭐','🐶','🚗','🎈','🌙','🍓'];
+const STIMULI_POS = [0,1,2,3,4,5,6,7,8];
+const STIMULI_COLOR = ['#E53935','#1E88E5','#43A047','#FB8C00','#7B1FA2','#00ACC1','#F4511E','#C0CA33','#6D4C41'];
+
+const STIM_TYPES = {
+  emoji:    { label:'イラスト', icon:'🍎', desc:'同じ絵が出たら' },
+  position: { label:'位置', icon:'📍', desc:'同じ場所が光ったら' },
+  color:    { label:'色', icon:'🎨', desc:'同じ色が出たら' },
+};
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'1バック（1つ前と比較）', n:1, trials:15, speed:2500 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'2バック（2つ前と比較）', n:2, trials:20, speed:2500 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'3バック（3つ前と比較）', n:3, trials:25, speed:2800 },
+};
+
+function generateSequence(n, trials, pool) {
+  const seq = [];
+  for (let i = 0; i < trials; i++) {
+    if (i >= n && Math.random() < 0.3) {
+      seq.push(seq[i - n]);
+    } else {
+      let item, attempts = 0;
+      do { item = pool[Math.floor(Math.random() * pool.length)]; attempts++; }
+      while (i >= n && item === seq[i - n] && attempts < 20);
+      seq.push(item);
+    }
+  }
+  return seq;
+}
+
+function RenderStimulus({ stim, stimType, large }) {
+  const size = large ? 100 : 60;
+  if (stimType === 'emoji') return <div style={{ fontSize: large ? 64 : 40 }}>{stim}</div>;
+  if (stimType === 'color') return <div style={{ width:size, height:size, borderRadius:large?20:12, background:stim, boxShadow:`0 4px 16px ${stim}44` }} />;
+  if (stimType === 'position') {
+    return (
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:large?8:5, width:large?150:90 }}>
+        {Array.from({length:9}).map((_,i) => (
+          <div key={i} style={{
+            aspectRatio:'1', borderRadius:large?10:6,
+            background: i === stim ? '#FF6B35' : '#E8E8E8',
+            boxShadow: i === stim ? '0 0 16px rgba(255,107,53,0.4)' : 'none',
+          }} />
+        ))}
+      </div>
+    );
+  }
+  return null;
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [stimType, setStimType] = React.useState('emoji');
+  const [history, setHistory] = React.useState([]);
+  const [showConfetti, setShowConfetti] = React.useState(false);
+
+  // Game state in refs to avoid closure issues
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    difficulty: 'normal',
+    sequence: [],
+    currentTrial: -1,
+    phase: 'idle', // idle, ready, showing, responding, feedback, done
+    score: 0,
+    streak: 0,
+    maxStreak: 0,
+    responded: false,
+    trialResult: null,
+    results: [],
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const autoRef = React.useRef(null);
+
+  React.useEffect(() => {
+    return () => { clearTimeout(timerRef.current); clearTimeout(autoRef.current); };
+  }, []);
+
+  const cfg = () => DIFF[g.difficulty] || DIFF.normal;
+
+  const startGame = (diff) => {
+    g.difficulty = diff;
+    const c = DIFF[diff];
+    const pool = stimType === 'position' ? STIMULI_POS : stimType === 'color' ? STIMULI_COLOR : STIMULI_EMOJI;
+    g.sequence = generateSequence(c.n, c.trials, pool);
+    g.currentTrial = -1;
+    g.phase = 'ready';
+    g.score = 0;
+    g.streak = 0;
+    g.maxStreak = 0;
+    g.results = [];
+    setShowConfetti(false);
+    setScreen('game');
+    rerender();
+
+    timerRef.current = setTimeout(() => nextTrial(), 2000);
+  };
+
+  const nextTrial = () => {
+    clearTimeout(autoRef.current);
+    g.currentTrial++;
+
+    if (g.currentTrial >= g.sequence.length) {
+      g.phase = 'done';
+      rerender();
+      finishGame();
+      return;
+    }
+
+    g.phase = 'showing';
+    g.responded = false;
+    g.trialResult = null;
+    rerender();
+
+    const c = cfg();
+
+    // First N trials: just show and auto-advance, no response needed
+    if (g.currentTrial < c.n) {
+      timerRef.current = setTimeout(() => {
+        nextTrial();
+      }, c.speed * 0.7);
+      return;
+    }
+
+    // Normal trial: show → response window → auto-advance
+    const showTime = c.speed * 0.45;
+    const responseTime = c.speed * 0.55;
+
+    timerRef.current = setTimeout(() => {
+      g.phase = 'responding';
+      rerender();
+
+      autoRef.current = setTimeout(() => {
+        if (!g.responded) {
+          processResponse(null);
+        }
+      }, responseTime);
+    }, showTime);
+  };
+
+  const handleResponse = (isMatch) => {
+    if (g.phase !== 'showing' && g.phase !== 'responding') return;
+    if (g.responded) return;
+    if (g.currentTrial < cfg().n) return; // Can't respond during memorize phase
+    g.responded = true;
+    clearTimeout(autoRef.current);
+    processResponse(isMatch);
+  };
+
+  const processResponse = (isMatch) => {
+    const c = cfg();
+    const idx = g.currentTrial;
+    const actual = idx >= c.n && g.sequence[idx] === g.sequence[idx - c.n];
+
+    // No response (timeout)
+    if (isMatch === null) {
+      if (actual) {
+        // Missed a match - show feedback
+        g.trialResult = 'miss';
+        g.results.push({ trial: idx, result: 'miss', stim: g.sequence[idx], actual });
+        g.score = Math.max(0, g.score - 5);
+        g.streak = 0;
+        g.phase = 'feedback';
+        rerender();
+        timerRef.current = setTimeout(() => nextTrial(), 800);
+      } else {
+        // Not a match, no response - silently move on (no feedback)
+        g.results.push({ trial: idx, result: 'correct-reject', stim: g.sequence[idx], actual });
+        g.score = Math.max(0, g.score + 2);
+        g.streak++;
+        if (g.streak > g.maxStreak) g.maxStreak = g.streak;
+        nextTrial();
+      }
+      return;
+    }
+
+    // User actively responded
+    let result;
+    if (isMatch === true && actual) result = 'hit';
+    else if (isMatch === true && !actual) result = 'false-alarm';
+    else if (isMatch === false && actual) result = 'miss';
+    else result = 'correct-reject';
+
+    const correct = result === 'hit' || result === 'correct-reject';
+    const pts = result === 'hit' ? 20 : result === 'correct-reject' ? 10 : result === 'miss' ? -5 : -10;
+
+    g.trialResult = result;
+    g.results.push({ trial: idx, result, stim: g.sequence[idx], actual });
+    g.score = Math.max(0, g.score + pts);
+
+    if (correct) {
+      g.streak++;
+      if (g.streak > g.maxStreak) g.maxStreak = g.streak;
+    } else {
+      g.streak = 0;
+    }
+
+    g.phase = 'feedback';
+    rerender();
+
+    timerRef.current = setTimeout(() => nextTrial(), 800);
+  };
+
+  const finishGame = () => {
+    const r = g.results;
+    const hits = r.filter(x => x.result === 'hit').length;
+    const totalM = r.filter(x => x.actual).length;
+    const cr = r.filter(x => x.result === 'correct-reject').length;
+    const acc = r.length > 0 ? Math.round((hits + cr) / r.length * 100) : 0;
+
+    if (acc >= 85) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+
+    setHistory(prev => [{
+      diff: g.difficulty, type: stimType,
+      hits, totalMatches: totalM, accuracy: acc,
+      score: g.score, maxStreak: g.maxStreak,
+      trials: r.length, date: new Date().toISOString(),
+    }, ...prev].slice(0, 20));
+
+    setScreen('result');
+    rerender();
+  };
+
+  const goBack = () => {
+    clearTimeout(timerRef.current);
+    clearTimeout(autoRef.current);
+    g.phase = 'idle';
+    setScreen('select');
+    rerender();
+  };
+
+  const c = cfg();
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes stimPop{0%{transform:scale(0.5);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🧠 Nバック課題</span>
+        </div>
+        {screen === 'game' && g.phase !== 'ready' && g.phase !== 'idle' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:10, fontWeight:700, color:'white', background:'#7B1FA2', padding:'3px 10px', borderRadius:50 }}>{c.n}バック</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{g.currentTrial+1}/{g.sequence.length}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🧠</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>Nバック課題</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>
+            N個前と同じものが出たら「同じ！」<br/>違ったら「ちがう」をタップ！
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>
+            🧠 ワーキングメモリ（作業記憶）のトレーニングです
+          </div>
+
+          {/* Stim type */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>🎴 出題タイプ</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
+              {Object.entries(STIM_TYPES).map(([k, info]) => (
+                <button key={k} onClick={() => setStimType(k)} style={{...btnBase, padding:'14px 8px', borderRadius:14, border:`3px solid ${stimType===k?'#2EC4B6':'#E8E8E8'}`, background:stimType===k?'#E0F7FA':'white', textAlign:'center'}}>
+                  <div style={{ fontSize:26, marginBottom:4 }}>{info.icon}</div>
+                  <div style={{ fontSize:12, fontWeight:700 }}>{info.label}</div>
+                  <div style={{ fontSize:9, color:'#6B6B6B', marginTop:2 }}>{info.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Explanation */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:12, textAlign:'left' }}>📝 Nバックとは？</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {[
+                { n:'1', color:'#7B1FA2', bg:'#F3E5F5', ex:'🍎→⭐→⭐ ← 1つ前と同じ！' },
+                { n:'2', color:'#2E7D32', bg:'#E8F5E9', ex:'🍎→⭐→🍎 ← 2つ前と同じ！' },
+                { n:'3', color:'#E65100', bg:'#FFF3E0', ex:'🍎→⭐→🌻→🍎 ← 3つ前と同じ！' },
+              ].map((item) => (
+                <div key={item.n} style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'10px 12px', background:item.bg, borderRadius:12 }}>
+                  <span style={{ fontSize:18, fontWeight:900, color:item.color, flexShrink:0, marginTop:2 }}>{item.n}</span>
+                  <div style={{ textAlign:'left', fontSize:12, color:'#6B6B6B', lineHeight:1.6 }}>
+                    <strong style={{ color:item.color }}>{item.n}バック</strong> = {item.n}つ前と同じか判断<br/>例：{item.ex}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Difficulty */}
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* History */}
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:700}}>{hc.label}・正答率{h.accuracy}%</div>
+                        <div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div>
+                      </div>
+                    </div>
+                    <div style={{textAlign:'right'}}>
+                      <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                      <div style={{fontSize:10,color:'#9E9E9E'}}>🔥{h.maxStreak}連続</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          {g.phase !== 'ready' && g.phase !== 'idle' && (
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+              {[
+                { v:g.score, l:'スコア', c:'#FF6B35' },
+                { v:'🔥'+g.streak, l:'連続正解', c:'#E65100' },
+                { v:(g.currentTrial+1)+'/'+g.sequence.length, l:'進捗', c:'#2EC4B6' },
+              ].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Progress bar */}
+          {g.phase !== 'ready' && g.phase !== 'idle' && (
+            <div style={{ width:'100%', height:6, background:'#E8E8E8', borderRadius:3, marginBottom:12, overflow:'hidden' }}>
+              <div style={{ width:((g.currentTrial+1)/g.sequence.length*100)+'%', height:'100%', background:'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:3, transition:'width 0.3s' }} />
+            </div>
+          )}
+
+          {/* Main display */}
+          <div style={{
+            background: g.trialResult === 'hit' || g.trialResult === 'correct-reject' ? '#F1F8E9'
+              : g.trialResult === 'miss' || g.trialResult === 'false-alarm' ? '#FFF3E0'
+              : 'white',
+            borderRadius:24, padding:'32px 20px', minHeight:240,
+            boxShadow:'0 4px 24px rgba(0,0,0,0.06)', marginBottom:16,
+            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+            transition:'background 0.3s',
+          }}>
+            {/* Ready */}
+            {g.phase === 'ready' && (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:42, fontWeight:800, color:'#7B1FA2', marginBottom:12 }}>Ready?</div>
+                <div style={{ fontSize:20, fontWeight:900, color:'#FF6B35', marginBottom:8 }}>{c.n}バック</div>
+                <div style={{ fontSize:14, color:'#6B6B6B', lineHeight:1.7 }}>
+                  {c.n}つ前と同じものが出たら<br/>「同じ！」をタップ
+                </div>
+                <div style={{ fontSize:12, color:'#9E9E9E', marginTop:12 }}>
+                  {STIM_TYPES[stimType].icon} {STIM_TYPES[stimType].label}モード・{c.trials}問
+                </div>
+              </div>
+            )}
+
+            {/* Showing / Responding */}
+            {(g.phase === 'showing' || g.phase === 'responding') && g.currentTrial >= 0 && (
+              <div style={{ textAlign:'center' }}>
+                {g.currentTrial < c.n && (
+                  <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:16 }}>
+                    まだ{c.n}つ揃っていません。覚えてください
+                  </div>
+                )}
+                {g.currentTrial >= c.n && (
+                  <div style={{ fontSize:13, fontWeight:700, color:'#7B1FA2', marginBottom:16 }}>
+                    {c.n}つ前と同じ？
+                  </div>
+                )}
+                <div style={{ animation:'stimPop 0.3s ease-out' }} key={g.currentTrial}>
+                  <RenderStimulus stim={g.sequence[g.currentTrial]} stimType={stimType} large={true} />
+                </div>
+                <div style={{ fontSize:11, color:'#BDBDBD', marginTop:12 }}>#{g.currentTrial + 1}</div>
+              </div>
+            )}
+
+            {/* Feedback */}
+            {g.phase === 'feedback' && (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.2s ease-out' }}>
+                <div style={{ fontSize:36, marginBottom:4 }}>
+                  {g.trialResult === 'hit' ? '✅' : g.trialResult === 'correct-reject' ? '⭕' : g.trialResult === 'miss' ? '😢' : '❌'}
+                </div>
+                <div style={{ fontSize:15, fontWeight:700, color:
+                  g.trialResult === 'hit' ? '#2E7D32'
+                  : g.trialResult === 'correct-reject' ? '#2EC4B6'
+                  : g.trialResult === 'miss' ? '#E65100'
+                  : '#C62828'
+                }}>
+                  {g.trialResult === 'hit' && '正解！同じでした'}
+                  {g.trialResult === 'correct-reject' && '正解！違いました'}
+                  {g.trialResult === 'miss' && '見逃し…同じでした'}
+                  {g.trialResult === 'false-alarm' && 'お手つき…違いました'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Response buttons */}
+          {(g.phase === 'showing' || g.phase === 'responding') && g.currentTrial >= c.n && !g.responded && (
+            <div style={{ display:'flex', gap:16, justifyContent:'center', marginBottom:20 }}>
+              <button onClick={() => handleResponse(true)}
+                style={{
+                  ...btnBase, flex:1, maxWidth:160, padding:'20px 16px', borderRadius:20,
+                  background:'linear-gradient(135deg, #66BB6A, #81C784)',
+                  border:'none', color:'white', fontSize:18, fontWeight:900,
+                  boxShadow:'0 6px 20px rgba(102,187,106,0.3)',
+                  display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+                }}>
+                <span style={{ fontSize:28 }}>⭕</span>同じ！
+              </button>
+              <button onClick={() => handleResponse(false)}
+                style={{
+                  ...btnBase, flex:1, maxWidth:160, padding:'20px 16px', borderRadius:20,
+                  background:'linear-gradient(135deg, #EF5350, #E57373)',
+                  border:'none', color:'white', fontSize:18, fontWeight:900,
+                  boxShadow:'0 6px 20px rgba(239,83,80,0.3)',
+                  display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+                }}>
+                <span style={{ fontSize:28 }}>✖️</span>ちがう
+              </button>
+            </div>
+          )}
+
+          {(g.phase === 'showing' || g.phase === 'responding') && g.currentTrial >= 0 && g.currentTrial < c.n && (
+            <div style={{ textAlign:'center', padding:'16px', fontSize:14, fontWeight:700, color:'#9E9E9E' }}>
+              まず{c.n}つ覚えましょう（自動で進みます）
+            </div>
+          )}
+
+          <div style={{ height:16 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const r = g.results;
+        const hits = r.filter(x => x.result === 'hit').length;
+        const misses = r.filter(x => x.result === 'miss').length;
+        const falseAlarms = r.filter(x => x.result === 'false-alarm').length;
+        const correctRejects = r.filter(x => x.result === 'correct-reject').length;
+        const totalMatches = r.filter(x => x.actual).length;
+        const totalNon = r.filter(x => !x.actual).length;
+        const accuracy = r.length > 0 ? (hits + correctRejects) / r.length : 0;
+        const hitRate = totalMatches > 0 ? hits / totalMatches : 0;
+        const faRate = totalNon > 0 ? falseAlarms / totalNon : 0;
+        const stars = accuracy >= 0.85 ? '⭐⭐⭐' : accuracy >= 0.65 ? '⭐⭐' : '⭐';
+        const msg = accuracy >= 0.85 ? 'すばらしい集中力！' : accuracy >= 0.65 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>
+              {c.label}・{c.n}バック・{STIM_TYPES[stimType].label}モード
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[{v:Math.round(accuracy*100)+'%',l:'正答率'},{v:g.score,l:'スコア'},{v:'🔥'+g.maxStreak,l:'最大連続'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Detailed breakdown */}
+            <div style={{ width:'100%', maxWidth:380, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.35s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 詳細分析</div>
+              <div style={{ background:'white', borderRadius:16, padding:'16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+                  {[
+                    { label:'✅ ヒット', val:hits, desc:'同じを正しく検出', bg:'#E8F5E9', color:'#2E7D32' },
+                    { label:'😢 見逃し', val:misses, desc:'同じを見逃した', bg:'#FFEBEE', color:'#C62828' },
+                    { label:'⭕ 正棄却', val:correctRejects, desc:'違うを正しく判断', bg:'#E0F7FA', color:'#00695C' },
+                    { label:'❌ お手つき', val:falseAlarms, desc:'違うのに同じと回答', bg:'#FFF3E0', color:'#E65100' },
+                  ].map((item, i) => (
+                    <div key={i} style={{ padding:'12px', background:item.bg, borderRadius:12, textAlign:'center' }}>
+                      <div style={{ fontSize:11, color:item.color, fontWeight:700 }}>{item.label}</div>
+                      <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:item.color }}>{item.val}</div>
+                      <div style={{ fontSize:10, color:'#6B6B6B' }}>{item.desc}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Sensitivity */}
+                <div style={{ marginTop:14, padding:'10px 12px', background:'#F5F5F5', borderRadius:10 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>感度分析</div>
+                  <div style={{ display:'flex', gap:8 }}>
+                    {[
+                      { label:'検出率', rate:hitRate, color:'#66BB6A' },
+                      { label:'誤検出率', rate:faRate, color:'#EF5350' },
+                    ].map((bar, i) => (
+                      <div key={i} style={{ flex:1 }}>
+                        <div style={{ fontSize:10, color:'#9E9E9E', marginBottom:4 }}>{bar.label}</div>
+                        <div style={{ width:'100%', height:10, background:'#E0E0E0', borderRadius:5, overflow:'hidden' }}>
+                          <div style={{ width:(bar.rate*100)+'%', height:'100%', background:bar.color, borderRadius:5 }} />
+                        </div>
+                        <div style={{ fontSize:11, fontWeight:700, color:bar.color, marginTop:2 }}>{Math.round(bar.rate*100)}%</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize:11, color:'#6B6B6B', marginTop:8, lineHeight:1.6 }}>
+                    {hitRate >= 0.8 && faRate <= 0.2 && '💡 検出力が高く、正確にワーキングメモリを使えています'}
+                    {hitRate >= 0.8 && faRate > 0.2 && '💡 検出力は高いですが、慎重さを少し上げましょう'}
+                    {hitRate < 0.8 && faRate <= 0.2 && '💡 慎重ですが、もう少し素早い判断を心がけましょう'}
+                    {hitRate < 0.8 && faRate > 0.2 && '💡 ワーキングメモリの強化トレーニングを続けましょう'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <button onClick={() => startGame(g.difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

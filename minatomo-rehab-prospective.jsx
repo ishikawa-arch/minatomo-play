@@ -1,0 +1,516 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【リハビリ脳トレ】やくそくをまもる ==========
+// Prospective Memory + Dual Task - 展望記憶・二重課題
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+const CUE_EMOJIS = ['🐱','⭐','🍎','🌸','🚗','❤️','🎈','🐸'];
+const NEUTRAL_EMOJIS = ['🐶','🌟','🍊','🌻','🚌','💛','🎁','🐢','🍰','🐧','🐻','🦋'];
+
+// Generate sequence of trials
+function genTrials(count, cueEmoji, cueRate = 0.3) {
+  const trials = [];
+  // Ensure at least 3 cue trials scattered
+  const cuePositions = new Set();
+  const minCues = Math.max(3, Math.floor(count * cueRate));
+  while (cuePositions.size < minCues) {
+    const pos = 2 + Math.floor(Math.random() * (count - 2)); // not in first 2
+    cuePositions.add(pos);
+  }
+
+  for (let i = 0; i < count; i++) {
+    if (cuePositions.has(i)) {
+      trials.push({
+        type: 'cue',
+        emoji: cueEmoji,
+        // For cue trial, still have a calculation
+        a: 1 + Math.floor(Math.random() * 9),
+        b: 1 + Math.floor(Math.random() * 9),
+      });
+    } else {
+      let emoji;
+      do { emoji = NEUTRAL_EMOJIS[Math.floor(Math.random() * NEUTRAL_EMOJIS.length)]; }
+      while (emoji === cueEmoji);
+      trials.push({
+        type: 'normal',
+        emoji,
+        a: 1 + Math.floor(Math.random() * 9),
+        b: 1 + Math.floor(Math.random() * 9),
+      });
+    }
+  }
+  return trials;
+}
+
+function genChoices(answer, type) {
+  // For cue trial: must tap "STOP" button explicitly (not shown here)
+  // For normal: 4 choices with answer
+  const wrongs = new Set();
+  while (wrongs.size < 3) {
+    const off = [-3,-2,-1,1,2,3,5,-5][Math.floor(Math.random() * 8)];
+    const w = answer + off;
+    if (w > 0 && w !== answer) wrongs.add(w);
+  }
+  return shuffle([answer, ...wrongs]);
+}
+
+const LEVELS = [
+  { trials:8, label:'レベル1' },
+  { trials:10, label:'レベル2' },
+  { trials:12, label:'レベル3' },
+];
+
+export default function Prospective() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    levelIdx:0, phase:'idle', // intro, playing, feedback, levelEnd
+    cueEmoji:null,
+    trials:[], trialIdx:0,
+    current:null, choices:[],
+    feedback:null, selected:null,
+    // Scores per trial type
+    mainCorrect:0, mainErrors:0,
+    cueHits:0, cueMisses:0,
+    falseCueTaps:0, // tapped STOP when not needed
+    score:0,
+    levelResults:[],
+  }).current;
+
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.levelIdx = 0; g.levelResults = []; g.score = 0;
+    setScreen('play');
+    startLevel(0);
+  };
+
+  const startLevel = (lvlIdx) => {
+    g.levelIdx = lvlIdx;
+    const level = LEVELS[lvlIdx];
+    g.cueEmoji = CUE_EMOJIS[Math.floor(Math.random() * CUE_EMOJIS.length)];
+    g.trials = genTrials(level.trials, g.cueEmoji);
+    g.trialIdx = 0;
+    g.mainCorrect = 0; g.mainErrors = 0;
+    g.cueHits = 0; g.cueMisses = 0; g.falseCueTaps = 0;
+    g.feedback = null; g.selected = null;
+    g.phase = 'intro';
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.phase = 'playing';
+      showTrial(0);
+    }, 3500);
+  };
+
+  const showTrial = (tIdx) => {
+    g.trialIdx = tIdx;
+    g.current = g.trials[tIdx];
+    const answer = g.current.a + g.current.b;
+    g.choices = genChoices(answer, g.current.type);
+    g.selected = null;
+    g.feedback = null;
+    g.phase = 'playing';
+    rerender();
+  };
+
+  // Tap a calculation answer
+  const handleCalcTap = (num) => {
+    if (g.phase !== 'playing' || g.feedback) return;
+    const answer = g.current.a + g.current.b;
+    const isCueTrial = g.current.type === 'cue';
+
+    g.selected = num;
+    const isCalcCorrect = num === answer;
+
+    if (isCueTrial) {
+      // User tapped calc instead of STOP — missed the cue
+      g.cueMisses++;
+      g.feedback = 'cueMiss';
+      if (isCalcCorrect) {
+        g.mainCorrect++;
+        g.score += 5; // Partial credit for calc
+      } else {
+        g.mainErrors++;
+      }
+    } else {
+      // Normal trial
+      if (isCalcCorrect) {
+        g.mainCorrect++;
+        g.score += 10;
+        g.feedback = 'correct';
+      } else {
+        g.mainErrors++;
+        g.feedback = 'wrong';
+      }
+    }
+    rerender();
+    timerRef.current = setTimeout(advance, g.feedback === 'correct' ? 500 : 1400);
+  };
+
+  // Tap the STOP button
+  const handleStopTap = () => {
+    if (g.phase !== 'playing' || g.feedback) return;
+    const isCueTrial = g.current.type === 'cue';
+
+    if (isCueTrial) {
+      g.cueHits++;
+      g.score += 25; // Big bonus for remembering!
+      g.feedback = 'cueHit';
+    } else {
+      // False alarm - tapped STOP when not needed
+      g.falseCueTaps++;
+      g.score = Math.max(0, g.score - 5);
+      g.feedback = 'falseCue';
+    }
+    rerender();
+    timerRef.current = setTimeout(advance, g.feedback === 'cueHit' ? 700 : 1400);
+  };
+
+  const advance = () => {
+    if (g.trialIdx + 1 >= g.trials.length) {
+      finishLevel();
+    } else {
+      showTrial(g.trialIdx + 1);
+    }
+  };
+
+  const finishLevel = () => {
+    const totalCues = g.trials.filter(t => t.type === 'cue').length;
+    g.levelResults.push({
+      label: LEVELS[g.levelIdx].label,
+      mainCorrect: g.mainCorrect,
+      mainTotal: g.trials.length,
+      cueHits: g.cueHits,
+      cueMisses: g.cueMisses,
+      falseCueTaps: g.falseCueTaps,
+      totalCues,
+    });
+    g.phase = 'levelEnd';
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.levelIdx + 1 >= LEVELS.length) {
+        setScreen('done'); rerender();
+      } else {
+        startLevel(g.levelIdx + 1);
+      }
+    }, 2500);
+  };
+
+  const level = LEVELS[g.levelIdx];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @keyframes emojiPop{0%{transform:scale(0.4)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+        @keyframes ruleGlow{0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,0.3)}50%{box-shadow:0 0 0 8px rgba(198,40,40,0)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>📝 やくそくをまもる</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {level?.label}　{g.trialIdx + 1}/{level?.trials}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'30px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:18 }}>
+            <div style={{ fontSize:13, fontWeight:900, color:'#555' }}>たしざんを といてね</div>
+            <div style={{
+              background:'white', borderRadius:12, padding:'8px 16px',
+              border:'2px solid #E8E8E8',
+              fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900,
+              color:'#333',
+            }}>3 ＋ 4 = ？</div>
+            <div style={{ fontSize:13, fontWeight:900, color:'#C62828', marginTop:8 }}>⚠ でも！</div>
+            <div style={{
+              background:'#FFF5F5', borderRadius:12, padding:'8px 16px',
+              border:'2px solid #EF5350',
+              fontSize:14, fontWeight:900, color:'#C62828',
+              display:'flex', gap:6, alignItems:'center', justifyContent:'center',
+            }}>
+              <span style={{ fontSize:24 }}>🐱</span>
+              <span>がでたら「とめる」ボタン！</span>
+            </div>
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            やくそくを わすれないで！
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            たしざんをしながら 合図を見のがさない
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:24 }}>
+            展望記憶・二重課題
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && level && (
+        <div style={{ padding:'12px 16px', maxWidth:520, margin:'0 auto' }}>
+
+          {/* Level progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:8 }}>
+            {LEVELS.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.levelIdx ? 20 : 14, height:6, borderRadius:3,
+                background: i < g.levelIdx ? '#8BC34A' : i === g.levelIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* INTRO */}
+          {g.phase === 'intro' && (
+            <div style={{ textAlign:'center', padding:'20px 0' }}>
+              <div style={{ fontSize:16, fontWeight:900, color:'#9E9E9E', marginBottom:14 }}>{level.label} のやくそく</div>
+
+              <div style={{
+                background:'white', borderRadius:20, padding:'24px 20px',
+                boxShadow:'0 4px 16px rgba(0,0,0,0.08)',
+                border:'3px solid #C62828',
+                display:'inline-block',
+                animation:'ruleGlow 2s infinite',
+              }}>
+                <div style={{ fontSize:14, fontWeight:900, color:'#C62828', marginBottom:8 }}>
+                  ⚠ やくそく ⚠
+                </div>
+                <div style={{
+                  display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+                  fontSize:16, fontWeight:900, color:'#333',
+                }}>
+                  <span style={{ fontSize:56 }}>{g.cueEmoji}</span>
+                  <span>→</span>
+                  <div style={{
+                    background:'#C62828', color:'white',
+                    padding:'8px 16px', borderRadius:12,
+                    fontSize:18, fontWeight:900,
+                  }}>とめる</div>
+                </div>
+                <div style={{ fontSize:13, fontWeight:700, color:'#555', marginTop:10 }}>
+                  このえが でたら「とめる」をおす！
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PLAYING */}
+          {g.phase === 'playing' && g.current && (
+            <div>
+              {/* Rule reminder always visible */}
+              <div style={{
+                display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+                background:'#FFF5F5', padding:'6px 12px', borderRadius:50,
+                border:'2px solid #EF5350',
+                marginBottom:10,
+              }}>
+                <span style={{ fontSize:12, fontWeight:700, color:'#C62828' }}>やくそく：</span>
+                <span style={{ fontSize:22 }}>{g.cueEmoji}</span>
+                <span style={{ fontSize:12, fontWeight:900, color:'#C62828' }}>→ とめる！</span>
+              </div>
+
+              {/* Stats */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                <span style={{ fontFamily:'Outfit,sans-serif', fontSize:18, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:11, color:'#9E9E9E' }}>pt</span></span>
+                <div style={{ fontSize:11, fontWeight:700, color:'#666' }}>
+                  やくそく <span style={{ color:'#2E7D32' }}>⭕{g.cueHits}</span>
+                  {g.cueMisses > 0 && <span style={{ color:'#C62828', marginLeft:4 }}>💨{g.cueMisses}</span>}
+                </div>
+              </div>
+
+              {/* Emoji banner */}
+              <div style={{
+                background:'white', borderRadius:14, padding:'10px 16px',
+                boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
+                textAlign:'center', marginBottom:10,
+              }} key={g.trialIdx + '-emoji'}>
+                <span style={{ fontSize:56, lineHeight:1, animation:'emojiPop 0.2s ease-out', display:'inline-block' }}>
+                  {g.current.emoji}
+                </span>
+              </div>
+
+              {/* Calculation */}
+              <div style={{
+                background:'white', borderRadius:16, padding:'16px',
+                boxShadow:'0 4px 16px rgba(0,0,0,0.06)',
+                textAlign:'center', marginBottom:12,
+              }}>
+                <div style={{ fontSize:13, fontWeight:700, color:'#9E9E9E', marginBottom:6 }}>たしざん</div>
+                <div style={{ fontFamily:'Outfit,sans-serif', fontSize:36, fontWeight:900, color:'#333' }}>
+                  {g.current.a} ＋ {g.current.b} = ?
+                </div>
+              </div>
+
+              {/* Feedback */}
+              {g.feedback && (
+                <div style={{ textAlign:'center', marginBottom:10, animation:'fadeUp 0.2s' }}>
+                  {g.feedback === 'correct' && <span style={{ fontSize:30 }}>⭕</span>}
+                  {g.feedback === 'cueHit' && (
+                    <div>
+                      <span style={{ fontSize:30 }}>🎉</span>
+                      <div style={{ fontSize:14, fontWeight:900, color:'#2E7D32' }}>やくそくを まもれた！+25</div>
+                    </div>
+                  )}
+                  {g.feedback === 'cueMiss' && (
+                    <div>
+                      <span style={{ fontSize:30 }}>💨</span>
+                      <div style={{ fontSize:14, fontWeight:900, color:'#C62828' }}>
+                        {g.cueEmoji} がでてたよ！「とめる」だった
+                      </div>
+                    </div>
+                  )}
+                  {g.feedback === 'falseCue' && (
+                    <div>
+                      <span style={{ fontSize:30 }}>❌</span>
+                      <div style={{ fontSize:14, fontWeight:900, color:'#C62828' }}>
+                        {g.cueEmoji} じゃない！たしざんを してね
+                      </div>
+                    </div>
+                  )}
+                  {g.feedback === 'wrong' && (
+                    <div>
+                      <span style={{ fontSize:30 }}>❌</span>
+                      <div style={{ fontSize:13, fontWeight:700, color:'#C62828' }}>
+                        こたえは {g.current.a + g.current.b}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!g.feedback && <div style={{ height:52 }} />}
+
+              {/* Choices + STOP button */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8, marginBottom:8 }}>
+                {g.choices.map((n, i) => {
+                  const answer = g.current.a + g.current.b;
+                  const isSelected = g.selected === n;
+                  const isAnswer = n === answer;
+                  const showCorrect = g.feedback === 'correct' && isAnswer;
+                  const showWrong = g.feedback === 'wrong' && isSelected;
+                  return (
+                    <button key={i} onClick={() => handleCalcTap(n)}
+                      disabled={!!g.feedback}
+                      style={{
+                        ...bs, height:62, borderRadius:14,
+                        background: showCorrect ? '#F1F8E9' : showWrong ? '#FFF5F5' : 'white',
+                        border: `3px solid ${showCorrect ? '#66BB6A' : showWrong ? '#EF5350' : '#E8E8E8'}`,
+                        fontFamily:'Outfit,sans-serif', fontSize:26, fontWeight:900,
+                        color: showCorrect ? '#2E7D32' : showWrong ? '#C62828' : '#333',
+                        animation: showWrong ? 'shake 0.3s' : showCorrect ? 'pop 0.3s' : undefined,
+                        opacity: g.feedback && !showCorrect && !showWrong ? 0.3 : 1,
+                      }}>
+                      {n}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button onClick={handleStopTap}
+                disabled={!!g.feedback}
+                style={{
+                  ...bs, width:'100%', padding:'16px', borderRadius:14,
+                  background: g.feedback === 'cueHit' ? '#F1F8E9'
+                    : g.feedback === 'falseCue' ? '#FFF5F5'
+                    : '#FFEBEE',
+                  border: `3px solid ${
+                    g.feedback === 'cueHit' ? '#66BB6A'
+                    : g.feedback === 'falseCue' ? '#EF5350'
+                    : '#C62828'
+                  }`,
+                  color: '#C62828', fontSize:22, fontWeight:900,
+                  letterSpacing:'0.1em',
+                  animation: g.feedback === 'cueHit' ? 'pop 0.3s' : g.feedback === 'falseCue' ? 'shake 0.3s' : undefined,
+                  opacity: g.feedback && g.feedback !== 'cueHit' && g.feedback !== 'falseCue' ? 0.5 : 1,
+                }}>
+                🛑 とめる
+              </button>
+            </div>
+          )}
+
+          {/* LEVEL END */}
+          {g.phase === 'levelEnd' && (
+            <div style={{ textAlign:'center', padding:'30px 0', animation:'fadeUp 0.3s' }}>
+              <div style={{ fontSize:48, marginBottom:8 }}>🎯</div>
+              <div style={{ fontSize:22, fontWeight:900, color:'#E8652E', marginBottom:6 }}>{level.label}クリア！</div>
+              <div style={{ fontSize:14, fontWeight:700, color:'#555' }}>
+                たしざん ⭕{g.mainCorrect}／{g.trials.length}
+              </div>
+              <div style={{ fontSize:14, fontWeight:700, color:'#555' }}>
+                やくそく ⭕{g.cueHits}／{g.trials.filter(t => t.type === 'cue').length}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const totalMain = g.levelResults.reduce((a, r) => a + r.mainCorrect, 0);
+        const totalMainAll = g.levelResults.reduce((a, r) => a + r.mainTotal, 0);
+        const totalCueHits = g.levelResults.reduce((a, r) => a + r.cueHits, 0);
+        const totalCues = g.levelResults.reduce((a, r) => a + r.totalCues, 0);
+        const emoji = totalCueHits / totalCues >= 0.8 ? '🎉' : totalCueHits / totalCues >= 0.5 ? '👍' : '😊';
+        const msg = totalCueHits / totalCues >= 0.8 ? 'すばらしい！' : totalCueHits / totalCues >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ background:'white', borderRadius:16, padding:'14px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:20, minWidth:280 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginBottom:8 }}>認知機能レポート</div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ fontSize:14, fontWeight:700, color:'#555' }}>たしざん（主課題）</span>
+                <span style={{ fontFamily:'Outfit', fontSize:15, fontWeight:900, color:'#2E7D32' }}>{totalMain}/{totalMainAll}</span>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ fontSize:14, fontWeight:700, color:'#555' }}>やくそく（展望記憶）</span>
+                <span style={{ fontFamily:'Outfit', fontSize:15, fontWeight:900, color:'#E8652E' }}>{totalCueHits}/{totalCues}</span>
+              </div>
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

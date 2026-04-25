@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>ストループ課題 | みなともPlay</title>
+<meta name="description" content="ストループ課題 - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="executive">
+<meta name="minatomo-category" content="リハビリ脳トレ">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【リハビリ脳トレ】ストループ課題 ==========
+const COLORS = [
+  { name:'あか',   hex:'#E53935' },
+  { name:'あお',   hex:'#1E88E5' },
+  { name:'きいろ', hex:'#F9A825' },
+  { name:'みどり', hex:'#43A047' },
+  { name:'むらさき', hex:'#8E24AA' },
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function genRounds(count) {
+  const rounds = [];
+  for (let i = 0; i < count; i++) {
+    // First 3 rounds: some congruent (practice) mixed
+    // Rounds 4+: mostly incongruent (real task)
+    const forceIncongruent = i >= 3 || Math.random() > 0.3;
+
+    const word = COLORS[Math.floor(Math.random() * COLORS.length)];
+    let ink;
+    if (forceIncongruent) {
+      do { ink = COLORS[Math.floor(Math.random() * COLORS.length)]; } while (ink.name === word.name);
+    } else {
+      ink = word;
+    }
+
+    // Choices: 4 color options including ink color
+    const pool = shuffle([...COLORS.filter(c => c.name !== ink.name)]).slice(0, 3);
+    const choices = shuffle([ink, ...pool]);
+
+    // Time limit gets shorter
+    const timeLimit = Math.max(2500, 5000 - i * 150);
+
+    rounds.push({ word, ink, choices, timeLimit, isCongruent: word.name === ink.name });
+  }
+  return rounds;
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    rounds:[], currentR:0, score:0, correct:0,
+    phase:'idle', feedback:null, selected:null,
+    startTime:0, rts:[],
+    congruentCorrect:0, incongruentCorrect:0,
+    congruentTotal:0, incongruentTotal:0,
+    timeLeft:0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const startGame = () => {
+    g.rounds = genRounds(20);
+    g.currentR = 0; g.score = 0; g.correct = 0; g.rts = [];
+    g.congruentCorrect = 0; g.incongruentCorrect = 0;
+    g.congruentTotal = 0; g.incongruentTotal = 0;
+    setScreen('play');
+    showRound(0);
+  };
+
+  const showRound = (idx) => {
+    g.currentR = idx;
+    g.feedback = null; g.selected = null;
+    g.phase = 'showing';
+    g.startTime = Date.now();
+    g.timeLeft = g.rounds[idx].timeLimit;
+    rerender();
+
+    // Track congruent/incongruent totals
+    if (g.rounds[idx].isCongruent) g.congruentTotal++;
+    else g.incongruentTotal++;
+
+    intervalRef.current = setInterval(() => {
+      g.timeLeft -= 100;
+      if (g.timeLeft <= 0) {
+        clearInterval(intervalRef.current);
+        if (g.phase === 'showing') {
+          g.feedback = 'timeout';
+          g.phase = 'feedback';
+          rerender();
+          timerRef.current = setTimeout(advance, 1000);
+        }
+      }
+      rerender();
+    }, 100);
+  };
+
+  const handleTap = (colorName) => {
+    if (g.phase !== 'showing' || g.feedback) return;
+    clearInterval(intervalRef.current);
+    const round = g.rounds[g.currentR];
+    const rt = Date.now() - g.startTime;
+    const isCorrect = colorName === round.ink.name;
+    g.selected = colorName;
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    g.phase = 'feedback';
+    if (isCorrect) {
+      g.correct++;
+      g.rts.push(rt);
+      g.score += 10 + Math.max(0, Math.round((1500 - rt) / 50));
+      if (round.isCongruent) g.congruentCorrect++;
+      else g.incongruentCorrect++;
+    }
+    rerender();
+    timerRef.current = setTimeout(advance, isCorrect ? 500 : 1200);
+  };
+
+  const advance = () => {
+    if (g.currentR + 1 >= g.rounds.length) {
+      setScreen('done'); rerender();
+    } else {
+      showRound(g.currentR + 1);
+    }
+  };
+
+  const round = g.currentR < g.rounds.length ? g.rounds[g.currentR] : null;
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+  const avgRT = g.rts.length > 0 ? Math.round(g.rts.reduce((a,b) => a+b, 0) / g.rts.length) : 0;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.8)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @keyframes wordPop{0%{transform:scale(0.3);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🧠 ストループ</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>{g.currentR + 1} / {g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'50px 20px', textAlign:'center', minHeight:'70vh' }}>
+          {/* Demo */}
+          <div style={{ display:'flex', flexDirection:'column', gap:14, marginBottom:20 }}>
+            <div style={{ background:'white', borderRadius:16, padding:'16px 32px', boxShadow:'0 2px 8px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize:48, fontWeight:900, color:'#1E88E5', letterSpacing:'0.1em' }}>あか</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#9E9E9E', marginTop:4 }}>もじの「いみ」ではなく…</div>
+              <div style={{ fontSize:16, fontWeight:900, color:'#1E88E5', marginTop:2 }}>「あおいろ」でかかれてる！</div>
+            </div>
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4, letterSpacing:'0.06em' }}>
+            もじの色をこたえて！
+          </div>
+          <div style={{ fontSize:14, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            もじの「いみ」にだまされないで！
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:32 }}>
+            注意の切り替え・抑制のトレーニング
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && round && (
+        <div style={{ padding:'12px 16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Progress */}
+          <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:8, overflow:'hidden' }}>
+            <div style={{ width:`${(g.currentR / g.rounds.length) * 100}%`, height:'100%', background:'#8BC34A', transition:'width 0.3s' }} />
+          </div>
+
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:12, color:'#9E9E9E' }}>pt</span></span>
+            {g.phase === 'showing' && (
+              <div style={{ width:120, height:6, background:'#E8E8E8', borderRadius:3, overflow:'hidden' }}>
+                <div style={{
+                  width:`${(g.timeLeft / round.timeLimit) * 100}%`, height:'100%',
+                  background: g.timeLeft < round.timeLimit * 0.3 ? '#C62828' : '#E8652E',
+                  transition:'width 0.1s linear',
+                }} />
+              </div>
+            )}
+          </div>
+
+          {/* Question prompt */}
+          <div style={{ textAlign:'center', marginBottom:14 }}>
+            <div style={{ fontSize:15, fontWeight:700, color:'#9E9E9E' }}>もじの<span style={{ color:'#E8652E', fontWeight:900 }}>「色」</span>をえらんで</div>
+          </div>
+
+          {/* Stroop word */}
+          <div style={{
+            background:'white', borderRadius:24, padding:'40px 20px',
+            boxShadow:'0 4px 16px rgba(0,0,0,0.06)',
+            textAlign:'center', marginBottom:16, minHeight:140,
+            display:'flex', alignItems:'center', justifyContent:'center',
+          }}>
+            {g.phase === 'showing' && (
+              <div key={g.currentR} style={{ animation:'wordPop 0.25s ease-out' }}>
+                <span style={{
+                  fontSize:80, fontWeight:900,
+                  color:round.ink.hex,
+                  letterSpacing:'0.1em',
+                  textShadow: `0 2px 8px ${round.ink.hex}22`,
+                }}>{round.word.name}</span>
+              </div>
+            )}
+            {g.phase === 'feedback' && (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.2s ease-out' }}>
+                <span style={{ fontSize:56 }}>
+                  {g.feedback === 'correct' ? '⭕' : g.feedback === 'timeout' ? '⏰' : '❌'}
+                </span>
+                {g.feedback === 'correct' && g.rts.length > 0 && (
+                  <div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#555', marginTop:4 }}>
+                    {g.rts[g.rts.length - 1]}ms
+                  </div>
+                )}
+                {g.feedback !== 'correct' && (
+                  <div style={{ fontSize:16, fontWeight:900, marginTop:6, color:round.ink.hex }}>
+                    こたえは「{round.ink.name}」でした
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Choice buttons */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+            {round.choices.map((c, i) => {
+              const isSelected = g.selected === c.name;
+              const isAnswer = c.name === round.ink.name;
+              const showCorrect = g.feedback && isAnswer;
+              const showWrong = g.feedback === 'wrong' && isSelected;
+
+              return (
+                <button key={i} onClick={() => handleTap(c.name)}
+                  style={{
+                    ...bs, height:70, borderRadius:16,
+                    background: showCorrect ? '#F1F8E9' : showWrong ? '#FFF5F5' : 'white',
+                    border: `4px solid ${showCorrect ? '#66BB6A' : showWrong ? '#EF5350' : '#E8E8E8'}`,
+                    display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+                    animation: showWrong ? 'shake 0.3s' : showCorrect ? 'pop 0.3s' : undefined,
+                    opacity: g.feedback && !showCorrect && !showWrong ? 0.3 : 1,
+                    boxShadow:'0 3px 10px rgba(0,0,0,0.05)',
+                    pointerEvents: g.feedback ? 'none' : 'auto',
+                  }}>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background:c.hex }} />
+                  <span style={{ fontSize:20, fontWeight:900, color:'#555' }}>{c.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const total = g.rounds.length;
+        const pct = g.correct / total;
+        const stroopEffect = g.incongruentTotal > 0 && g.congruentTotal > 0
+          ? Math.round((1 - g.incongruentCorrect / g.incongruentTotal) * 100) - Math.round((1 - g.congruentCorrect / g.congruentTotal) * 100)
+          : 0;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すごい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize:16, fontWeight:700, color:'#555', marginBottom:16 }}>
+              {g.correct}もん せいかい / {total}もん
+              {avgRT > 0 && <span style={{ marginLeft:8 }}>　へいきん <span style={{ fontFamily:'Outfit', fontWeight:900, color:'#E8652E' }}>{avgRT}</span>ms</span>}
+            </div>
+
+            {/* Stroop effect breakdown */}
+            <div style={{ background:'white', borderRadius:16, padding:'14px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:20, minWidth:280 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginBottom:8 }}>認知機能レポート</div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ fontSize:14, fontWeight:700, color:'#555' }}>かんたん（文字＝色）</span>
+                <span style={{ fontFamily:'Outfit', fontSize:16, fontWeight:900, color:'#2E7D32' }}>{g.congruentCorrect}/{g.congruentTotal}</span>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between' }}>
+                <span style={{ fontSize:14, fontWeight:700, color:'#555' }}>むずかしい（文字≠色）</span>
+                <span style={{ fontFamily:'Outfit', fontSize:16, fontWeight:900, color:'#E8652E' }}>{g.incongruentCorrect}/{g.incongruentTotal}</span>
+              </div>
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

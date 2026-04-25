@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>おさいふ計算 | みなともPlay</title>
+<meta name="description" content="硬貨とお札を数えて計算 - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+const COINS = [
+  { value:1, label:'1円', color:'#BDBDBD', size:28, textColor:'#424242', border:'#9E9E9E' },
+  { value:5, label:'5円', color:'#FFD54F', size:30, textColor:'#795548', border:'#FFC107', hole:true },
+  { value:10, label:'10円', color:'#E8A87C', size:32, textColor:'#5D4037', border:'#D4845A' },
+  { value:50, label:'50円', color:'#E0E0E0', size:34, textColor:'#424242', border:'#BDBDBD', hole:true },
+  { value:100, label:'100円', color:'#F5F5F5', size:36, textColor:'#424242', border:'#BDBDBD' },
+  { value:500, label:'500円', color:'#FFD700', size:40, textColor:'#5D4037', border:'#DAA520' },
+];
+
+const BILLS = [
+  { value:1000, label:'1000円', color:'#42A5F5', width:80, height:36, textColor:'white' },
+  { value:5000, label:'5000円', color:'#7B1FA2', width:84, height:38, textColor:'white' },
+  { value:10000, label:'10000円', color:'#2E7D32', width:88, height:40, textColor:'white' },
+];
+
+// Coin visual component
+function CoinView({ coin, size }) {
+  const s = size || coin.size;
+  return (
+    <div style={{ width:s, height:s, borderRadius:'50%', background:coin.color, border:`2px solid ${coin.border}`,
+      display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 4px rgba(0,0,0,0.15)',
+      position:'relative' }}>
+      {coin.hole && <div style={{ width:s*0.2, height:s*0.2, borderRadius:'50%', background:'#FAFAF7', border:`1px solid ${coin.border}`, position:'absolute' }} />}
+      <span style={{ fontSize:s*0.3, fontWeight:900, color:coin.textColor, position:'relative', zIndex:1, marginTop: coin.hole ? s*0.25 : 0 }}>
+        {coin.value}
+      </span>
+    </div>
+  );
+}
+
+function BillView({ bill }) {
+  return (
+    <div style={{ width:bill.width, height:bill.height, borderRadius:4, background:bill.color,
+      display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 4px rgba(0,0,0,0.15)',
+      border:'1px solid rgba(255,255,255,0.3)', position:'relative', overflow:'hidden' }}>
+      <div style={{ position:'absolute', inset:3, border:'1px solid rgba(255,255,255,0.2)', borderRadius:2 }} />
+      <span style={{ fontSize:bill.height*0.32, fontWeight:900, color:bill.textColor, letterSpacing:1 }}>
+        {bill.value >= 10000 ? '万' : bill.value >= 5000 ? '五千' : '千'}
+      </span>
+    </div>
+  );
+}
+
+// ========== QUESTION GENERATORS ==========
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'硬貨を数える・かんたんな合計', rounds:10, modes:['count','total_small'], maxValue:500 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'お札も登場・合計・比較', rounds:12, modes:['count','total_medium','compare','howmany'], maxValue:5000 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'大きい金額・おつり・組み合わせ', rounds:14, modes:['total_large','compare','change','combine'], maxValue:10000, timeLimit:8 },
+};
+
+function randomCoins(maxTotal, count) {
+  const available = COINS.filter(c => c.value <= maxTotal);
+  const result = [];
+  let total = 0;
+  for (let i = 0; i < count; i++) {
+    const coin = available[Math.floor(Math.random() * available.length)];
+    result.push(coin);
+    total += coin.value;
+  }
+  return { coins:result, total };
+}
+
+function generateQ(diff) {
+  const cfg = DIFF[diff];
+  const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+
+  if (mode === 'count') {
+    // Show coins, ask total
+    const coinCount = 3 + Math.floor(Math.random() * 3);
+    const { coins, total } = randomCoins(500, coinCount);
+    const wrongs = [total + 5, total - 10, total + 20].map(v => Math.max(1, v)).filter(v => v !== total);
+    return {
+      mode:'count', question:'ぜんぶでいくら？',
+      display:{ type:'coins', items:coins },
+      answer:total, answerLabel:total+'円',
+      opts:shuffle([total, ...wrongs.slice(0,3)]).filter((v,i,a)=>a.indexOf(v)===i).slice(0,4).map(v=>({value:v,label:v+'円'})),
+    };
+  }
+
+  if (mode === 'total_small') {
+    const coinCount = 4 + Math.floor(Math.random() * 3);
+    const { coins, total } = randomCoins(500, coinCount);
+    const wrongs = [total+10, total-5, total+50, total-20].map(v=>Math.max(1,v)).filter(v=>v!==total);
+    return {
+      mode:'count', question:'ぜんぶでいくら？',
+      display:{ type:'coins', items:coins },
+      answer:total, answerLabel:total+'円',
+      opts:shuffle([total,...wrongs.slice(0,3)]).filter((v,i,a)=>a.indexOf(v)===i).slice(0,4).map(v=>({value:v,label:v+'円'})),
+    };
+  }
+
+  if (mode === 'total_medium') {
+    // Mix coins and bills
+    const items = [];
+    let total = 0;
+    const billCount = 1 + Math.floor(Math.random() * 2);
+    const coinCount = 2 + Math.floor(Math.random() * 3);
+    const availBills = BILLS.filter(b => b.value <= 5000);
+    for (let i = 0; i < billCount; i++) { const b = availBills[Math.floor(Math.random()*availBills.length)]; items.push({...b,type:'bill'}); total+=b.value; }
+    for (let i = 0; i < coinCount; i++) { const c = COINS[Math.floor(Math.random()*COINS.length)]; items.push({...c,type:'coin'}); total+=c.value; }
+    const wrongs = [total+100, total-50, total+500, total-100].map(v=>Math.max(1,v)).filter(v=>v!==total);
+    return {
+      mode:'total', question:'ぜんぶでいくら？',
+      display:{ type:'mixed', items:shuffle(items) },
+      answer:total, answerLabel:total.toLocaleString()+'円',
+      opts:shuffle([total,...wrongs.slice(0,3)]).filter((v,i,a)=>a.indexOf(v)===i).slice(0,4).map(v=>({value:v,label:v.toLocaleString()+'円'})),
+    };
+  }
+
+  if (mode === 'total_large') {
+    const items = [];
+    let total = 0;
+    const billCount = 1 + Math.floor(Math.random() * 3);
+    const coinCount = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < billCount; i++) { const b = BILLS[Math.floor(Math.random()*BILLS.length)]; items.push({...b,type:'bill'}); total+=b.value; }
+    for (let i = 0; i < coinCount; i++) { const c = COINS[Math.floor(Math.random()*COINS.length)]; items.push({...c,type:'coin'}); total+=c.value; }
+    const wrongs = [total+500, total-200, total+1000, total-500].map(v=>Math.max(1,v)).filter(v=>v!==total);
+    return {
+      mode:'total', question:'ぜんぶでいくら？',
+      display:{ type:'mixed', items:shuffle(items) },
+      answer:total, answerLabel:total.toLocaleString()+'円',
+      opts:shuffle([total,...wrongs.slice(0,3)]).filter((v,i,a)=>a.indexOf(v)===i).slice(0,4).map(v=>({value:v,label:v.toLocaleString()+'円'})),
+    };
+  }
+
+  if (mode === 'compare') {
+    // Two wallets, which is more?
+    const makeWallet = (maxBill) => {
+      const items = []; let total = 0;
+      const bc = Math.floor(Math.random()*2);
+      const cc = 2+Math.floor(Math.random()*3);
+      const ab = BILLS.filter(b=>b.value<=maxBill);
+      for(let i=0;i<bc;i++){const b=ab[Math.floor(Math.random()*ab.length)];items.push({...b,type:'bill'});total+=b.value;}
+      for(let i=0;i<cc;i++){const c=COINS[Math.floor(Math.random()*COINS.length)];items.push({...c,type:'coin'});total+=c.value;}
+      return {items,total};
+    };
+    let walletA, walletB;
+    do { walletA = makeWallet(cfg.maxValue); walletB = makeWallet(cfg.maxValue); } while (walletA.total === walletB.total);
+    const answer = walletA.total > walletB.total ? 'A' : 'B';
+    return {
+      mode:'compare', question:'どっちが多い？',
+      walletA, walletB, answer,
+      answerLabel: answer === 'A' ? 'Aのさいふ' : 'Bのさいふ',
+    };
+  }
+
+  if (mode === 'howmany') {
+    // How many of a specific coin?
+    const targetCoin = COINS[Math.floor(Math.random() * 5) + 1]; // 5yen~500yen
+    const coinCount = 4 + Math.floor(Math.random() * 4);
+    const coins = [];
+    for (let i = 0; i < coinCount; i++) coins.push(COINS[Math.floor(Math.random()*COINS.length)]);
+    const count = coins.filter(c => c.value === targetCoin.value).length;
+    const wrongs = [count+1, count-1, count+2].filter(v => v >= 0 && v !== count);
+    return {
+      mode:'howmany', question:`${targetCoin.label}は何枚ある？`,
+      display:{ type:'coins', items:coins }, targetCoin,
+      answer:count, answerLabel:count+'枚',
+      opts:shuffle([count,...wrongs.slice(0,3)]).filter((v,i,a)=>a.indexOf(v)===i&&v>=0).slice(0,4).map(v=>({value:v,label:v+'枚'})),
+    };
+  }
+
+  if (mode === 'change') {
+    // Paid X for Y, how much change?
+    const prices = [120,150,180,230,280,350,420,480,550,620,750,830,980];
+    const price = prices[Math.floor(Math.random()*prices.length)];
+    const paid = price <= 500 ? 500 : price <= 1000 ? 1000 : 5000;
+    const change = paid - price;
+    const wrongs = [change+10, change-20, change+50, change-10].filter(v=>v>0&&v!==change);
+    return {
+      mode:'change', question:`${price}円の買い物をして${paid.toLocaleString()}円払いました。おつりは？`,
+      display:null, price, paid, answer:change, answerLabel:change+'円',
+      opts:shuffle([change,...wrongs.slice(0,3)]).filter((v,i,a)=>a.indexOf(v)===i).slice(0,4).map(v=>({value:v,label:v+'円'})),
+    };
+  }
+
+  if (mode === 'combine') {
+    // Make exactly X yen - which combination is correct?
+    const targets = [150,230,310,450,550,680,750,820,1050,1200,1550,2300];
+    const target = targets[Math.floor(Math.random()*targets.length)];
+
+    // Generate correct combination
+    const makeCombo = (t) => {
+      const items = []; let rem = t;
+      const allDenom = [...BILLS,...COINS].sort((a,b)=>b.value-a.value);
+      allDenom.forEach(d => {
+        while (rem >= d.value) { items.push(d); rem -= d.value; }
+      });
+      return items;
+    };
+    const correct = makeCombo(target);
+    const correctTotal = target;
+
+    // Generate wrong totals
+    const wrongTotals = [target+50, target-30, target+100].filter(v=>v>0&&v!==target);
+    const wrongCombos = wrongTotals.map(t => ({ items:makeCombo(t), total:t }));
+
+    const opts = shuffle([
+      { items:correct, total:correctTotal, correct:true },
+      ...wrongCombos.slice(0,2).map(w=>({...w,correct:false})),
+    ]);
+
+    return {
+      mode:'combine', question:`ちょうど${target.toLocaleString()}円にするには？`,
+      target, answer:correctTotal,
+      answerLabel:correctTotal.toLocaleString()+'円',
+      comboOpts:opts,
+    };
+  }
+
+  return generateQ(diff);
+}
+
+// Display money items
+function MoneyDisplay({ display, size }) {
+  if (!display) return null;
+  const items = display.items;
+  const sc = size || 1;
+  return (
+    <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'center', alignItems:'center', padding:'8px 0' }}>
+      {items.map((item, i) => (
+        item.type === 'bill' || item.width ?
+          <BillView key={i} bill={item} /> :
+          <CoinView key={i} coin={item} />
+      ))}
+    </div>
+  );
+}
+
+// Mini money display for combo options
+function MiniMoneyDisplay({ items }) {
+  return (
+    <div style={{ display:'flex', gap:3, flexWrap:'wrap', justifyContent:'center', alignItems:'center' }}>
+      {items.slice(0, 8).map((item, i) => (
+        item.width ?
+          <div key={i} style={{ width:40, height:18, borderRadius:2, background:item.color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:item.textColor, border:'1px solid rgba(255,255,255,0.3)' }}>
+            {item.value >= 10000 ? '万' : item.value >= 5000 ? '五千' : '千'}
+          </div> :
+          <div key={i} style={{ width:18, height:18, borderRadius:'50%', background:item.color, border:`1px solid ${item.border}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:900, color:item.textColor }}>
+            {item.value}
+          </div>
+      ))}
+      {items.length > 8 && <span style={{ fontSize:10, color:'#9E9E9E' }}>+{items.length-8}</span>}
+    </div>
+  );
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase:'idle',
+    questions:[], currentQ:0,
+    score:0, correct:0,
+    selected:null, feedback:null,
+    results:[], timeLeft:0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const questions = [];
+    for (let i = 0; i < cfg.rounds; i++) questions.push(generateQ(diff));
+    g.questions = questions; g.currentQ = 0; g.score = 0; g.correct = 0;
+    g.selected = null; g.feedback = null; g.results = [];
+    g.phase = 'playing';
+    setShowConfetti(false); setScreen('game');
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const startTimer = (sec) => {
+    g.timeLeft = sec;
+    clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      g.timeLeft--; rerender();
+      if (g.timeLeft <= 0) {
+        clearInterval(intervalRef.current);
+        if (!g.feedback) {
+          g.feedback = 'timeout';
+          g.results.push({ q:g.questions[g.currentQ], correct:false });
+          rerender();
+          timerRef.current = setTimeout(() => nextQ(), 1500);
+        }
+      }
+    }, 1000);
+  };
+
+  const handleAnswer = (val) => {
+    if (g.selected !== null || g.feedback) return;
+    clearInterval(intervalRef.current);
+    const q = g.questions[g.currentQ];
+    g.selected = val;
+    const isCorrect = val === q.answer;
+    if (isCorrect) { g.score += 10; g.correct++; g.feedback = 'correct'; }
+    else { g.feedback = 'wrong'; }
+    g.results.push({ q, correct:isCorrect });
+    rerender();
+    timerRef.current = setTimeout(() => nextQ(), isCorrect ? 600 : 1500);
+  };
+
+  const nextQ = () => {
+    if (g.currentQ+1 >= g.questions.length) { finishGame(); return; }
+    g.currentQ++; g.selected = null; g.feedback = null;
+    const cfg = DIFF[difficulty];
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const finishGame = () => {
+    clearInterval(intervalRef.current);
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, correct:g.correct, total:g.questions.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  const MODE_LABELS = { count:'💰 合計', total:'💰 合計', compare:'⚖️ 比較', howmany:'🔢 何枚？', change:'🧾 おつり', combine:'🪙 組み合わせ' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>💰 おさいふ計算</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentQ+1}/{g.questions.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>💰</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>おさいふ計算</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>硬貨やお札を数えて<br/>お金の計算をしよう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 計算力・日常生活のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 硬貨やお札が並びます<br/>
+              ② ぜんぶでいくらか数えよう<br/>
+              ③ おつり計算や比較問題も！<br/>
+              ④ お金の感覚をきたえよう
+            </div>
+          </div>
+
+          {/* Coin preview */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>🪙 こんな硬貨・お札が出ます</div>
+            <div style={{ display:'flex', gap:8, justifyContent:'center', alignItems:'flex-end', flexWrap:'wrap' }}>
+              {COINS.map((c,i) => <CoinView key={i} coin={c} />)}
+            </div>
+            <div style={{ display:'flex', gap:6, justifyContent:'center', marginTop:10 }}>
+              {BILLS.map((b,i) => <BillView key={i} bill={b} />)}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const q = g.questions[g.currentQ];
+        if (!q) return null;
+        const answered = g.selected !== null || g.feedback !== null;
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status */}
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+              {[
+                {v:g.score,l:'スコア',c:'#FF6B35'},
+                {v:g.correct+'/'+(g.currentQ+(answered?1:0)),l:'正解',c:'#2EC4B6'},
+                {v:(g.currentQ+1)+'/'+g.questions.length,l:'問題',c:'#7B1FA2'},
+                ...(cfg.timeLimit && !answered ? [{v:g.timeLeft+'秒',l:'残り',c:g.timeLeft<=3?'#E53935':'#6B6B6B'}] : []),
+              ].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c, animation:s.l==='残り'&&g.timeLeft<=3?'pulse 0.3s infinite':undefined }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display:'flex', gap:2, marginBottom:8 }}>
+              {g.questions.map((_,i) => (
+                <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].correct?'#66BB6A':'#EF5350'):i===g.currentQ?'#FFB74D':'#E8E8E8' }} />
+              ))}
+            </div>
+
+            {/* Timer */}
+            {cfg.timeLimit > 0 && !answered && (
+              <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:8, overflow:'hidden' }}>
+                <div style={{ width:(g.timeLeft/cfg.timeLimit*100)+'%', height:'100%', background:g.timeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:2, transition:'width 1s linear' }} />
+              </div>
+            )}
+
+            <div style={{ animation:'fadeUp 0.25s ease-out' }} key={g.currentQ}>
+              {/* Mode badge */}
+              <div style={{ textAlign:'center', marginBottom:8 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', background:'#F5F5F5', padding:'4px 14px', borderRadius:50 }}>
+                  {MODE_LABELS[q.mode] || '💰'}
+                </span>
+              </div>
+
+              {/* Question */}
+              <div style={{ background:'white', borderRadius:18, padding:'16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:12, textAlign:'center' }}>
+                <div style={{ fontSize:22, fontWeight:900, color:'#2D2D2D', lineHeight:1.5, marginBottom: q.display || q.mode === 'compare' ? 10 : 0 }}>{q.question}</div>
+
+                {/* Money display */}
+                {q.display && <MoneyDisplay display={q.display} />}
+
+                {/* Compare mode - two wallets */}
+                {q.mode === 'compare' && (
+                  <div style={{ display:'flex', gap:10, justifyContent:'center', marginTop:8 }}>
+                    {[{label:'A',wallet:q.walletA},{label:'B',wallet:q.walletB}].map(({label,wallet},i) => {
+                      const isSelected = g.selected === label;
+                      const isCorrect = label === q.answer;
+                      return (
+                        <button key={i} onClick={() => handleAnswer(label)} disabled={answered}
+                          style={{...btnBase, flex:1, padding:'12px 8px', borderRadius:14, textAlign:'center',
+                            border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                            background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                            opacity:answered&&!isCorrect&&!isSelected?0.5:1}}>
+                          <div style={{ fontSize:14, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>さいふ{label}</div>
+                          <MoneyDisplay display={{type:'mixed',items:wallet.items}} />
+                          {answered && <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginTop:4 }}>{wallet.total.toLocaleString()}円</div>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Change mode visual */}
+                {q.mode === 'change' && (
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginTop:8, flexWrap:'wrap' }}>
+                    <div style={{ background:'#FFF3E0', borderRadius:10, padding:'8px 14px', textAlign:'center' }}>
+                      <div style={{ fontSize:10, color:'#E65100', fontWeight:700 }}>お買い物</div>
+                      <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:900, color:'#E65100' }}>{q.price}円</div>
+                    </div>
+                    <span style={{ fontSize:20, fontWeight:900, color:'#9E9E9E' }}>→</span>
+                    <div style={{ background:'#E3F2FD', borderRadius:10, padding:'8px 14px', textAlign:'center' }}>
+                      <div style={{ fontSize:10, color:'#1565C0', fontWeight:700 }}>お支払い</div>
+                      <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:900, color:'#1565C0' }}>{q.paid.toLocaleString()}円</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Options (for non-compare modes) */}
+              {q.mode !== 'compare' && q.mode !== 'combine' && (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                  {q.opts.map((opt,i) => {
+                    const isSelected = g.selected === opt.value;
+                    const isCorrect = opt.value === q.answer;
+                    return (
+                      <button key={i} onClick={() => handleAnswer(opt.value)} disabled={answered}
+                        style={{...btnBase, fontSize:16, fontWeight:700, fontFamily:'Outfit', padding:'16px 10px', borderRadius:14, textAlign:'center',
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                          opacity:answered&&!isCorrect&&!isSelected?0.3:1,
+                          color:answered&&isCorrect?'#2E7D32':answered&&isSelected&&!isCorrect?'#C62828':'#2D2D2D'}}>
+                        {opt.label} {answered && isCorrect ? '✅' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Combine mode options */}
+              {q.mode === 'combine' && (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {q.comboOpts.map((opt,i) => {
+                    const isSelected = g.selected === opt.total;
+                    const isCorrect = opt.correct;
+                    return (
+                      <button key={i} onClick={() => handleAnswer(opt.total)} disabled={answered}
+                        style={{...btnBase, padding:'12px 14px', borderRadius:14, textAlign:'center',
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                          opacity:answered&&!isCorrect&&!isSelected?0.3:1}}>
+                        <MiniMoneyDisplay items={opt.items} />
+                        {answered && <div style={{ fontSize:11, fontWeight:700, marginTop:4, color:isCorrect?'#2E7D32':'#C62828' }}>{opt.total.toLocaleString()}円</div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Feedback */}
+              {g.feedback === 'wrong' && q.mode !== 'compare' && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#C62828' }}>❌ 正解は {q.answerLabel}</div>
+              )}
+              {g.feedback === 'timeout' && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#E65100' }}>⏰ 時間切れ！正解は {q.answerLabel}</div>
+              )}
+            </div>
+            <div style={{ height:20 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.questions.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'おさいふ名人！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        const modeStats = {};
+        g.results.forEach(r => { const m = r.q.mode; if (!modeStats[m]) modeStats[m] = {t:0,c:0}; modeStats[m].t++; if(r.correct) modeStats[m].c++; });
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center', marginBottom:24, width:'100%', maxWidth:360 }}>
+              {Object.entries(modeStats).map(([m,s]) => (
+                <div key={m} style={{ background:'white', borderRadius:12, padding:'8px 12px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center', minWidth:65 }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:'#6B6B6B' }}>{MODE_LABELS[m]||m}</div>
+                  <div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, marginTop:2 }}>{s.c}/{s.t}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 お金のコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                大きい硬貨・お札から順に数えると間違いが減ります。「千円が2枚で2000円、100円が3枚で300円、合わせて2300円」のようにまとめて数えましょう。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

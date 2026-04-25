@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>なぞりトレース | みなともPlay</title>
+<meta name="description" content="巧緻運動トレーニング - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="visuospatial">
+<meta name="minatomo-category" content="">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== なぞりトレース - 巧緻運動トレーニング ==========
+// Trace shapes and patterns on screen. Measures accuracy and stroke size.
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'大きめ・シンプルな形', rounds:6, tolerance:30, modes:['circle','line','zigzag'] },
+  normal: { label:'ふつう', emoji:'🌿', desc:'ふつう・渦巻きも', rounds:8, tolerance:24, modes:['circle','line','zigzag','spiral','square'] },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'小さめ・複雑な形', rounds:10, tolerance:18, modes:['circle','line','zigzag','spiral','square','star','wave'] },
+};
+
+// Generate target path points for each shape
+function generatePath(mode, canvasW, canvasH) {
+  const cx = canvasW / 2;
+  const cy = canvasH / 2;
+  const points = [];
+
+  if (mode === 'circle') {
+    const r = Math.min(canvasW, canvasH) * 0.32;
+    for (let i = 0; i <= 60; i++) {
+      const angle = (i / 60) * Math.PI * 2 - Math.PI / 2;
+      points.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+    }
+    return { points, name:'まる', icon:'⭕' };
+  }
+
+  if (mode === 'line') {
+    const isHorizontal = Math.random() < 0.5;
+    if (isHorizontal) {
+      const y = cy;
+      for (let i = 0; i <= 40; i++) {
+        points.push({ x: canvasW * 0.15 + (canvasW * 0.7) * (i / 40), y });
+      }
+      return { points, name:'よこ線', icon:'➡️' };
+    } else {
+      const x = cx;
+      for (let i = 0; i <= 40; i++) {
+        points.push({ x, y: canvasH * 0.15 + (canvasH * 0.7) * (i / 40) });
+      }
+      return { points, name:'たて線', icon:'⬇️' };
+    }
+  }
+
+  if (mode === 'zigzag') {
+    const peaks = 3 + Math.floor(Math.random() * 2);
+    const w = canvasW * 0.7;
+    const h = canvasH * 0.5;
+    const startX = canvasW * 0.15;
+    const startY = cy - h / 2;
+    for (let i = 0; i <= peaks * 10; i++) {
+      const progress = i / (peaks * 10);
+      const x = startX + w * progress;
+      const zigPhase = (i % 10) / 10;
+      const isUp = Math.floor(i / 10) % 2 === 0;
+      const y = isUp ? startY + h * (1 - zigPhase) : startY + h * zigPhase;
+      points.push({ x, y });
+    }
+    return { points, name:'ギザギザ', icon:'📈' };
+  }
+
+  if (mode === 'spiral') {
+    const turns = 2.5;
+    for (let i = 0; i <= 80; i++) {
+      const progress = i / 80;
+      const angle = progress * turns * Math.PI * 2;
+      const r = 10 + progress * Math.min(canvasW, canvasH) * 0.3;
+      points.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+    }
+    return { points, name:'うずまき', icon:'🌀' };
+  }
+
+  if (mode === 'square') {
+    const size = Math.min(canvasW, canvasH) * 0.55;
+    const half = size / 2;
+    const segs = 12;
+    // Top
+    for (let i = 0; i <= segs; i++) points.push({ x: cx - half + size * (i / segs), y: cy - half });
+    // Right
+    for (let i = 1; i <= segs; i++) points.push({ x: cx + half, y: cy - half + size * (i / segs) });
+    // Bottom
+    for (let i = 1; i <= segs; i++) points.push({ x: cx + half - size * (i / segs), y: cy + half });
+    // Left
+    for (let i = 1; i <= segs; i++) points.push({ x: cx - half, y: cy + half - size * (i / segs) });
+    return { points, name:'しかく', icon:'⬜' };
+  }
+
+  if (mode === 'star') {
+    const outerR = Math.min(canvasW, canvasH) * 0.32;
+    const innerR = outerR * 0.4;
+    for (let i = 0; i <= 50; i++) {
+      const angle = (i / 50) * Math.PI * 2 - Math.PI / 2;
+      const isOuter = Math.floor(i / 5) % 2 === 0;
+      const r = isOuter ? outerR : innerR;
+      // Smoothly interpolate
+      const nextIsOuter = Math.floor((i + 1) / 5) % 2 === 0;
+      const nextR = nextIsOuter ? outerR : innerR;
+      const intraProgress = (i % 5) / 5;
+      const blendR = r + (nextR - r) * intraProgress;
+      points.push({ x: cx + blendR * Math.cos(angle), y: cy + blendR * Math.sin(angle) });
+    }
+    return { points, name:'ほし', icon:'⭐' };
+  }
+
+  if (mode === 'wave') {
+    const w = canvasW * 0.75;
+    const startX = canvasW * 0.125;
+    const amplitude = canvasH * 0.2;
+    for (let i = 0; i <= 60; i++) {
+      const progress = i / 60;
+      const x = startX + w * progress;
+      const y = cy + Math.sin(progress * Math.PI * 4) * amplitude;
+      points.push({ x, y });
+    }
+    return { points, name:'なみ', icon:'🌊' };
+  }
+
+  // Fallback
+  return generatePath('circle', canvasW, canvasH);
+}
+
+// Calculate accuracy: average distance from drawn points to nearest target point
+function calcAccuracy(drawnPoints, targetPoints, tolerance) {
+  if (drawnPoints.length < 5) return { accuracy:0, avgDist:999 };
+
+  let totalDist = 0;
+  let matchCount = 0;
+
+  drawnPoints.forEach(dp => {
+    let minDist = Infinity;
+    targetPoints.forEach(tp => {
+      const d = Math.sqrt((dp.x - tp.x) ** 2 + (dp.y - tp.y) ** 2);
+      if (d < minDist) minDist = d;
+    });
+    totalDist += minDist;
+    if (minDist <= tolerance) matchCount++;
+  });
+
+  const avgDist = totalDist / drawnPoints.length;
+  const accuracy = Math.round((matchCount / drawnPoints.length) * 100);
+
+  return { accuracy, avgDist: Math.round(avgDist) };
+}
+
+// Calculate coverage: how much of the target path was traced
+function calcCoverage(drawnPoints, targetPoints, tolerance) {
+  const covered = new Set();
+  drawnPoints.forEach(dp => {
+    targetPoints.forEach((tp, idx) => {
+      const d = Math.sqrt((dp.x - tp.x) ** 2 + (dp.y - tp.y) ** 2);
+      if (d <= tolerance * 1.5) covered.add(idx);
+    });
+  });
+  return Math.round((covered.size / targetPoints.length) * 100);
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase:'idle',
+    rounds:[], currentR:0,
+    score:0, greatCount:0, goodCount:0, missCount:0,
+    results:[],
+    // Canvas state
+    drawing:false,
+    drawnPoints:[],
+    targetPath:null,
+    result:null,
+    startIdx:0,
+  }).current;
+
+  const canvasRef = React.useRef(null);
+  const timerRef = React.useRef(null);
+  const CANVAS_W = 320;
+  const CANVAS_H = 280;
+
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    for (let i = 0; i < cfg.rounds; i++) {
+      const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+      rounds.push({ mode });
+    }
+    g.rounds = rounds; g.currentR = 0;
+    g.score = 0; g.greatCount = 0; g.goodCount = 0; g.missCount = 0;
+    g.results = [];
+    setShowConfetti(false); setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    g.currentR = idx;
+    const round = g.rounds[idx];
+    g.drawnPoints = [];
+    g.drawing = false;
+    g.result = null;
+    g.targetPath = generatePath(round.mode, CANVAS_W, CANVAS_H);
+    g.startIdx = 0;
+    g.phase = 'tracing';
+    rerender();
+  };
+
+  const getPos = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = CANVAS_W / rect.width;
+    const scaleY = CANVAS_H / rect.height;
+    const touch = e.touches ? e.touches[0] : e;
+    return {
+      x: (touch.clientX - rect.left) * scaleX,
+      y: (touch.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const handleStart = (e) => {
+    if (g.result) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    if (!pos) return;
+    g.drawing = true;
+    g.drawnPoints = [pos];
+    rerender();
+  };
+
+  const handleMove = (e) => {
+    if (!g.drawing || g.result) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    if (!pos) return;
+    // Throttle - only add if moved enough
+    const last = g.drawnPoints[g.drawnPoints.length - 1];
+    const d = Math.sqrt((pos.x - last.x) ** 2 + (pos.y - last.y) ** 2);
+    if (d > 3) {
+      g.drawnPoints.push(pos);
+      rerender();
+    }
+  };
+
+  const handleEnd = () => {
+    if (!g.drawing) return;
+    g.drawing = false;
+    if (g.drawnPoints.length < 10) { rerender(); return; } // Too short, ignore
+    judgeTrace();
+  };
+
+  const judgeTrace = () => {
+    const cfg = DIFF[difficulty];
+    const { accuracy, avgDist } = calcAccuracy(g.drawnPoints, g.targetPath.points, cfg.tolerance);
+    const coverage = calcCoverage(g.drawnPoints, g.targetPath.points, cfg.tolerance);
+
+    // Combined score from accuracy and coverage
+    const combined = Math.round(accuracy * 0.5 + coverage * 0.5);
+    let result;
+    if (combined >= 75) { result = 'great'; g.greatCount++; g.score += 25; }
+    else if (combined >= 45) { result = 'good'; g.goodCount++; g.score += 12; }
+    else { result = 'miss'; g.missCount++; g.score += 3; }
+
+    g.result = { result, accuracy, coverage, combined, avgDist };
+    g.results.push({ mode:g.rounds[g.currentR].mode, ...g.result, name:g.targetPath.name });
+    rerender();
+    timerRef.current = setTimeout(() => nextRound(), 2200);
+  };
+
+  const retryTrace = () => {
+    g.drawnPoints = [];
+    g.result = null;
+    rerender();
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.greatCount / g.rounds.length;
+    if (pct >= 0.3) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, great:g.greatCount, good:g.goodCount, miss:g.missCount, total:g.rounds.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#E8652E','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  // Canvas rendering
+  const renderCanvas = () => {
+    if (!g.targetPath) return null;
+    const tp = g.targetPath.points;
+    const dp = g.drawnPoints;
+    const showResult = g.result !== null;
+
+    // Build SVG path for target
+    const targetD = tp.length > 0 ? `M ${tp.map(p => `${p.x} ${p.y}`).join(' L ')}` : '';
+    const drawnD = dp.length > 1 ? `M ${dp.map(p => `${p.x} ${p.y}`).join(' L ')}` : '';
+
+    // Start indicator
+    const start = tp[0];
+
+    return (
+      <div style={{ position:'relative', margin:'0 auto', width:'100%', maxWidth:CANVAS_W }}>
+        <svg
+          ref={canvasRef}
+          viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+          style={{ width:'100%', height:'auto', background:'white', borderRadius:18, boxShadow:'0 2px 8px rgba(0,0,0,0.04)', touchAction:'none', cursor:'crosshair' }}
+          onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd}
+          onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
+        >
+          {/* Target path - dashed guide */}
+          <path d={targetD} fill="none" stroke={showResult ? '#E0E0E0' : '#E8652E'} strokeWidth={showResult ? 2 : 3}
+            strokeDasharray={showResult ? '0' : '8 6'} strokeLinecap="round" opacity={showResult ? 0.4 : 0.5} />
+
+          {/* Target path solid (shown in result) */}
+          {showResult && (
+            <path d={targetD} fill="none" stroke="#BDBDBD" strokeWidth={2} strokeLinecap="round" opacity={0.3} />
+          )}
+
+          {/* Tolerance zone - subtle fill around target */}
+          {!showResult && (
+            <path d={targetD} fill="none" stroke="#E8652E" strokeWidth={cfg.tolerance * 2}
+              strokeLinecap="round" opacity={0.06} />
+          )}
+
+          {/* Drawn path */}
+          {dp.length > 1 && (
+            <path d={drawnD} fill="none"
+              stroke={showResult ? (g.result.result === 'great' ? '#66BB6A' : g.result.result === 'good' ? '#FFB74D' : '#EF5350') : '#1E88E5'}
+              strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+          )}
+
+          {/* Start point */}
+          {!showResult && dp.length === 0 && start && (
+            <>
+              <circle cx={start.x} cy={start.y} r={14} fill="#E8652E" opacity={0.2}>
+                <animate attributeName="r" values="14;20;14" dur="1.5s" repeatCount="indefinite" />
+              </circle>
+              <circle cx={start.x} cy={start.y} r={8} fill="#E8652E" />
+              <text x={start.x} y={start.y + 28} textAnchor="middle" fontSize="11" fill="#E8652E" fontWeight="700">ここから</text>
+            </>
+          )}
+
+          {/* End point */}
+          {!showResult && dp.length === 0 && tp.length > 1 && (
+            <circle cx={tp[tp.length-1].x} cy={tp[tp.length-1].y} r={6} fill="none" stroke="#E8652E" strokeWidth={2} strokeDasharray="3 3" />
+          )}
+        </svg>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+        @media (min-width: 768px) { #root { zoom: 1.25; } }
+        @media (min-width: 1200px) { #root { zoom: 1.8; } }
+        @media (min-width: 1920px) { #root { zoom: 2.4; } }
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>✍️ なぞりトレース</span>
+        </div>
+        {screen === 'game' && g.phase !== 'idle' && (
+          <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#888', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 3s ease-in-out infinite' }}>✍️</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:6 }}>なぞりトレース</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.9, letterSpacing:'0.03em' }}>お手本をなぞって<br/>線をきれいに描こう！</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:28, background:'#F5F5F0', padding:'10px 18px', borderRadius:12 }}>🧠 巧緻運動・手指の正確さのトレーニングです<br/>書字や細かい作業の維持・改善を目指します</div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'20px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12, letterSpacing:'0.05em' }}>🎯 遊び方</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', lineHeight:2.2, letterSpacing:'0.03em' }}>
+              ① オレンジの点線が表示されます<br/>
+              ② 「ここから」の印からなぞり始めます<br/>
+              ③ 点線の上をできるだけ正確になぞります<br/>
+              ④ 正確さとカバー率で判定！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left', letterSpacing:'0.05em' }}>🎨 こんな形をなぞります</div>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center' }}>
+              {[
+                { icon:'⭕', name:'まる' },
+                { icon:'➡️', name:'直線' },
+                { icon:'📈', name:'ギザギザ' },
+                { icon:'🌀', name:'うずまき' },
+                { icon:'⬜', name:'しかく' },
+                { icon:'⭐', name:'ほし' },
+                { icon:'🌊', name:'なみ' },
+              ].map((s,i) => (
+                <span key={i} style={{ fontSize:12, fontWeight:700, padding:'5px 10px', borderRadius:50, background:'#F5F5F0' }}>
+                  {s.icon} {s.name}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, letterSpacing:'0.05em' }}>💡 なぜ「なぞる」が大切？</div>
+            <div style={{ fontSize:13, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+              加齢や疾患によって、字が小さくなったり線がふるえたりすることがあります。意識的に大きく正確になぞる練習を続けることで、手指の巧緻性を維持できます。
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left', letterSpacing:'0.05em' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'2px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:480, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:'#F5F5F0' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:13,fontWeight:700}}>{hc.label}・🎉{h.great} 👍{h.good}</div><div style={{fontSize:11,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:18,fontWeight:800,color:'#E8652E'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'tracing' && (() => {
+        const round = g.rounds[g.currentR];
+        const path = g.targetPath;
+        return (
+          <div style={{ padding:'0 16px', maxWidth:580, margin:'0 auto' }}>
+            {/* Status */}
+            <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'8px 14px', background:'white', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+              {[{v:g.score,l:'スコア'},{v:`🎉${g.greatCount} 👍${g.goodCount}`,l:'判定'},{v:`${g.currentR+1}/${g.rounds.length}`,l:'ラウンド'}].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#555' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display:'flex', gap:2, marginBottom:10 }}>
+              {g.rounds.map((_,i) => (
+                <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].result==='great'?'#8BC34A':g.results[i].result==='good'?'#FFB74D':'#EF9A9A'):i===g.currentR?'#FFB74D':'#E8E8E8' }} />
+              ))}
+            </div>
+
+            <div style={{ animation:'fadeUp 0.3s ease-out' }} key={g.currentR}>
+              {/* Shape label */}
+              <div style={{ textAlign:'center', marginBottom:8 }}>
+                <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', background:'#FFF3E0', padding:'6px 18px', borderRadius:50 }}>
+                  {path?.icon} {path?.name}をなぞろう
+                </span>
+              </div>
+
+              {/* Canvas */}
+              {renderCanvas()}
+
+              {/* Result overlay */}
+              {g.result && (
+                <div style={{ textAlign:'center', marginTop:12, animation:'fadeUp 0.4s ease-out' }}>
+                  <div style={{ fontSize:32, marginBottom:4 }}>
+                    {g.result.result === 'great' ? '🎉' : g.result.result === 'good' ? '👍' : '🤔'}
+                  </div>
+                  <div style={{ fontSize:20, fontWeight:900, color:g.result.result==='great'?'#2E7D32':g.result.result==='good'?'#E8652E':'#999', letterSpacing:'0.06em' }}>
+                    {g.result.result === 'great' ? 'きれい！' : g.result.result === 'good' ? 'いいね！' : 'もう少し！'}
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'center', gap:16, marginTop:8 }}>
+                    <div style={{ textAlign:'center' }}>
+                      <div style={{ fontFamily:'Outfit', fontSize:20, fontWeight:800, color:'#555' }}>{g.result.accuracy}%</div>
+                      <div style={{ fontSize:10, color:'#9E9E9E' }}>正確さ</div>
+                    </div>
+                    <div style={{ textAlign:'center' }}>
+                      <div style={{ fontFamily:'Outfit', fontSize:20, fontWeight:800, color:'#555' }}>{g.result.coverage}%</div>
+                      <div style={{ fontSize:10, color:'#9E9E9E' }}>カバー率</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Retry button */}
+              {!g.result && g.drawnPoints.length > 0 && (
+                <button onClick={retryTrace} style={{...btnBase, marginTop:8, fontSize:13, fontWeight:700, padding:'8px 20px', borderRadius:50, background:'#F5F5F0', border:'1px solid #E0E0E0', color:'#6B6B6B', display:'block', margin:'8px auto 0'}}>
+                  ↩️ やり直す
+                </button>
+              )}
+
+              {!g.result && g.drawnPoints.length === 0 && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:14, color:'#9E9E9E' }}>
+                  👆 指でなぞってみよう
+                </div>
+              )}
+            </div>
+            <div style={{ height:20 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const pct = total > 0 ? g.greatCount / total : 0;
+        const stars = pct >= 0.6 ? '⭐⭐⭐' : pct >= 0.3 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.6 ? 'とってもきれい！' : pct >= 0.3 ? 'いい調子！' : 'もっと練習！';
+
+        const avgAccuracy = g.results.length > 0 ? Math.round(g.results.reduce((s,r) => s + r.accuracy, 0) / g.results.length) : 0;
+        const avgCoverage = g.results.length > 0 ? Math.round(g.results.reduce((s,r) => s + r.coverage, 0) / g.results.length) : 0;
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', marginBottom:6, letterSpacing:'0.08em' }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:20 }}>
+              {[
+                {v:`🎉 ${g.greatCount}`,l:'きれい',c:'#2E7D32'},
+                {v:`${avgAccuracy}%`,l:'平均正確さ',c:'#555'},
+                {v:`${avgCoverage}%`,l:'平均カバー率',c:'#555'},
+              ].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ background:'white', borderRadius:16, padding:'14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', width:'100%', maxWidth:360, marginBottom:20 }}>
+              <div style={{ fontFamily:'Outfit', fontSize:32, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{fontSize:16}}>pt</span></div>
+              <div style={{ fontSize:11, color:'#9E9E9E' }}>トータルスコア</div>
+            </div>
+
+            {/* Round details */}
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📋 ラウンド別</div>
+              {g.results.map((r,i) => (
+                <div key={i} style={{ background:r.result==='great'?'#F1F8E9':r.result==='good'?'#FFF3E0':'#FAFAFA', borderRadius:12, padding:'8px 14px', marginBottom:4, borderLeft:`4px solid ${r.result==='great'?'#8BC34A':r.result==='good'?'#FFB74D':'#E0E0E0'}`, textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div style={{ fontSize:13, fontWeight:700 }}>
+                    {r.result==='great'?'🎉':r.result==='good'?'👍':'🤔'} {r.name}
+                  </div>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <span style={{ fontFamily:'Outfit', fontSize:12, fontWeight:800, color:'#555' }}>正確{r.accuracy}%</span>
+                    <span style={{ fontFamily:'Outfit', fontSize:12, fontWeight:800, color:'#999' }}>カバー{r.coverage}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24, padding:'14px 16px', background:'#FAFAF8', border:'1px solid #E8E8E8', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6, letterSpacing:'0.05em' }}>💡 なぞりのコツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+                ゆっくりでいいので線の上をていねいになぞりましょう。「大きく、ゆっくり、正確に」が大切です。毎日少しずつ続けることで手指の動きが安定していきます。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#E8652E', border:'none', padding:'16px 32px', borderRadius:60, letterSpacing:'0.06em'}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

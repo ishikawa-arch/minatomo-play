@@ -1,0 +1,263 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【シンプル】ひだり？みぎ？ ==========
+
+function genRounds(count) {
+  const rounds = [];
+
+  // Stimuli types
+  const arrowStims = [
+    { display:'←', displaySize:80, dir:'left' },
+    { display:'→', displaySize:80, dir:'right' },
+  ];
+  const handStims = [
+    { display:'👈', displaySize:72, dir:'left' },
+    { display:'👉', displaySize:72, dir:'right' },
+  ];
+  const eyeStims = [
+    { display:'👀', displaySize:64, dir:'left', note:'ひだりをみてる' },
+    { display:'👀', displaySize:64, dir:'right', note:'みぎをみてる', flipX:true },
+  ];
+
+  for (let i = 0; i < count; i++) {
+    let stim;
+    if (i < 4) {
+      // Easy: big arrows
+      stim = arrowStims[Math.floor(Math.random() * 2)];
+    } else if (i < 8) {
+      // Medium: hands
+      stim = handStims[Math.floor(Math.random() * 2)];
+    } else {
+      // Hard: mix of all + speed
+      const all = [...arrowStims, ...handStims];
+      stim = all[Math.floor(Math.random() * all.length)];
+    }
+    rounds.push({ ...stim });
+  }
+  return rounds;
+}
+
+export default function SimpleLeftRight() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    rounds:[], currentR:0, score:0, correct:0,
+    feedback:null, selected:null,
+    startTime:0, rts:[],
+  }).current;
+
+  const timerRef = useRef(null);
+  const missRef = useRef(null);
+  useEffect(() => () => { clearTimeout(timerRef.current); clearTimeout(missRef.current); }, []);
+
+  const startGame = () => {
+    g.rounds = genRounds(12);
+    g.currentR = 0; g.score = 0; g.correct = 0;
+    g.feedback = null; g.selected = null; g.rts = [];
+    setScreen('play'); rerender();
+    showNext(0);
+  };
+
+  const showNext = (idx) => {
+    g.currentR = idx;
+    g.feedback = null; g.selected = null;
+    g.startTime = Date.now();
+    rerender();
+
+    // Auto-timeout: gets shorter
+    const timeout = Math.max(2000, 4000 - idx * 150);
+    missRef.current = setTimeout(() => {
+      if (!g.feedback) {
+        g.feedback = 'timeout';
+        rerender();
+        timerRef.current = setTimeout(() => advance(), 1000);
+      }
+    }, timeout);
+  };
+
+  const handleTap = (dir) => {
+    if (g.feedback) return;
+    clearTimeout(missRef.current);
+    const round = g.rounds[g.currentR];
+    const rt = Date.now() - g.startTime;
+    const isCorrect = dir === round.dir;
+    g.selected = dir;
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    if (isCorrect) {
+      g.correct++;
+      g.rts.push(rt);
+      g.score += 10 + Math.max(0, Math.round((1500 - rt) / 100));
+    }
+    rerender();
+    timerRef.current = setTimeout(() => advance(), isCorrect ? 600 : 1200);
+  };
+
+  const advance = () => {
+    if (g.currentR + 1 >= g.rounds.length) {
+      setScreen('done'); rerender();
+    } else {
+      showNext(g.currentR + 1);
+    }
+  };
+
+  const round = g.currentR < g.rounds.length ? g.rounds[g.currentR] : null;
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+  const avgRT = g.rts.length > 0 ? Math.round(g.rts.reduce((a,b) => a+b, 0) / g.rts.length) : 0;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.5)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @keyframes slideIn{from{opacity:0;transform:scale(0.3)}to{opacity:1;transform:scale(1)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>👈 ひだり？みぎ？</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>{g.currentR + 1} / {g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:24, marginBottom:24 }}>
+            <span style={{ fontSize:60 }}>👈</span>
+            <span style={{ fontSize:60 }}>👉</span>
+          </div>
+
+          <div style={{ fontSize:26, fontWeight:900, color:'#333', marginBottom:8, letterSpacing:'0.06em' }}>
+            どっちをさしてる？
+          </div>
+          <div style={{ fontSize:16, color:'#9E9E9E', marginBottom:40 }}>
+            すばやくタップしよう！
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:28, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'24px 64px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && round && (
+        <div style={{ padding:'16px', maxWidth:580, margin:'0 auto' }}>
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:12 }}>
+            {g.rounds.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.currentR ? 12 : 8, height:8, borderRadius:4,
+                background: i < g.currentR ? '#8BC34A' : i === g.currentR ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          <div style={{ textAlign:'center', marginBottom:16 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:24, fontWeight:900, color:'#E8652E' }}>{g.score}</span>
+            <span style={{ fontSize:14, fontWeight:700, color:'#9E9E9E', marginLeft:4 }}>てん</span>
+          </div>
+
+          {/* Stimulus area */}
+          <div style={{
+            background:'white', borderRadius:24, padding:'32px 20px',
+            boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
+            textAlign:'center', marginBottom:16, minHeight:140,
+            display:'flex', alignItems:'center', justifyContent:'center',
+          }}>
+            {!g.feedback ? (
+              <div style={{ animation:'slideIn 0.25s ease-out' }} key={g.currentR}>
+                <span style={{
+                  fontSize:round.displaySize,
+                  display:'inline-block',
+                  transform: round.flipX ? 'scaleX(-1)' : 'none',
+                }}>{round.display}</span>
+              </div>
+            ) : g.feedback === 'timeout' ? (
+              <div style={{ animation:'fadeUp 0.3s' }}>
+                <div style={{ fontSize:28, fontWeight:900, color:'#C62828' }}>⏰ おそい！</div>
+              </div>
+            ) : (
+              <div style={{ animation:'fadeUp 0.2s' }}>
+                <span style={{ fontSize:56 }}>{g.feedback === 'correct' ? '⭕' : '❌'}</span>
+                {g.feedback === 'correct' && g.rts.length > 0 && (
+                  <div style={{ fontFamily:'Outfit,sans-serif', fontSize:16, fontWeight:800, color:'#555', marginTop:4 }}>
+                    {g.rts[g.rts.length - 1]}ms
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Left / Right buttons */}
+          <div style={{ display:'flex', gap:14 }}>
+            {[
+              { dir:'left', label:'ひだり', arrow:'←', color:'#1E88E5', lightBg:'#E3F2FD' },
+              { dir:'right', label:'みぎ', arrow:'→', color:'#E8652E', lightBg:'#FFF3E0' },
+            ].map((btn) => {
+              const isSelected = g.selected === btn.dir;
+              const isCorrect = g.feedback === 'correct' && isSelected;
+              const isWrong = g.feedback === 'wrong' && isSelected;
+              const isAnswer = round.dir === btn.dir;
+              const showAnswer = g.feedback && g.feedback !== 'correct' && isAnswer;
+
+              return (
+                <button key={btn.dir} onClick={() => handleTap(btn.dir)}
+                  style={{
+                    ...bs, flex:1, height:110, borderRadius:24,
+                    background: isCorrect ? btn.lightBg : isWrong ? '#FFF5F5' : showAnswer ? btn.lightBg : 'white',
+                    border: `4px solid ${isCorrect ? btn.color : isWrong ? '#EF5350' : showAnswer ? btn.color : '#E8E8E8'}`,
+                    display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2,
+                    animation: isWrong ? 'shake 0.3s' : isCorrect ? 'pop 0.3s' : undefined,
+                    opacity: g.feedback && !isSelected && !showAnswer ? 0.3 : 1,
+                    boxShadow: '0 3px 10px rgba(0,0,0,0.06)',
+                    pointerEvents: g.feedback ? 'none' : 'auto',
+                  }}>
+                  <span style={{ fontSize:32, fontWeight:900, color: isCorrect ? btn.color : isWrong ? '#C62828' : '#555' }}>{btn.arrow}</span>
+                  <span style={{ fontSize:18, fontWeight:900, color: isCorrect ? btn.color : isWrong ? '#C62828' : '#555' }}>{btn.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const total = g.rounds.length;
+        const pct = g.correct / total;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すごい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:80, marginBottom:16, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:32, fontWeight:900, color:'#E8652E', marginBottom:12 }}>{msg}</div>
+            <div style={{ background:'white', borderRadius:24, padding:'20px 40px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:8 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:48, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:20, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+            {avgRT > 0 && (
+              <div style={{ fontSize:16, fontWeight:700, color:'#555', marginBottom:8 }}>
+                はやさ：<span style={{ fontFamily:'Outfit', fontWeight:900 }}>{avgRT}ms</span>
+              </div>
+            )}
+            <div style={{ fontSize:20, fontWeight:700, color:'#6B6B6B', marginBottom:40 }}>{g.correct}もん せいかい / {total}もん</div>
+            <button onClick={startGame} style={{
+              ...bs, fontSize:24, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'22px 48px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

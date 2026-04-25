@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>でたじゅん！ | みなともPlay</title>
+<meta name="description" content="でたじゅん！ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="memory">
+<meta name="minatomo-category" content="シンプル">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【シンプル】でたじゅん！ ==========
+const EMOJIS = ['🍎','🐱','⭐','🌸','🚗','🎈','🐟','🍰','❤️','🐸','🌻','🎵','🍊','🐧','🐶'];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function genRounds(count) {
+  const rounds = [];
+  for (let i = 0; i < count; i++) {
+    let numItems;
+    if (i < 3) numItems = 3;
+    else if (i < 6) numItems = 4;
+    else if (i < 9) numItems = 5;
+    else numItems = 6;
+
+    const pool = shuffle([...EMOJIS]).slice(0, numItems);
+
+    // Place in a 3x3 or 3x4 layout positions
+    const positions = shuffle([0,1,2,3,4,5,6,7,8]).slice(0, numItems);
+
+    // Show speed: gets faster
+    const showDelay = Math.max(400, 800 - i * 30);
+
+    rounds.push({ emojis: pool, positions, numItems, showDelay });
+  }
+  return rounds;
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    rounds:[], currentR:0, score:0, correct:0,
+    phase:'idle', // showing, picking, feedback
+    shownCount:0, // how many have appeared so far
+    tapped:[], // indices tapped in order
+    feedback:null,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.rounds = genRounds(10);
+    g.currentR = 0; g.score = 0; g.correct = 0;
+    g.tapped = []; g.feedback = null;
+    setScreen('play'); rerender();
+    startRound(0);
+  };
+
+  const startRound = (idx) => {
+    g.currentR = idx;
+    g.shownCount = 0;
+    g.tapped = [];
+    g.feedback = null;
+    g.phase = 'showing';
+    rerender();
+
+    showNextEmoji(idx, 0);
+  };
+
+  const showNextEmoji = (roundIdx, emojiIdx) => {
+    const round = g.rounds[roundIdx];
+    if (emojiIdx >= round.numItems) {
+      // All shown, now pick
+      timerRef.current = setTimeout(() => {
+        g.phase = 'picking';
+        rerender();
+      }, 500);
+      return;
+    }
+
+    g.shownCount = emojiIdx + 1;
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      showNextEmoji(roundIdx, emojiIdx + 1);
+    }, round.showDelay);
+  };
+
+  const handleTap = (posIdx) => {
+    if (g.phase !== 'picking' || g.feedback) return;
+    const round = g.rounds[g.currentR];
+
+    // Find which appearance order this position corresponds to
+    const orderIdx = round.positions.indexOf(posIdx);
+    if (orderIdx === -1) return; // not a valid position
+    if (g.tapped.includes(posIdx)) return; // already tapped
+
+    const expectedOrder = g.tapped.length; // 0th tap should be the first appeared
+    const expectedPos = round.positions[expectedOrder];
+
+    if (posIdx === expectedPos) {
+      // Correct order
+      g.tapped.push(posIdx);
+      rerender();
+
+      if (g.tapped.length >= round.numItems) {
+        g.feedback = 'correct';
+        g.correct++;
+        g.score += 10 * round.numItems;
+        g.phase = 'feedback';
+        rerender();
+        timerRef.current = setTimeout(nextRound, 800);
+      }
+    } else {
+      // Wrong order
+      g.feedback = 'wrong';
+      g.phase = 'feedback';
+      rerender();
+      timerRef.current = setTimeout(nextRound, 1500);
+    }
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) {
+      setScreen('done'); rerender();
+    } else {
+      startRound(g.currentR + 1);
+    }
+  };
+
+  const round = g.currentR < g.rounds.length ? g.rounds[g.currentR] : null;
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @keyframes appear{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🔄 でたじゅん！</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>{g.currentR + 1} / {g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:8 }}>
+            {['🍎','⭐','🐱'].map((e, i) => (
+              <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                <div style={{
+                  width:56, height:56, borderRadius:14,
+                  background:'white', border:'3px solid #E8E8E8',
+                  display:'flex', alignItems:'center', justifyContent:'center', fontSize:30,
+                }}>{e}</div>
+                <span style={{ fontSize:14, fontWeight:900, color:'#E8652E', background:'#FFF3E0', width:24, height:24, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>{i+1}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize:14, color:'#E8652E', fontWeight:700, marginBottom:24 }}>でてきたじゅんにタップ！</div>
+
+          <div style={{ fontSize:26, fontWeight:900, color:'#333', marginBottom:8, letterSpacing:'0.06em' }}>
+            じゅんばんをおぼえよう！
+          </div>
+          <div style={{ fontSize:16, color:'#9E9E9E', marginBottom:40 }}>
+            でてきたじゅんにタップしてね
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:28, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'24px 64px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && round && (
+        <div style={{ padding:'16px', maxWidth:580, margin:'0 auto' }}>
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:12 }}>
+            {g.rounds.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.currentR ? 12 : 8, height:8, borderRadius:4,
+                background: i < g.currentR ? '#8BC34A' : i === g.currentR ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          <div style={{ textAlign:'center', marginBottom:10 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:24, fontWeight:900, color:'#E8652E' }}>{g.score}</span>
+            <span style={{ fontSize:14, fontWeight:700, color:'#9E9E9E', marginLeft:4 }}>てん</span>
+          </div>
+
+          {/* Phase text */}
+          <div style={{ textAlign:'center', marginBottom:8, minHeight:40 }}>
+            {g.phase === 'showing' && (
+              <span style={{ fontSize:20, fontWeight:900, color:'#E8652E', animation:'fadeUp 0.3s' }}>みてね！</span>
+            )}
+            {g.phase === 'picking' && !g.feedback && (
+              <div style={{ animation:'fadeUp 0.3s' }}>
+                <span style={{ fontSize:20, fontWeight:900, color:'#333' }}>でたじゅんにタップ！</span>
+                <span style={{ fontSize:14, fontWeight:700, color:'#E8652E', marginLeft:6 }}>（{g.tapped.length + 1}ばんめ）</span>
+              </div>
+            )}
+            {g.feedback === 'correct' && <span style={{ fontSize:40, animation:'pop 0.3s' }}>⭕</span>}
+            {g.feedback === 'wrong' && <span style={{ fontSize:40, animation:'shake 0.3s' }}>❌</span>}
+          </div>
+
+          {/* 3x3 Grid */}
+          <div style={{
+            display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10,
+            maxWidth:310, margin:'0 auto',
+          }} key={g.currentR}>
+            {[0,1,2,3,4,5,6,7,8].map(cellIdx => {
+              const orderIdx = round.positions.indexOf(cellIdx);
+              const hasEmoji = orderIdx !== -1;
+              const isShown = hasEmoji && orderIdx < g.shownCount;
+              const isTapped = g.tapped.includes(cellIdx);
+              const tapOrder = g.tapped.indexOf(cellIdx);
+              const isCorrectReveal = g.feedback && hasEmoji;
+              const isWrongTap = g.feedback === 'wrong' && cellIdx !== round.positions[g.tapped.length] && g.tapped.length > 0 && cellIdx === g.tapped[g.tapped.length - 1];
+
+              // During feedback, show the correct next one
+              const isNextCorrect = g.feedback === 'wrong' && hasEmoji && orderIdx === g.tapped.length;
+
+              return (
+                <button key={cellIdx}
+                  onClick={() => handleTap(cellIdx)}
+                  style={{
+                    ...bs,
+                    height:90, borderRadius:18,
+                    background: isTapped ? '#F1F8E9'
+                      : isNextCorrect ? '#FFF3E0'
+                      : isShown && g.phase === 'showing' ? '#FFF8F5'
+                      : 'white',
+                    border: `4px solid ${
+                      isTapped ? '#66BB6A'
+                      : isNextCorrect ? '#E8652E'
+                      : isShown && g.phase === 'showing' ? '#E8652E'
+                      : '#E8E8E8'
+                    }`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    position:'relative',
+                    opacity: g.feedback && !isCorrectReveal && !isTapped ? 0.3 : 1,
+                    boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
+                    pointerEvents: (g.phase === 'picking' && !g.feedback && hasEmoji && !isTapped) ? 'auto' : 'none',
+                  }}>
+                  {/* Show emoji during showing phase or after tapped or during feedback */}
+                  {isShown && (
+                    <span style={{
+                      fontSize:40, lineHeight:1,
+                      opacity: isTapped ? 0.4 : 1,
+                      animation: (g.phase === 'showing' && orderIdx === g.shownCount - 1) ? 'appear 0.3s ease-out' : undefined,
+                    }}>{round.emojis[orderIdx]}</span>
+                  )}
+
+                  {/* Order badge for tapped items */}
+                  {isTapped && (
+                    <div style={{
+                      position:'absolute', top:-8, right:-8,
+                      width:24, height:24, borderRadius:'50%',
+                      background:'#66BB6A', color:'white',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:14, fontWeight:900,
+                    }}>{tapOrder + 1}</div>
+                  )}
+
+                  {/* Show correct order number during showing */}
+                  {g.phase === 'showing' && isShown && (
+                    <div style={{
+                      position:'absolute', top:-6, left:-6,
+                      width:22, height:22, borderRadius:'50%',
+                      background:'#E8652E', color:'white',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:12, fontWeight:900,
+                    }}>{orderIdx + 1}</div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Wrong answer: show correct order */}
+          {g.feedback === 'wrong' && (
+            <div style={{ textAlign:'center', marginTop:12, animation:'fadeUp 0.3s' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#C62828' }}>
+                {g.tapped.length + 1}ばんめは {round.emojis[g.tapped.length]} だったよ
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const total = g.rounds.length;
+        const pct = g.correct / total;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すごい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:80, marginBottom:16, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:32, fontWeight:900, color:'#E8652E', marginBottom:12 }}>{msg}</div>
+            <div style={{ background:'white', borderRadius:24, padding:'20px 40px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:12 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:48, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:20, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+            <div style={{ fontSize:20, fontWeight:700, color:'#6B6B6B', marginBottom:40 }}>{g.correct}もん せいかい / {total}もん</div>
+            <button onClick={startGame} style={{
+              ...bs, fontSize:24, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'22px 48px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

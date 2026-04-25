@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>おつかいナビ | みなともPlay</title>
+<meta name="description" content="地図を覚えて道案内 - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+const BUILDINGS = [
+  { emoji:'🏥', label:'びょういん' },
+  { emoji:'🏫', label:'がっこう' },
+  { emoji:'🏪', label:'コンビニ' },
+  { emoji:'🏣', label:'ゆうびんきょく' },
+  { emoji:'🚒', label:'しょうぼうしょ' },
+  { emoji:'📚', label:'としょかん' },
+  { emoji:'🍞', label:'パンやさん' },
+  { emoji:'💊', label:'くすりやさん' },
+  { emoji:'🌸', label:'こうえん' },
+  { emoji:'🏦', label:'ぎんこう' },
+  { emoji:'🍜', label:'ラーメンやさん' },
+  { emoji:'🎂', label:'ケーキやさん' },
+  { emoji:'🐟', label:'さかなやさん' },
+  { emoji:'🍣', label:'おすしやさん' },
+  { emoji:'⛽', label:'ガソリンスタンド' },
+  { emoji:'🏠', label:'わたしのいえ' },
+  { emoji:'🛁', label:'せんとう' },
+  { emoji:'⛪', label:'きょうかい' },
+  { emoji:'🍰', label:'カフェ' },
+  { emoji:'👗', label:'ようふくやさん' },
+];
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'4か所・長く見れる・3問', gridCols:3, gridRows:3, buildingCount:4, viewTime:10, questions:3 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'5か所・ふつう・4問', gridCols:4, gridRows:3, buildingCount:5, viewTime:8, questions:4 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'6か所・短い・5問', gridCols:4, gridRows:3, buildingCount:6, viewTime:6, questions:5 },
+};
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+function getRow(pos, cols) { return Math.floor(pos / cols); }
+function getCol(pos, cols) { return pos % cols; }
+
+function getDirection(fromPos, toPos, cols) {
+  const fr = getRow(fromPos, cols), fc = getCol(fromPos, cols);
+  const tr = getRow(toPos, cols), tc = getCol(toPos, cols);
+  const dr = tr - fr, dc = tc - fc;
+  const parts = [];
+  if (dr < 0) parts.push(`上に${Math.abs(dr)}つ`);
+  if (dr > 0) parts.push(`下に${dr}つ`);
+  if (dc < 0) parts.push(`左に${Math.abs(dc)}つ`);
+  if (dc > 0) parts.push(`右に${dc}つ`);
+  return parts.join('、');
+}
+
+function getRelativeDir(fromPos, toPos, cols) {
+  const fr = getRow(fromPos, cols), fc = getCol(fromPos, cols);
+  const tr = getRow(toPos, cols), tc = getCol(toPos, cols);
+  const dr = tr - fr, dc = tc - fc;
+  if (dr === 0 && dc === 1) return '右';
+  if (dr === 0 && dc === -1) return '左';
+  if (dr === -1 && dc === 0) return '上';
+  if (dr === 1 && dc === 0) return '下';
+  if (dr < 0 && dc > 0) return '右上';
+  if (dr < 0 && dc < 0) return '左上';
+  if (dr > 0 && dc > 0) return '右下';
+  if (dr > 0 && dc < 0) return '左下';
+  return '';
+}
+
+function distance(a, b, cols) {
+  return Math.abs(getRow(a,cols)-getRow(b,cols)) + Math.abs(getCol(a,cols)-getCol(b,cols));
+}
+
+// Generate town layout
+function generateTown(diff) {
+  const cfg = DIFF[diff];
+  const totalCells = cfg.gridCols * cfg.gridRows;
+  const positions = shuffle(Array.from({length:totalCells},(_,i)=>i)).slice(0, cfg.buildingCount);
+  const buildings = shuffle(BUILDINGS).slice(0, cfg.buildingCount);
+  const placements = positions.map((pos, i) => ({ pos, ...buildings[i] }));
+  return { placements, gridCols: cfg.gridCols, gridRows: cfg.gridRows, totalCells };
+}
+
+// Generate questions about the town
+function generateQuestions(town, count, cols) {
+  const questions = [];
+  const p = town.placements;
+  const used = new Set();
+
+  const tryAdd = (q) => {
+    const key = q.question;
+    if (!used.has(key)) { used.add(key); questions.push(q); return true; }
+    return false;
+  };
+
+  // Shuffle to get variety
+  const shuffledPairs = shuffle(p.flatMap((a,i) => p.filter((_,j) => j !== i).map(b => [a,b])));
+
+  for (const [a, b] of shuffledPairs) {
+    if (questions.length >= count) break;
+
+    const qType = Math.random();
+
+    if (qType < 0.35) {
+      // Direction question: "○○から○○へ行くには？"
+      const correctDir = getDirection(a.pos, b.pos, cols);
+      // Generate wrong directions
+      const wrongs = new Set();
+      for (const other of p) {
+        if (other.pos !== a.pos && other.pos !== b.pos) {
+          wrongs.add(getDirection(a.pos, other.pos, cols));
+        }
+      }
+      // Add some fake directions
+      const fakeOffsets = [[1,0],[0,1],[-1,0],[0,-1],[2,1],[1,2],[-1,1],[1,-1]];
+      for (const [dr,dc] of fakeOffsets) {
+        const parts = [];
+        if (dr < 0) parts.push(`上に${Math.abs(dr)}つ`);
+        if (dr > 0) parts.push(`下に${dr}つ`);
+        if (dc < 0) parts.push(`左に${Math.abs(dc)}つ`);
+        if (dc > 0) parts.push(`右に${dc}つ`);
+        wrongs.add(parts.join('、'));
+      }
+      wrongs.delete(correctDir);
+      const wrongArr = shuffle([...wrongs]).slice(0, 3);
+      if (wrongArr.length >= 3) {
+        const opts = shuffle([correctDir, ...wrongArr]);
+        tryAdd({
+          type:'direction',
+          question:`${a.emoji}${a.label} から ${b.emoji}${b.label} へ行くには？`,
+          answer: correctDir,
+          opts,
+          from: a, to: b,
+        });
+      }
+
+    } else if (qType < 0.65) {
+      // Neighbor question: "○○の[方向]にある建物は？"
+      const dir = getRelativeDir(a.pos, b.pos, cols);
+      if (['上','下','左','右'].includes(dir)) {
+        const wrongBuildings = shuffle(p.filter(x => x.pos !== b.pos)).slice(0, 3).map(x => `${x.emoji}${x.label}`);
+        if (wrongBuildings.length >= 3) {
+          const correct = `${b.emoji}${b.label}`;
+          const opts = shuffle([correct, ...wrongBuildings]);
+          tryAdd({
+            type:'neighbor',
+            question:`${a.emoji}${a.label} の${dir}にある建物は？`,
+            answer: correct,
+            opts,
+            from: a, to: b,
+          });
+        }
+      }
+
+    } else {
+      // Closest question: "○○から一番近い建物は？"
+      const others = p.filter(x => x.pos !== a.pos);
+      const sorted = [...others].sort((x,y) => distance(a.pos,x.pos,cols) - distance(a.pos,y.pos,cols));
+      if (sorted.length >= 4) {
+        const closest = sorted[0];
+        const correct = `${closest.emoji}${closest.label}`;
+        // Pick 3 further ones as wrong answers
+        const wrongs = sorted.slice(1, 4).map(x => `${x.emoji}${x.label}`);
+        const opts = shuffle([correct, ...wrongs]);
+        tryAdd({
+          type:'closest',
+          question:`${a.emoji}${a.label} から一番近い建物は？`,
+          answer: correct,
+          opts,
+          from: a,
+        });
+      }
+    }
+  }
+
+  // If not enough questions, add more direction questions
+  while (questions.length < count) {
+    const [a, b] = shuffle(p).slice(0, 2);
+    const correctDir = getDirection(a.pos, b.pos, cols);
+    const fakes = shuffle([
+      '上に1つ、右に1つ','下に2つ','左に1つ、下に1つ','右に2つ、上に1つ',
+      '下に1つ、右に2つ','上に2つ、左に1つ','右に1つ','左に2つ',
+    ].filter(f => f !== correctDir)).slice(0, 3);
+    questions.push({
+      type:'direction',
+      question:`${a.emoji}${a.label} から ${b.emoji}${b.label} へ行くには？`,
+      answer: correctDir, opts: shuffle([correctDir, ...fakes]),
+      from: a, to: b,
+    });
+  }
+
+  return questions.slice(0, count);
+}
+
+// ========== TOWN MAP COMPONENT ==========
+function TownMap({ placements, gridCols, gridRows, highlight, highlightTo, cellSize = 82 }) {
+  const w = gridCols * cellSize;
+  const h = gridRows * cellSize;
+
+  return (
+    <div style={{ position:'relative', width:w, margin:'0 auto', borderRadius:16, overflow:'hidden', boxShadow:'0 4px 20px rgba(0,0,0,0.08)' }}>
+      {/* SVG roads */}
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display:'block' }}>
+        <rect width={w} height={h} fill="#C8E6C9" />
+        {/* Grass blocks */}
+        {Array.from({length: gridRows}).map((_, r) =>
+          Array.from({length: gridCols}).map((_, c) => (
+            <rect key={`g${r}${c}`} x={c*cellSize+6} y={r*cellSize+6} width={cellSize-12} height={cellSize-12} fill="#E8F5E9" rx="8" />
+          ))
+        )}
+        {/* Horizontal roads */}
+        {Array.from({length: gridRows + 1}).map((_, r) => (
+          <rect key={'hr'+r} x={0} y={r*cellSize-4} width={w} height={8} fill="#E0E0E0" rx="2" />
+        ))}
+        {/* Vertical roads */}
+        {Array.from({length: gridCols + 1}).map((_, c) => (
+          <rect key={'vr'+c} x={c*cellSize-4} y={0} width={8} height={h} fill="#E0E0E0" rx="2" />
+        ))}
+        {/* Road center lines */}
+        {Array.from({length: gridRows + 1}).map((_, r) => (
+          <line key={'hl'+r} x1={0} y1={r*cellSize} x2={w} y2={r*cellSize} stroke="#BDBDBD" strokeWidth="1" strokeDasharray="6,6" />
+        ))}
+        {Array.from({length: gridCols + 1}).map((_, c) => (
+          <line key={'vl'+c} x1={c*cellSize} y1={0} x2={c*cellSize} y2={h} stroke="#BDBDBD" strokeWidth="1" strokeDasharray="6,6" />
+        ))}
+      </svg>
+
+      {/* Buildings overlay */}
+      <div style={{ position:'absolute', inset:0, display:'grid', gridTemplateColumns:`repeat(${gridCols},${cellSize}px)`, gridTemplateRows:`repeat(${gridRows},${cellSize}px)` }}>
+        {Array.from({length: gridCols * gridRows}).map((_, i) => {
+          const item = placements.find(p => p.pos === i);
+          const isHighlight = highlight && item && (highlight.pos === i);
+          const isHighlightTo = highlightTo && item && (highlightTo.pos === i);
+
+          return (
+            <div key={i} style={{
+              display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+              position:'relative',
+            }}>
+              {item && (
+                <div style={{
+                  textAlign:'center', padding:4, borderRadius:10,
+                  background: isHighlight ? '#FF6B35' : isHighlightTo ? '#1E88E5' : 'rgba(255,255,255,0.9)',
+                  border: isHighlight ? '2px solid #E65100' : isHighlightTo ? '2px solid #1565C0' : '2px solid rgba(0,0,0,0.08)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  transform: (isHighlight || isHighlightTo) ? 'scale(1.1)' : 'scale(1)',
+                  transition:'all 0.3s',
+                }}>
+                  <div style={{ fontSize:cellSize > 78 ? 28 : 24 }}>{item.emoji}</div>
+                  <div style={{ fontSize:8, fontWeight:700, color: isHighlight ? 'white' : isHighlightTo ? 'white' : '#2D2D2D', lineHeight:1.1, marginTop:1 }}>{item.label}</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    town: null,
+    questions: [],
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    selected: null,
+    feedback: null,
+    viewTimeLeft: 0,
+    round: 0,
+    maxRounds: 3,
+    roundResults: [],
+    allResults: [],
+  }).current;
+
+  const timerRef = React.useRef(null);
+
+  React.useEffect(() => () => clearInterval(timerRef.current), []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    g.round = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.allResults = [];
+    g.maxRounds = diff === 'easy' ? 3 : 4;
+    setShowConfetti(false);
+    setScreen('game');
+    startMapRound(diff);
+  };
+
+  const startMapRound = (diff) => {
+    const cfg = DIFF[diff || difficulty];
+    g.round++;
+    const town = generateTown(diff || difficulty);
+    g.town = town;
+    g.questions = generateQuestions(town, cfg.questions, cfg.gridCols);
+    g.currentQ = 0;
+    g.selected = null;
+    g.feedback = null;
+    g.roundResults = [];
+    g.viewTimeLeft = cfg.viewTime;
+    g.phase = 'viewing';
+    rerender();
+
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      g.viewTimeLeft--;
+      rerender();
+      if (g.viewTimeLeft <= 0) {
+        clearInterval(timerRef.current);
+        g.phase = 'questioning';
+        rerender();
+      }
+    }, 1000);
+  };
+
+  const handleAnswer = (opt) => {
+    if (g.selected !== null) return;
+    const q = g.questions[g.currentQ];
+    g.selected = opt;
+    const isCorrect = opt === q.answer;
+    if (isCorrect) { g.score += q.type === 'direction' ? 15 : q.type === 'closest' ? 12 : 10; g.correct++; }
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    g.roundResults.push({ q, selected: opt, correct: isCorrect });
+    g.allResults.push({ q, selected: opt, correct: isCorrect });
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.currentQ + 1 >= g.questions.length) {
+        // Round done - show map briefly then next round or finish
+        g.phase = 'round-end';
+        rerender();
+      } else {
+        g.currentQ++;
+        g.selected = null;
+        g.feedback = null;
+        rerender();
+      }
+    }, 2000);
+  };
+
+  const nextMapOrFinish = () => {
+    if (g.round >= g.maxRounds) {
+      finishGame();
+    } else {
+      startMapRound(difficulty);
+    }
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const total = g.allResults.length;
+    const pct = total > 0 ? g.correct / total : 0;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearInterval(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>📍 おつかいナビ</span>
+        </div>
+        {screen === 'game' && g.phase !== 'idle' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>地図{g.round}/{g.maxRounds}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>📍</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>おつかいナビ</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>町の地図を覚えて<br/>道案内に答えよう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 空間記憶・地誌的記憶・ナビゲーション能力のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 町の地図を覚えてください<br/>
+              ② 地図が消えたあと、質問が出ます<br/>
+              ③ 「○○への行き方は？」「○○の隣は？」等<br/>
+              ④ 覚えた地図を頼りに4択で答えよう！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:12, textAlign:'left' }}>📝 3つの質問タイプ</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'#FFF3E0', borderRadius:12 }}>
+                <span style={{ fontSize:20 }}>🧭</span>
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#FF6B35' }}>道案内</span>
+                  <div style={{ fontSize:11, color:'#6B6B6B' }}>○○から○○へ行くには？（上下左右）</div>
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'#F3E5F5', borderRadius:12 }}>
+                <span style={{ fontSize:20 }}>👀</span>
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#7B1FA2' }}>おとなり</span>
+                  <div style={{ fontSize:11, color:'#6B6B6B' }}>○○の上/下/右/左にある建物は？</div>
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'#E8F5E9', borderRadius:12 }}>
+                <span style={{ fontSize:20 }}>📏</span>
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:16, fontWeight:700, color:'#2E7D32' }}>最寄り</span>
+                  <div style={{ fontSize:11, color:'#6B6B6B' }}>○○から一番近い建物は？</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+              {[{v:g.score,l:'スコア',c:'#FF6B35'},{v:g.correct+'/'+g.allResults.length,l:'正解',c:'#2EC4B6'},{v:'地図'+g.round+'/'+g.maxRounds,l:'ラウンド',c:'#7B1FA2'}].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* VIEWING */}
+          {g.phase === 'viewing' && g.town && (
+            <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                <span style={{ fontSize:14, fontWeight:700, color:'#FF6B35' }}>🗺️ この町を覚えてください</span>
+                <span style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:g.viewTimeLeft<=3?'#E53935':'#FF6B35', animation:g.viewTimeLeft<=3?'pulse 0.5s infinite':undefined }}>{g.viewTimeLeft}秒</span>
+              </div>
+              <div style={{ width:'100%', height:6, background:'#E8E8E8', borderRadius:3, marginBottom:14, overflow:'hidden' }}>
+                <div style={{ width:(g.viewTimeLeft/cfg.viewTime*100)+'%', height:'100%', background:g.viewTimeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:3, transition:'width 1s linear' }} />
+              </div>
+              <TownMap placements={g.town.placements} gridCols={g.town.gridCols} gridRows={g.town.gridRows} />
+            </div>
+          )}
+
+          {/* QUESTIONING */}
+          {g.phase === 'questioning' && g.town && (() => {
+            const q = g.questions[g.currentQ];
+            if (!q) return null;
+            const typeColor = q.type === 'direction' ? '#FF6B35' : q.type === 'neighbor' ? '#7B1FA2' : '#2E7D32';
+            const typeBg = q.type === 'direction' ? '#FFF3E0' : q.type === 'neighbor' ? '#F3E5F5' : '#E8F5E9';
+            const typeLabel = q.type === 'direction' ? '🧭 道案内' : q.type === 'neighbor' ? '👀 おとなり' : '📏 最寄り';
+
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }} key={g.currentQ + '-' + g.round}>
+                {/* Question progress */}
+                <div style={{ display:'flex', gap:4, marginBottom:10 }}>
+                  {g.questions.map((_,i) => (
+                    <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i < g.roundResults.length ? (g.roundResults[i].correct ? '#66BB6A' : '#EF5350') : i === g.currentQ ? '#FFB74D' : '#E0E0E0' }} />
+                  ))}
+                </div>
+
+                {/* Type badge */}
+                <div style={{ textAlign:'center', marginBottom:10 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:typeColor, background:typeBg, padding:'6px 14px', borderRadius:50 }}>{typeLabel}</span>
+                </div>
+
+                {/* Question */}
+                <div style={{ background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:14 }}>
+                  <div style={{ fontSize:16, fontWeight:700, color:'#2D2D2D', textAlign:'center', lineHeight:1.7 }}>
+                    {q.question}
+                  </div>
+                </div>
+
+                {/* Options */}
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {q.opts.map((opt, i) => {
+                    const isSelected = g.selected === opt;
+                    const isCorrect = opt === q.answer;
+                    const answered = g.selected !== null;
+                    return (
+                      <button key={i} onClick={() => handleAnswer(opt)} disabled={answered}
+                        style={{
+                          ...btnBase, fontSize:14, fontWeight:700, padding:'14px 16px', borderRadius:14,
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                          color:answered&&isCorrect?'#2E7D32':answered&&isSelected&&!isCorrect?'#C62828':'#2D2D2D',
+                          opacity:answered&&!isCorrect&&!isSelected?0.4:1,
+                          textAlign:'left',
+                        }}>
+                        {opt}
+                        {answered && isCorrect && ' ✅'}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {g.feedback && (
+                  <div style={{ textAlign:'center', marginTop:12, fontSize:16, fontWeight:900, color:g.feedback==='correct'?'#2E7D32':'#C62828', animation:'fadeUp 0.3s ease-out' }}>
+                    {g.feedback === 'correct' ? '✅ 正解！' : `❌ 正解は「${q.answer}」`}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ROUND END - show map again */}
+          {g.phase === 'round-end' && g.town && (
+            <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+              <div style={{ textAlign:'center', marginBottom:12 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B' }}>
+                  🗺️ 答え合わせ — この地図でした
+                </div>
+                <div style={{ fontSize:13, color:'#9E9E9E', marginTop:4 }}>
+                  このラウンド: {g.roundResults.filter(r => r.correct).length}/{g.roundResults.length}問正解
+                </div>
+              </div>
+              <TownMap placements={g.town.placements} gridCols={g.town.gridCols} gridRows={g.town.gridRows} />
+              <button onClick={nextMapOrFinish} style={{...btnBase, marginTop:16, width:'100%', fontSize:15, fontWeight:700, padding:'16px', borderRadius:50, border:'none', background:'linear-gradient(135deg,#FF6B35,#FF8F5E)', color:'white', boxShadow:'0 4px 16px rgba(255,107,53,0.3)'}}>
+                {g.round >= g.maxRounds ? '結果を見る →' : '次の地図へ →'}
+              </button>
+            </div>
+          )}
+
+          <div style={{ height:24 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.allResults.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.8 ? '⭐⭐⭐' : pct >= 0.5 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.8 ? 'すばらしいナビ力！' : pct >= 0.5 ? 'よくできました！' : 'もう一度挑戦！';
+
+        const typeStats = ['direction','neighbor','closest'].map(t => {
+          const qs = g.allResults.filter(r => r.q.type === t);
+          return { type:t, total:qs.length, correct:qs.filter(r => r.correct).length };
+        }).filter(s => s.total > 0);
+
+        const typeLabels = { direction: {icon:'🧭',label:'道案内',color:'#FF6B35'}, neighbor: {icon:'👀',label:'おとなり',color:'#7B1FA2'}, closest: {icon:'📏',label:'最寄り',color:'#2E7D32'} };
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>{cfg.label}モード・{g.maxRounds}つの地図</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Type breakdown */}
+            <div style={{ display:'flex', gap:8, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.35s both' }}>
+              {typeStats.map((s,i) => {
+                const info = typeLabels[s.type];
+                return (
+                  <div key={i} style={{ flex:1, background:'white', borderRadius:14, padding:'12px 8px', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                    <div style={{ fontSize:18, marginBottom:2 }}>{info.icon}</div>
+                    <div style={{ fontSize:10, fontWeight:700, color:info.color }}>{info.label}</div>
+                    <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, marginTop:4 }}>{s.correct}/{s.total}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left', animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 場所を覚えるコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>「病院の右にパン屋、その下にコンビニ」のように位置関係をストーリーで覚えると記憶に残りやすくなります。</div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.45s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

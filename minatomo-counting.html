@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>かぞえて | みなともPlay</title>
+<meta name="description" content="画面の中のものを数える - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+const EMOJI_GROUPS = [
+  { target:'🍎', name:'りんご', distractors:['🍊','🍇','🍓','🍑'] },
+  { target:'⭐', name:'ほし', distractors:['🌙','☀️','💫','✨'] },
+  { target:'🐱', name:'ねこ', distractors:['🐕','🐰','🐹','🐻'] },
+  { target:'🌸', name:'さくら', distractors:['🌻','🌷','🌹','💐'] },
+  { target:'🐟', name:'さかな', distractors:['🐙','🦐','🐚','🦀'] },
+  { target:'🍰', name:'ケーキ', distractors:['🍩','🍪','🧁','🍫'] },
+  { target:'🚗', name:'くるま', distractors:['🚌','🚲','🚃','🏍️'] },
+  { target:'❤️', name:'ハート', distractors:['💙','💚','💛','🧡'] },
+  { target:'🎵', name:'おんぷ', distractors:['🎶','🎸','🎹','🎺'] },
+  { target:'✏️', name:'えんぴつ', distractors:['📕','📎','✂️','📏'] },
+  { target:'🐸', name:'カエル', distractors:['🐢','🦎','🐊','🐍'] },
+  { target:'🍋', name:'レモン', distractors:['🍌','🍈','🥝','🍐'] },
+  { target:'🦋', name:'ちょうちょ', distractors:['🐝','🐞','🪲','🐜'] },
+  { target:'☂️', name:'かさ', distractors:['👒','🧤','🧣','👜'] },
+];
+
+// Random position generator (avoid overlap)
+function randomPositions(count, areaW, areaH, itemSize) {
+  const positions = [];
+  const margin = itemSize * 0.6;
+  for (let i = 0; i < count; i++) {
+    let attempts = 0;
+    while (attempts < 30) {
+      const x = margin + Math.random() * (areaW - margin * 2);
+      const y = margin + Math.random() * (areaH - margin * 2);
+      const overlap = positions.some(p => Math.abs(p.x - x) < margin && Math.abs(p.y - y) < margin);
+      if (!overlap) { positions.push({ x, y }); break; }
+      attempts++;
+    }
+    if (positions.length <= i) positions.push({ x: margin + (i % 5) * (areaW / 5), y: margin + Math.floor(i / 5) * (areaH / 4) });
+  }
+  return positions;
+}
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'少なめ・シンプル', targetRange:[3,5], distractorRange:[2,4], rounds:10, modes:['count','which_more'] },
+  normal: { label:'ふつう', emoji:'🌿', desc:'紛らわしいものも', targetRange:[3,6], distractorRange:[4,7], rounds:12, modes:['count','which_more','total','how_many_kinds'] },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'たくさん・速く・6秒', targetRange:[4,7], distractorRange:[6,10], rounds:14, modes:['count','which_more','total','how_many_kinds','difference'], timeLimit:8 },
+};
+
+function generateQ(diff) {
+  const cfg = DIFF[diff];
+  const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+  const group = EMOJI_GROUPS[Math.floor(Math.random() * EMOJI_GROUPS.length)];
+
+  const targetCount = cfg.targetRange[0] + Math.floor(Math.random() * (cfg.targetRange[1] - cfg.targetRange[0] + 1));
+  const distractorCount = cfg.distractorRange[0] + Math.floor(Math.random() * (cfg.distractorRange[1] - cfg.distractorRange[0] + 1));
+
+  if (mode === 'count') {
+    // Count target emoji among distractors
+    const items = [];
+    for (let i = 0; i < targetCount; i++) items.push({ emoji:group.target, isTarget:true });
+    const dists = shuffle(group.distractors);
+    for (let i = 0; i < distractorCount; i++) items.push({ emoji:dists[i % dists.length], isTarget:false });
+
+    const wrongs = [targetCount-1, targetCount+1, targetCount+2].filter(v=>v>=1&&v!==targetCount);
+    return {
+      mode:'count',
+      question:`${group.target}${group.name}はいくつ？`,
+      items:shuffle(items),
+      answer:targetCount+'こ',
+      opts:shuffle([targetCount, ...wrongs].slice(0,4)).map(n=>({label:n+'こ'})),
+    };
+  }
+
+  if (mode === 'which_more') {
+    // Two types, which has more?
+    const group2Idx = (EMOJI_GROUPS.indexOf(group) + 1 + Math.floor(Math.random() * (EMOJI_GROUPS.length - 1))) % EMOJI_GROUPS.length;
+    const group2 = EMOJI_GROUPS[group2Idx];
+    const count1 = 2 + Math.floor(Math.random() * 5);
+    let count2;
+    do { count2 = 2 + Math.floor(Math.random() * 5); } while (count2 === count1);
+
+    const items = [];
+    for (let i = 0; i < count1; i++) items.push({ emoji:group.target, isTarget:true, group:1 });
+    for (let i = 0; i < count2; i++) items.push({ emoji:group2.target, isTarget:true, group:2 });
+
+    const answer = count1 > count2 ? group.target+group.name : group2.target+group2.name;
+    return {
+      mode:'which_more',
+      question:'どっちが多い？',
+      items:shuffle(items),
+      answer,
+      opts:[
+        { label:group.target+group.name, emoji:group.target },
+        { label:group2.target+group2.name, emoji:group2.target },
+      ],
+      counts:{ [group.name]:count1, [group2.name]:count2 },
+    };
+  }
+
+  if (mode === 'total') {
+    // Count ALL items (no distractors)
+    const types = shuffle([...EMOJI_GROUPS]).slice(0, 2 + Math.floor(Math.random() * 2));
+    const items = [];
+    let total = 0;
+    types.forEach(g => {
+      const c = 2 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < c; i++) items.push({ emoji:g.target, isTarget:true });
+      total += c;
+    });
+
+    const wrongs = [total-1, total+1, total-2, total+2].filter(v=>v>=2&&v!==total);
+    return {
+      mode:'total',
+      question:'ぜんぶでいくつ？',
+      items:shuffle(items),
+      answer:total+'こ',
+      opts:shuffle([total, ...wrongs].slice(0,4)).map(n=>({label:n+'こ'})),
+    };
+  }
+
+  if (mode === 'how_many_kinds') {
+    // How many different types?
+    const kindCount = 2 + Math.floor(Math.random() * 3); // 2-4 kinds
+    const types = shuffle([...EMOJI_GROUPS]).slice(0, kindCount);
+    const items = [];
+    types.forEach(g => {
+      const c = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < c; i++) items.push({ emoji:g.target, isTarget:true });
+    });
+
+    const wrongs = [kindCount-1, kindCount+1, kindCount+2].filter(v=>v>=1&&v!==kindCount);
+    return {
+      mode:'how_many_kinds',
+      question:'なんしゅるい ある？',
+      items:shuffle(items),
+      answer:kindCount+'しゅるい',
+      opts:shuffle([kindCount, ...wrongs].slice(0,4)).map(n=>({label:n+'しゅるい'})),
+    };
+  }
+
+  if (mode === 'difference') {
+    // How many more of A than B?
+    const group2Idx = (EMOJI_GROUPS.indexOf(group) + 1 + Math.floor(Math.random() * (EMOJI_GROUPS.length - 1))) % EMOJI_GROUPS.length;
+    const group2 = EMOJI_GROUPS[group2Idx];
+    const count1 = 4 + Math.floor(Math.random() * 4);
+    const count2 = 1 + Math.floor(Math.random() * (count1 - 1));
+    const diff2 = count1 - count2;
+
+    const items = [];
+    for (let i = 0; i < count1; i++) items.push({ emoji:group.target, isTarget:true });
+    for (let i = 0; i < count2; i++) items.push({ emoji:group2.target, isTarget:false });
+
+    const wrongs = [diff2-1, diff2+1, diff2+2].filter(v=>v>=0&&v!==diff2);
+    return {
+      mode:'difference',
+      question:`${group.target}は${group2.target}より何こ多い？`,
+      items:shuffle(items),
+      answer:diff2+'こ',
+      opts:shuffle([diff2, ...wrongs].slice(0,4)).map(n=>({label:n+'こ'})),
+    };
+  }
+
+  return generateQ(diff);
+}
+
+const MODE_LABELS = {
+  count:{ icon:'🔢', name:'かぞえて' },
+  which_more:{ icon:'⚖️', name:'どっちが多い' },
+  total:{ icon:'📊', name:'ぜんぶで' },
+  how_many_kinds:{ icon:'🎨', name:'なんしゅるい' },
+  difference:{ icon:'➖', name:'いくつ多い' },
+};
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase:'idle',
+    questions:[], currentQ:0,
+    score:0, correct:0,
+    selected:null, feedback:null,
+    results:[], timeLeft:0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const questions = [];
+    for (let i = 0; i < cfg.rounds; i++) questions.push(generateQ(diff));
+    g.questions = questions; g.currentQ = 0; g.score = 0; g.correct = 0;
+    g.selected = null; g.feedback = null; g.results = [];
+    g.phase = 'playing';
+    setShowConfetti(false); setScreen('game');
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const startTimer = (sec) => {
+    g.timeLeft = sec;
+    clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      g.timeLeft--; rerender();
+      if (g.timeLeft <= 0) {
+        clearInterval(intervalRef.current);
+        if (!g.feedback) {
+          g.feedback = 'timeout';
+          g.results.push({ q:g.questions[g.currentQ], correct:false });
+          rerender();
+          timerRef.current = setTimeout(() => nextQ(), 1500);
+        }
+      }
+    }, 1000);
+  };
+
+  const handleAnswer = (val) => {
+    if (g.selected !== null || g.feedback) return;
+    clearInterval(intervalRef.current);
+    const q = g.questions[g.currentQ];
+    g.selected = val;
+    const isCorrect = val === q.answer;
+    if (isCorrect) { g.score += 10; g.correct++; g.feedback = 'correct'; }
+    else { g.feedback = 'wrong'; }
+    g.results.push({ q, correct:isCorrect });
+    rerender();
+    timerRef.current = setTimeout(() => nextQ(), isCorrect ? 600 : 1500);
+  };
+
+  const nextQ = () => {
+    if (g.currentQ+1 >= g.questions.length) { finishGame(); return; }
+    g.currentQ++; g.selected = null; g.feedback = null;
+    const cfg = DIFF[difficulty];
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const finishGame = () => {
+    clearInterval(intervalRef.current);
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, correct:g.correct, total:g.questions.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  // Scattered items display
+  const ScatteredField = ({ items }) => {
+    const fieldW = 340;
+    const fieldH = 220;
+    const positions = React.useRef(randomPositions(items.length, fieldW, fieldH, 36)).current;
+
+    return (
+      <div style={{ position:'relative', width:fieldW, height:fieldH, margin:'0 auto', background:'#F5F5F5', borderRadius:16, border:'2px solid #E0E0E0', overflow:'hidden' }}>
+        {items.map((item, i) => {
+          const pos = positions[i] || { x:20+i*30, y:20 };
+          return (
+            <span key={i} style={{
+              position:'absolute', left:pos.x, top:pos.y,
+              fontSize:30, userSelect:'none',
+              transform:`rotate(${Math.random()*20-10}deg)`,
+            }}>
+              {item.emoji}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🔢 かぞえて</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentQ+1}/{g.questions.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🔢</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>かぞえて</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>画面のなかのものを<br/>よく見てかぞえよう！</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 注意力・視覚探索のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', lineHeight:2 }}>
+              ① 画面にいろんなものが散らばっています<br/>
+              ② 「🍎りんごはいくつ？」と聞かれます<br/>
+              ③ よく見て数えて答えよう！<br/>
+              ④ にたものに注意！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📝 こんな問題が出ます</div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'center' }}>
+              {Object.entries(MODE_LABELS).map(([k,m]) => (
+                <span key={k} style={{ fontSize:12, fontWeight:700, padding:'5px 10px', borderRadius:50, background:'#F5F5F5' }}>
+                  {m.icon} {m.name}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:13,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:11,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:18,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const q = g.questions[g.currentQ];
+        if (!q) return null;
+        const answered = g.selected !== null || g.feedback !== null;
+        const ml = MODE_LABELS[q.mode] || { icon:'🔢', name:'かぞえて' };
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status */}
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+              {[
+                {v:g.score,l:'スコア',c:'#FF6B35'},
+                {v:g.correct+'/'+(g.currentQ+(answered?1:0)),l:'正解',c:'#2EC4B6'},
+                {v:(g.currentQ+1)+'/'+g.questions.length,l:'問題',c:'#7B1FA2'},
+                ...(cfg.timeLimit && !answered ? [{v:g.timeLeft+'秒',l:'残り',c:g.timeLeft<=3?'#E53935':'#6B6B6B'}] : []),
+              ].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c, animation:s.l==='残り'&&g.timeLeft<=3?'pulse 0.3s infinite':undefined }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display:'flex', gap:2, marginBottom:8 }}>
+              {g.questions.map((_,i) => (
+                <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].correct?'#66BB6A':'#EF5350'):i===g.currentQ?'#FFB74D':'#E8E8E8' }} />
+              ))}
+            </div>
+
+            {cfg.timeLimit > 0 && !answered && (
+              <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:8, overflow:'hidden' }}>
+                <div style={{ width:(g.timeLeft/cfg.timeLimit*100)+'%', height:'100%', background:g.timeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:2, transition:'width 1s linear' }} />
+              </div>
+            )}
+
+            <div style={{ animation:'fadeUp 0.25s ease-out' }} key={g.currentQ}>
+              {/* Mode badge */}
+              <div style={{ textAlign:'center', marginBottom:6 }}>
+                <span style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', background:'#F5F5F5', padding:'4px 14px', borderRadius:50 }}>
+                  {ml.icon} {ml.name}
+                </span>
+              </div>
+
+              {/* Question */}
+              <div style={{ background:'white', borderRadius:18, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:10, textAlign:'center' }}>
+                <div style={{ fontSize:22, fontWeight:900, color:'#2D2D2D', lineHeight:1.5, marginBottom:10 }}>{q.question}</div>
+
+                {/* Scattered field */}
+                <ScatteredField items={q.items} key={g.currentQ} />
+
+                {/* Show counts after answer for which_more */}
+                {answered && q.counts && (
+                  <div style={{ display:'flex', justifyContent:'center', gap:16, marginTop:8 }}>
+                    {Object.entries(q.counts).map(([name, count]) => (
+                      <span key={name} style={{ fontSize:14, fontWeight:700, color:'#6B6B6B' }}>{name}：{count}こ</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Options */}
+              <div style={{ display:'grid', gridTemplateColumns:`repeat(${q.opts.length <= 2 ? 2 : 2},1fr)`, gap:8 }}>
+                {q.opts.map((opt,i) => {
+                  const val = opt.label;
+                  const isSelected = g.selected === val;
+                  const isCorrect = val === q.answer;
+                  return (
+                    <button key={i} onClick={() => handleAnswer(val)} disabled={answered}
+                      style={{...btnBase, fontSize:20, fontWeight:900, padding:'16px 10px', borderRadius:14, textAlign:'center',
+                        border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                        background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                        opacity:answered&&!isCorrect&&!isSelected?0.3:1,
+                        display:'flex', flexDirection:'column', alignItems:'center', gap:4,
+                        color:answered&&isCorrect?'#2E7D32':answered&&isSelected&&!isCorrect?'#C62828':'#2D2D2D'}}>
+                      {opt.emoji && <span style={{ fontSize:26 }}>{opt.emoji}</span>}
+                      {opt.label} {answered && isCorrect ? '✅' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {g.feedback === 'wrong' && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#C62828' }}>❌ 正解は「{q.answer}」</div>
+              )}
+              {g.feedback === 'timeout' && (
+                <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#E65100' }}>⏰ 時間切れ！正解は「{q.answer}」</div>
+              )}
+            </div>
+            <div style={{ height:20 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.questions.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'かぞえ名人！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        const modeStats = {};
+        g.results.forEach(r => { const m = r.q.mode; if (!modeStats[m]) modeStats[m] = {t:0,c:0}; modeStats[m].t++; if(r.correct) modeStats[m].c++; });
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:11, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center', marginBottom:24, width:'100%', maxWidth:360 }}>
+              {Object.entries(modeStats).map(([m,s]) => {
+                const ml = MODE_LABELS[m];
+                return (
+                  <div key={m} style={{ background:'white', borderRadius:12, padding:'8px 12px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center', minWidth:65 }}>
+                    <div style={{ fontSize:14 }}>{ml?.icon}</div>
+                    <div style={{ fontSize:9, fontWeight:700, color:'#6B6B6B' }}>{ml?.name}</div>
+                    <div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, marginTop:2 }}>{s.c}/{s.t}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 かぞえるコツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.8 }}>
+                たくさんのものを数えるときは、左上から右へ順番に目で追いましょう。1つ数えたら心の中で「いち、に、さん」と声を出すと数え間違いが減ります。にたものに惑わされないように注意！
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

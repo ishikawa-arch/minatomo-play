@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>言葉つなぎ | みなともPlay</title>
+<meta name="description" content="しりとり・頭文字で探す - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== GAME MODES ==========
+// Mode 1: ヒントから当てる (3 hints → pick the word)
+const HINT_QUESTIONS = {
+  easy: [
+    { hints:['赤い','まるい','くだもの'], answer:'りんご', opts:['りんご','トマト','すいか','にんじん'] },
+    { hints:['白い','冷たい','牛から'], answer:'ぎゅうにゅう', opts:['ぎゅうにゅう','とうふ','たまご','バター'] },
+    { hints:['空を飛ぶ','翼がある','鳴く'], answer:'とり', opts:['とり','ひこうき','ちょう','とんぼ'] },
+    { hints:['4本足','ワンと鳴く','しっぽ'], answer:'いぬ', opts:['いぬ','ねこ','うさぎ','きつね'] },
+    { hints:['黄色','くだもの','皮をむく'], answer:'バナナ', opts:['バナナ','レモン','パイナップル','マンゴー'] },
+    { hints:['冷たい','とける','冬'], answer:'ゆき', opts:['ゆき','こおり','しも','あられ'] },
+    { hints:['丸い','時間','壁にかける'], answer:'とけい', opts:['とけい','カレンダー','えがお','おさら'] },
+    { hints:['長い','黄色','つるつる'], answer:'そば', opts:['うどん','そば','ラーメン','そうめん'] },
+    { hints:['海にいる','8本足','すみを吐く'], answer:'たこ', opts:['たこ','いか','えび','くらげ'] },
+    { hints:['甘い','ふわふわ','誕生日'], answer:'ケーキ', opts:['ケーキ','プリン','クッキー','ドーナツ'] },
+    { hints:['四角い','冷やす','台所'], answer:'れいぞうこ', opts:['れいぞうこ','でんしレンジ','すいはんき','せんたくき'] },
+    { hints:['緑','細長い','サラダ'], answer:'きゅうり', opts:['きゅうり','ねぎ','ピーマン','ほうれんそう'] },
+  ],
+  normal: [
+    { hints:['木でできている','引き出し','洋服を入れる'], answer:'たんす', opts:['たんす','ほんだな','テーブル','いす'] },
+    { hints:['紙でできている','切手を貼る','ポストに入れる'], answer:'てがみ', opts:['てがみ','しんぶん','ざっし','はがき'] },
+    { hints:['春に咲く','ピンク','日本の花'], answer:'さくら', opts:['さくら','うめ','もも','つばき'] },
+    { hints:['頭にかぶる','つばがある','日よけ'], answer:'ぼうし', opts:['ぼうし','ヘルメット','かつら','ずきん'] },
+    { hints:['お正月','四角い','のびる'], answer:'もち', opts:['もち','おせち','みかん','だんご'] },
+    { hints:['三角','赤い屋根','人が住む'], answer:'いえ', opts:['いえ','ビル','マンション','テント'] },
+    { hints:['鉄でできている','線路の上','たくさん乗れる'], answer:'でんしゃ', opts:['でんしゃ','バス','くるま','ひこうき'] },
+    { hints:['温かい','冬に飲む','茶色'], answer:'ココア', opts:['ココア','コーヒー','おちゃ','みそしる'] },
+    { hints:['朝に使う','ブラシ','口の中'], answer:'はブラシ', opts:['はブラシ','くし','タオル','せっけん'] },
+    { hints:['地面の下','オレンジ色','ウサギが好き'], answer:'にんじん', opts:['にんじん','だいこん','ごぼう','さつまいも'] },
+    { hints:['首が長い','アフリカ','まだら模様'], answer:'きりん', opts:['きりん','しまうま','ぞう','ダチョウ'] },
+    { hints:['透明','蛇口から出る','飲める'], answer:'みず', opts:['みず','ジュース','おちゃ','おゆ'] },
+  ],
+  hard: [
+    { hints:['打楽器','丸い','バチで叩く'], answer:'たいこ', opts:['たいこ','シンバル','タンバリン','カスタネット'] },
+    { hints:['秋の行事','夜空','火薬'], answer:'はなび', opts:['はなび','まつり','おぼん','つきみ'] },
+    { hints:['糸を使う','布を作る','機械か手作業'], answer:'おりもの', opts:['おりもの','あみもの','ぬいもの','そめもの'] },
+    { hints:['四国','うどん','瀬戸内海'], answer:'かがわ', opts:['かがわ','とくしま','えひめ','こうち'] },
+    { hints:['発明家','電球','アメリカ人'], answer:'エジソン', opts:['エジソン','ニュートン','アインシュタイン','ベル'] },
+    { hints:['逆さまに寝る','夜に活動','超音波'], answer:'こうもり', opts:['こうもり','ふくろう','もぐら','たぬき'] },
+    { hints:['3月3日','人形','女の子'], answer:'ひなまつり', opts:['ひなまつり','たなばた','こどもの日','せつぶん'] },
+    { hints:['乾燥','サボテン','ラクダ'], answer:'さばく', opts:['さばく','そうげん','ツンドラ','ジャングル'] },
+    { hints:['紫色','秋','和菓子にも使う'], answer:'さつまいも', opts:['さつまいも','なす','ぶどう','あずき'] },
+    { hints:['1000年以上前','紫式部','長編小説'], answer:'げんじものがたり', opts:['げんじものがたり','まくらのそうし','たけとりものがたり','おくのほそみち'] },
+    { hints:['節のある体','脱皮する','エビの仲間'], answer:'かに', opts:['かに','くも','さそり','やどかり'] },
+    { hints:['畑で育つ','白い','おでんの具'], answer:'だいこん', opts:['だいこん','かぶ','ながいも','れんこん'] },
+  ],
+};
+
+// Mode 2: 仲間はずれ (find the odd one out)
+const ODD_ONE_OUT = {
+  easy: [
+    { items:['いぬ','ねこ','うさぎ','テーブル'], odd:'テーブル', category:'どうぶつ', reason:'テーブルは家具です' },
+    { items:['りんご','バナナ','くるま','みかん'], odd:'くるま', category:'くだもの', reason:'くるまは乗り物です' },
+    { items:['あか','あお','きいろ','いす'], odd:'いす', category:'色', reason:'いすは家具です' },
+    { items:['はさみ','のり','えんぴつ','ごはん'], odd:'ごはん', category:'文房具', reason:'ごはんは食べ物です' },
+    { items:['めがね','ぼうし','くつ','テレビ'], odd:'テレビ', category:'身につけるもの', reason:'テレビは家電です' },
+    { items:['さくら','ひまわり','バラ','やま'], odd:'やま', category:'花', reason:'やまは自然の地形です' },
+    { items:['ピアノ','ギター','たいこ','まくら'], odd:'まくら', category:'楽器', reason:'まくらは寝具です' },
+    { items:['なつ','あき','ふゆ','つき'], odd:'つき', category:'季節', reason:'つきは天体です' },
+  ],
+  normal: [
+    { items:['さけ','まぐろ','さんま','きゅうり'], odd:'きゅうり', category:'魚', reason:'きゅうりは野菜です' },
+    { items:['でんしゃ','バス','タクシー','エレベーター'], odd:'エレベーター', category:'道路の乗り物', reason:'エレベーターは建物内の設備です' },
+    { items:['北海道','東京','フランス','大阪'], odd:'フランス', category:'日本の都道府県', reason:'フランスは外国です' },
+    { items:['しょうゆ','みそ','さとう','せっけん'], odd:'せっけん', category:'調味料', reason:'せっけんは洗剤です' },
+    { items:['ほね','きんにく','しんぞう','くつ'], odd:'くつ', category:'体の一部', reason:'くつは履物です' },
+    { items:['つる','おりがみ','せんす','ふろしき'], odd:'つる', category:'日本の道具', reason:'つるは鳥です（折り鶴ではなく）' },
+    { items:['いちご','メロン','チョコレート','バニラ'], odd:'チョコレート', category:'アイスの味（果物系）', reason:'チョコレートは果物ではありません' },
+    { items:['ひらがな','カタカナ','漢字','えいご'], odd:'えいご', category:'日本語の文字', reason:'えいごは外国語です' },
+    { items:['はる','なつ','あき','げつようび'], odd:'げつようび', category:'季節', reason:'げつようびは曜日です' },
+    { items:['やかん','なべ','フライパン','ベッド'], odd:'ベッド', category:'台所の道具', reason:'ベッドは寝室の家具です' },
+  ],
+  hard: [
+    { items:['太平洋','大西洋','インド洋','びわこ'], odd:'びわこ', category:'海洋', reason:'びわこは湖です' },
+    { items:['ベートーベン','モーツァルト','ピカソ','バッハ'], odd:'ピカソ', category:'音楽家', reason:'ピカソは画家です' },
+    { items:['酸素','窒素','水素','ダイヤモンド'], odd:'ダイヤモンド', category:'気体の元素', reason:'ダイヤモンドは固体（炭素の結晶）です' },
+    { items:['わさび','からし','しょうが','こんにゃく'], odd:'こんにゃく', category:'辛い薬味', reason:'こんにゃくは辛くありません' },
+    { items:['たいよう','すいせい','かせい','もくせい'], odd:'たいよう', category:'惑星', reason:'たいようは恒星です' },
+    { items:['おはし','フォーク','スプーン','おさら'], odd:'おさら', category:'食べる道具', reason:'おさらは盛る道具です' },
+    { items:['しんぶん','ざっし','ラジオ','しょうせつ'], odd:'ラジオ', category:'読むもの', reason:'ラジオは聴くものです' },
+    { items:['たたみ','ふすま','しょうじ','ソファー'], odd:'ソファー', category:'和室のもの', reason:'ソファーは洋室の家具です' },
+  ],
+};
+
+// Mode 3: 共通点さがし (what connects these words?)
+const COMMON_LINK = {
+  easy: [
+    { words:['りんご','バナナ','みかん'], answer:'くだもの', opts:['くだもの','やさい','おかし','のみもの'] },
+    { words:['いぬ','ねこ','ハムスター'], answer:'ペット', opts:['ペット','やせいどうぶつ','むし','とり'] },
+    { words:['あか','あお','きいろ'], answer:'いろ', opts:['いろ','くだもの','しんごう','はな'] },
+    { words:['でんしゃ','バス','ひこうき'], answer:'のりもの', opts:['のりもの','きかい','でんき','おもちゃ'] },
+    { words:['さくら','チューリップ','ひまわり'], answer:'はな', opts:['はな','き','むし','はる'] },
+    { words:['あたま','て','あし'], answer:'からだ', opts:['からだ','ようふく','どうぶつ','いきもの'] },
+    { words:['テレビ','れいぞうこ','せんたくき'], answer:'かでん', opts:['かでん','かぐ','おもちゃ','どうぐ'] },
+    { words:['にちようび','げつようび','きんようび'], answer:'ようび', opts:['ようび','きせつ','つき','ぎょうじ'] },
+  ],
+  normal: [
+    { words:['しょうゆ','みそ','す'], answer:'ちょうみりょう', opts:['ちょうみりょう','のみもの','えきたい','にほんのもの'] },
+    { words:['ピアノ','バイオリン','フルート'], answer:'がっき', opts:['がっき','おもちゃ','にしのもの','おおきいもの'] },
+    { words:['ふじさん','エベレスト','アルプス'], answer:'やま', opts:['やま','くに','しぜん','かんこうち'] },
+    { words:['まくら','ふとん','ベッド'], answer:'ねるときにつかうもの', opts:['ねるときにつかうもの','やわらかいもの','おおきいもの','しろいもの'] },
+    { words:['はさみ','カッター','のこぎり'], answer:'きるどうぐ', opts:['きるどうぐ','てつのもの','きけんなもの','だいくどうぐ'] },
+    { words:['おしょうがつ','おぼん','クリスマス'], answer:'ねんちゅうぎょうじ', opts:['ねんちゅうぎょうじ','やすみの日','ふゆのこと','かぞくのこと'] },
+    { words:['こうちゃ','コーヒー','ココア'], answer:'あたたかいのみもの', opts:['あたたかいのみもの','ちゃいろいもの','がいこくのもの','あさのむもの'] },
+    { words:['きた','みなみ','ひがし'], answer:'ほうがく', opts:['ほうがく','ばしょ','かぜ','きせつ'] },
+  ],
+  hard: [
+    { words:['しんぶん','ざっし','じてん'], answer:'いんさつぶつ', opts:['いんさつぶつ','べんきょうのもの','かみのもの','おおきいもの'] },
+    { words:['あくしゅ','おじぎ','えがお'], answer:'あいさつ', opts:['あいさつ','うんどう','からだ','にほんのぶんか'] },
+    { words:['くじら','イルカ','アザラシ'], answer:'うみのほにゅうるい', opts:['うみのほにゅうるい','さかな','おおきないきもの','みずのいきもの'] },
+    { words:['かぶき','のう','きょうげん'], answer:'にほんのでんとうげいのう', opts:['にほんのでんとうげいのう','おどり','えんげき','むかしのあそび'] },
+    { words:['つる','かめ','まつ'], answer:'えんぎのよいもの', opts:['えんぎのよいもの','いきもの','みどりのもの','おめでたいもの'] },
+    { words:['すずめ','メジロ','うぐいす'], answer:'こがた（ちいさい）のとり', opts:['こがた（ちいさい）のとり','うたうとり','にほんのとり','もりのとり'] },
+  ],
+};
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'やさしいヒント・8問', rounds:8 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'少しむずかしい・10問', rounds:10 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'じっくり考える・12問', rounds:12 },
+};
+
+const MODE_INFO = [
+  { id:'hint', label:'ヒントで当てよう', icon:'💡', desc:'3つのヒントから言葉を当てる', color:'#FF6B35' },
+  { id:'odd', label:'仲間はずれ探し', icon:'🔍', desc:'カテゴリに合わないものを見つける', color:'#7B1FA2' },
+  { id:'common', label:'共通点さがし', icon:'🔗', desc:'3つの言葉の共通点を当てる', color:'#2E7D32' },
+];
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    questions: [],
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    selected: null,
+    feedback: null,
+    results: [],
+  }).current;
+
+  const timerRef = React.useRef(null);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+
+    // Mix questions from all 3 modes
+    const hintQs = shuffle(HINT_QUESTIONS[diff] || HINT_QUESTIONS.easy).slice(0, Math.ceil(cfg.rounds * 0.4));
+    const oddQs = shuffle(ODD_ONE_OUT[diff] || ODD_ONE_OUT.easy).slice(0, Math.ceil(cfg.rounds * 0.3));
+    const commonQs = shuffle(COMMON_LINK[diff] || COMMON_LINK.easy).slice(0, Math.ceil(cfg.rounds * 0.3));
+
+    const allQs = shuffle([
+      ...hintQs.map(q => ({ ...q, mode: 'hint' })),
+      ...oddQs.map(q => ({ ...q, mode: 'odd' })),
+      ...commonQs.map(q => ({ ...q, mode: 'common' })),
+    ]).slice(0, cfg.rounds);
+
+    // Shuffle options for each question
+    allQs.forEach(q => {
+      if (q.opts) q.opts = shuffle(q.opts);
+      if (q.items) q.items = shuffle(q.items);
+    });
+
+    g.questions = allQs;
+    g.currentQ = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.selected = null;
+    g.feedback = null;
+    g.results = [];
+    g.phase = 'playing';
+    setShowConfetti(false);
+    setScreen('game');
+    rerender();
+  };
+
+  const handleAnswer = (answer) => {
+    if (g.selected !== null) return;
+    const q = g.questions[g.currentQ];
+    g.selected = answer;
+
+    let isCorrect = false;
+    if (q.mode === 'hint') isCorrect = answer === q.answer;
+    else if (q.mode === 'odd') isCorrect = answer === q.odd;
+    else if (q.mode === 'common') isCorrect = answer === q.answer;
+
+    if (isCorrect) {
+      g.score += q.mode === 'hint' ? 10 : q.mode === 'odd' ? 12 : 15;
+      g.correct++;
+    }
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    g.results.push({ q, selected: answer, correct: isCorrect });
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.currentQ + 1 >= g.questions.length) {
+        finishGame();
+      } else {
+        g.currentQ++;
+        g.selected = null;
+        g.feedback = null;
+        rerender();
+      }
+    }, 2000);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result';
+    rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.8) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+
+    setHistory(prev => [{
+      diff: difficulty, correct: g.correct, total: g.questions.length,
+      score: g.score, date: new Date().toISOString(),
+    }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => {
+    clearTimeout(timerRef.current);
+    g.phase = 'idle';
+    setScreen('select');
+    rerender();
+  };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  // Render question based on mode
+  const renderQuestion = () => {
+    const q = g.questions[g.currentQ];
+    if (!q) return null;
+    const modeColor = q.mode === 'hint' ? '#FF6B35' : q.mode === 'odd' ? '#7B1FA2' : '#2E7D32';
+    const modeBg = q.mode === 'hint' ? '#FFF3E0' : q.mode === 'odd' ? '#F3E5F5' : '#E8F5E9';
+    const modeLabel = q.mode === 'hint' ? '💡 ヒントで当てよう' : q.mode === 'odd' ? '🔍 仲間はずれ探し' : '🔗 共通点さがし';
+
+    return (
+      <div>
+        {/* Mode badge */}
+        <div style={{ textAlign:'center', marginBottom:12 }}>
+          <span style={{ fontSize:12, fontWeight:700, color:modeColor, background:modeBg, padding:'6px 14px', borderRadius:50 }}>
+            {modeLabel}
+          </span>
+        </div>
+
+        {/* Question card */}
+        <div style={{ background:'white', borderRadius:20, padding:'24px 20px', boxShadow:'0 4px 24px rgba(0,0,0,0.06)', marginBottom:16, animation:'fadeUp 0.4s ease-out' }} key={g.currentQ}>
+
+          {/* HINT MODE */}
+          {q.mode === 'hint' && (
+            <div>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:14, textAlign:'center' }}>
+                この3つのヒントから<br/>何のことかわかりますか？
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
+                {q.hints.map((h, i) => (
+                  <div key={i} style={{
+                    display:'flex', alignItems:'center', gap:10, padding:'12px 16px',
+                    background:'#FFF3E0', borderRadius:12, border:'2px solid #FFE0B2',
+                  }}>
+                    <span style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#FF6B35', flexShrink:0 }}>{i+1}</span>
+                    <span style={{ fontSize:15, fontWeight:700, color:'#E65100' }}>{h}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {q.opts.map((opt, i) => {
+                  const isSelected = g.selected === opt;
+                  const isCorrect = opt === q.answer;
+                  const answered = g.selected !== null;
+                  return (
+                    <button key={i} onClick={() => handleAnswer(opt)} disabled={answered}
+                      style={{
+                        ...btnBase, fontSize:15, fontWeight:700, padding:'14px 16px', borderRadius:14,
+                        border: `3px solid ${answered && isCorrect ? '#66BB6A' : answered && isSelected ? '#EF5350' : '#E8E8E8'}`,
+                        background: answered && isCorrect ? '#E8F5E9' : answered && isSelected && !isCorrect ? '#FFEBEE' : 'white',
+                        color: answered && isCorrect ? '#2E7D32' : answered && isSelected && !isCorrect ? '#C62828' : '#2D2D2D',
+                        opacity: answered && !isCorrect && !isSelected ? 0.5 : 1,
+                        textAlign:'left', display:'flex', alignItems:'center', gap:10,
+                      }}>
+                      <div style={{
+                        width:28, height:28, borderRadius:'50%', flexShrink:0,
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:12, fontWeight:700, fontFamily:'Outfit',
+                        background: answered && isCorrect ? '#66BB6A' : answered && isSelected && !isCorrect ? '#EF5350' : '#F5F5F5',
+                        color: answered && (isCorrect || isSelected) ? 'white' : '#9E9E9E',
+                      }}>
+                        {answered && isCorrect ? '✓' : answered && isSelected && !isCorrect ? '✗' : String.fromCharCode(65+i)}
+                      </div>
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ODD ONE OUT MODE */}
+          {q.mode === 'odd' && (
+            <div>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:14, textAlign:'center' }}>
+                この中で仲間はずれはどれ？
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, marginBottom:12 }}>
+                {q.items.map((item, i) => {
+                  const isSelected = g.selected === item;
+                  const isOdd = item === q.odd;
+                  const answered = g.selected !== null;
+                  return (
+                    <button key={i} onClick={() => handleAnswer(item)} disabled={answered}
+                      style={{
+                        ...btnBase, fontSize:16, fontWeight:700, padding:'20px 12px', borderRadius:16,
+                        border: `3px solid ${answered && isOdd ? '#7B1FA2' : answered && isSelected && !isOdd ? '#EF5350' : '#E8E8E8'}`,
+                        background: answered && isOdd ? '#F3E5F5' : answered && isSelected && !isOdd ? '#FFEBEE' : 'white',
+                        color: answered && isOdd ? '#7B1FA2' : answered && isSelected && !isOdd ? '#C62828' : '#2D2D2D',
+                        textAlign:'center',
+                        opacity: answered && !isOdd && !isSelected ? 0.5 : 1,
+                      }}>
+                      {item}
+                      {answered && isOdd && <div style={{ fontSize:10, color:'#7B1FA2', marginTop:4 }}>仲間はずれ！</div>}
+                    </button>
+                  );
+                })}
+              </div>
+              {g.feedback && (
+                <div style={{ padding:'10px 14px', borderRadius:10, background:'#F3E5F5', fontSize:12, color:'#6B6B6B', textAlign:'center' }}>
+                  {q.reason}<br/>
+                  <span style={{ fontWeight:700, color:'#7B1FA2' }}>他の3つは「{q.category}」です</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* COMMON LINK MODE */}
+          {q.mode === 'common' && (
+            <div>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:14, textAlign:'center' }}>
+                3つの言葉の共通点は何？
+              </div>
+              <div style={{ display:'flex', justifyContent:'center', gap:10, marginBottom:20, flexWrap:'wrap' }}>
+                {q.words.map((w, i) => (
+                  <div key={i} style={{
+                    padding:'12px 20px', borderRadius:14,
+                    background:'#E8F5E9', border:'2px solid #C8E6C9',
+                    fontSize:16, fontWeight:700, color:'#2E7D32',
+                  }}>
+                    {w}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {q.opts.map((opt, i) => {
+                  const isSelected = g.selected === opt;
+                  const isCorrect = opt === q.answer;
+                  const answered = g.selected !== null;
+                  return (
+                    <button key={i} onClick={() => handleAnswer(opt)} disabled={answered}
+                      style={{
+                        ...btnBase, fontSize:14, fontWeight:700, padding:'14px 16px', borderRadius:14,
+                        border: `3px solid ${answered && isCorrect ? '#66BB6A' : answered && isSelected && !isCorrect ? '#EF5350' : '#E8E8E8'}`,
+                        background: answered && isCorrect ? '#E8F5E9' : answered && isSelected && !isCorrect ? '#FFEBEE' : 'white',
+                        color: answered && isCorrect ? '#2E7D32' : answered && isSelected && !isCorrect ? '#C62828' : '#2D2D2D',
+                        opacity: answered && !isCorrect && !isSelected ? 0.5 : 1,
+                        textAlign:'left', display:'flex', alignItems:'center', gap:10,
+                      }}>
+                      <div style={{
+                        width:28, height:28, borderRadius:'50%', flexShrink:0,
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:12, fontWeight:700, fontFamily:'Outfit',
+                        background: answered && isCorrect ? '#66BB6A' : answered && isSelected && !isCorrect ? '#EF5350' : '#F5F5F5',
+                        color: answered && (isCorrect || isSelected) ? 'white' : '#9E9E9E',
+                      }}>
+                        {answered && isCorrect ? '✓' : answered && isSelected && !isCorrect ? '✗' : String.fromCharCode(65+i)}
+                      </div>
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Feedback */}
+        {g.feedback && (
+          <div style={{
+            textAlign:'center', fontSize:16, fontWeight:900,
+            color: g.feedback === 'correct' ? '#2E7D32' : '#C62828',
+            animation:'fadeUp 0.3s ease-out', padding:8,
+          }}>
+            {g.feedback === 'correct' ? '✅ 正解！' : '❌ おしい！'}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🔤 言葉つなぎ</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentQ+1}/{g.questions.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🔤</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>言葉つなぎ</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>
+            ヒントや仲間から<br/>正しい言葉を見つけよう！
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>
+            🧠 意味記憶・語彙力・分類能力のトレーニングです
+          </div>
+
+          {/* 3 modes explanation */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:12, textAlign:'left' }}>📝 3つのモードがミックスで出題されます</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {MODE_INFO.map(m => (
+                <div key={m.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:m.id==='hint'?'#FFF3E0':m.id==='odd'?'#F3E5F5':'#E8F5E9', borderRadius:12 }}>
+                  <span style={{ fontSize:22 }}>{m.icon}</span>
+                  <div style={{ textAlign:'left' }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:m.color }}>{m.label}</span>
+                    <div style={{ fontSize:11, color:'#6B6B6B' }}>{m.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* History */}
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div>
+                        <div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div>
+                      </div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+            {[
+              { v:g.score, l:'スコア', c:'#FF6B35' },
+              { v:g.correct+'/'+(g.currentQ+(g.selected?1:0)), l:'正解数', c:'#2EC4B6' },
+              { v:(g.currentQ+1)+'/'+g.questions.length, l:'問題', c:'#7B1FA2' },
+            ].map((s,i) => (
+              <div key={i} style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Progress */}
+          <div style={{ display:'flex', gap:3, marginBottom:12 }}>
+            {g.questions.map((_, i) => (
+              <div key={i} style={{
+                flex:1, height:5, borderRadius:3,
+                background: i < g.results.length
+                  ? (g.results[i].correct ? '#66BB6A' : '#EF5350')
+                  : i === g.currentQ ? '#FFB74D' : '#E8E8E8',
+              }} />
+            ))}
+          </div>
+
+          {renderQuestion()}
+          <div style={{ height:24 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const pct = g.questions.length > 0 ? g.correct / g.questions.length : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'すばらしい語彙力！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        // Per-mode stats
+        const modeStats = ['hint','odd','common'].map(m => {
+          const qs = g.results.filter(r => r.q.mode === m);
+          return { mode:m, total:qs.length, correct:qs.filter(r => r.correct).length };
+        }).filter(s => s.total > 0);
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[{v:`${g.correct}/${g.questions.length}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Mode breakdown */}
+            <div style={{ width:'100%', maxWidth:400, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.35s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 モード別成績</div>
+              <div style={{ display:'flex', gap:8 }}>
+                {modeStats.map((s, i) => {
+                  const info = MODE_INFO.find(m => m.id === s.mode);
+                  return (
+                    <div key={i} style={{ flex:1, background:'white', borderRadius:14, padding:'12px 8px', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                      <div style={{ fontSize:20, marginBottom:4 }}>{info?.icon}</div>
+                      <div style={{ fontSize:11, fontWeight:700, color:info?.color }}>{info?.label}</div>
+                      <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#2D2D2D', marginTop:4 }}>{s.correct}/{s.total}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Review */}
+            <div style={{ width:'100%', maxWidth:400, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 回答の振り返り</div>
+              {g.results.map((r, i) => {
+                const mInfo = MODE_INFO.find(m => m.id === r.q.mode);
+                return (
+                  <div key={i} style={{
+                    background: r.correct ? '#F1F8E9' : '#FFF3E0',
+                    borderRadius:12, padding:'10px 14px', marginBottom:6,
+                    borderLeft: `4px solid ${r.correct ? '#66BB6A' : '#FF6B35'}`,
+                    textAlign:'left', fontSize:12,
+                  }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
+                      <span>{r.correct ? '✅' : '❌'}</span>
+                      <span style={{ fontSize:10, fontWeight:700, color:mInfo?.color }}>{mInfo?.icon} {mInfo?.label}</span>
+                    </div>
+                    <div style={{ fontWeight:700, color:'#2D2D2D' }}>
+                      {r.q.mode === 'hint' && `ヒント: ${r.q.hints.join('、')} → 正解: ${r.q.answer}`}
+                      {r.q.mode === 'odd' && `${r.q.items.join('、')} → 仲間はずれ: ${r.q.odd}`}
+                      {r.q.mode === 'common' && `${r.q.words.join('、')} → 共通点: ${r.q.answer}`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.45s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>Minatomo Dual Task | みなともPlay</title>
+<meta name="description" content="Minatomo Dual Task - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="executive">
+<meta name="minatomo-category" content="">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+
+function genMath(level){
+  let a,b,op,answer;
+  if(level<=1){a=2+Math.floor(Math.random()*8);b=1+Math.floor(Math.random()*8);op='+';answer=a+b;}
+  else if(level<=2){a=5+Math.floor(Math.random()*15);b=1+Math.floor(Math.random()*9);if(Math.random()<0.4){op='-';answer=a-b;}else{op='+';answer=a+b;}}
+  else{a=3+Math.floor(Math.random()*7);b=2+Math.floor(Math.random()*5);op='×';answer=a*b;}
+  const ws=new Set();while(ws.size<3){const w=answer+[-3,-2,-1,1,2,3][Math.floor(Math.random()*6)];if(w>0&&w!==answer)ws.add(w);}
+  return{q:`${a} ${op} ${b}`,answer,opts:shuffle([answer,...ws])};
+}
+function genColorQ(){
+  const c=[{name:'あか',hex:'#E53935'},{name:'あお',hex:'#1E88E5'},{name:'みどり',hex:'#43A047'},{name:'きいろ',hex:'#F9A825'}];
+  const w=c[Math.floor(Math.random()*c.length)];let ink;do{ink=c[Math.floor(Math.random()*c.length)];}while(ink.name===w.name);
+  return{word:w.name,inkColor:ink.hex,answer:ink.name,opts:shuffle(c.map(x=>x.name))};
+}
+const WORDS=[['りんご','くるま','えんぴつ'],['ねこ','かさ','とけい'],['さくら','ほん','でんわ'],['いぬ','くつ','おかね'],['うみ','パン','めがね']];
+const EXTRA=['さかな','くも','まど','つき','いえ','あめ','かわ','そら'];
+const DIFF={
+  easy:{label:'かんたん',emoji:'🌱',desc:'ゆっくり・かんたんな計算',rounds:5,lightSpeed:1800,mathLevel:1,modes:['light_math','light_color']},
+  normal:{label:'ふつう',emoji:'🌿',desc:'ふつう速度・全モード',rounds:6,lightSpeed:1400,mathLevel:2,modes:['light_math','light_color','light_count']},
+  hard:{label:'むずかしい',emoji:'🌳',desc:'速め・かけ算・記憶',rounds:7,lightSpeed:1100,mathLevel:3,modes:['light_math','light_color','light_count','light_word']},
+};
+function genRound(diff){
+  const cfg=DIFF[diff];const mode=cfg.modes[Math.floor(Math.random()*cfg.modes.length)];
+  const lc=8+Math.floor(Math.random()*4);const lights=[];for(let i=0;i<lc;i++)lights.push(Math.random()<0.5?'left':'right');
+  if(mode==='light_math'){const ps=[];for(let i=0;i<3;i++)ps.push(genMath(cfg.mathLevel));return{mode,lights,lightSpeed:cfg.lightSpeed,problems:ps,title:'💡光 ＋ 🔢計算'};}
+  if(mode==='light_color'){const qs=[];for(let i=0;i<3;i++)qs.push(genColorQ());return{mode,lights,lightSpeed:cfg.lightSpeed,questions:qs,title:'💡光 ＋ 🎨色あて'};}
+  if(mode==='light_count'){const es=['🍎','⭐','🐟','❤️','🌸'];const t=es[Math.floor(Math.random()*es.length)];const tc=3+Math.floor(Math.random()*4);const items=[];for(let i=0;i<tc;i++)items.push(t);const ot=es.filter(e=>e!==t);for(let i=0;i<4+Math.floor(Math.random()*3);i++)items.push(ot[Math.floor(Math.random()*ot.length)]);return{mode,lights,lightSpeed:cfg.lightSpeed,items:shuffle(items),target:t,targetCount:tc,countOpts:shuffle([tc-1,tc,tc+1,tc+2].filter(v=>v>0)),title:'💡光 ＋ 👀かぞえ'};}
+  if(mode==='light_word'){const ws=WORDS[Math.floor(Math.random()*WORDS.length)];const ds=shuffle(EXTRA.filter(w=>!ws.includes(w))).slice(0,3);return{mode,lights,lightSpeed:cfg.lightSpeed,words:ws,wordOpts:shuffle([...ws,...ds]),title:'💡光 ＋ 📝記憶'};}
+  return genRound(diff);
+}
+
+function App(){
+  const[screen,setScreen]=React.useState('select');
+  const[difficulty,setDifficulty]=React.useState('normal');
+  const[showConfetti,setShowConfetti]=React.useState(false);
+  const[history,setHistory]=React.useState([]);
+  const[,forceUpdate]=React.useState(0);const rerender=()=>forceUpdate(x=>x+1);
+  const g=React.useRef({phase:'idle',rounds:[],currentR:0,score:0,results:[],gamePhase:'waiting',lightIndex:0,lightSide:null,lightHits:0,lightTotal:0,cogPhase:'idle',cogIndex:0,cogCorrect:0,cogTotal:0,cogFeedback:null,selectedWords:new Set()}).current;
+  const timerRef=React.useRef(null);const lightRef=React.useRef(null);
+  React.useEffect(()=>()=>{clearTimeout(timerRef.current);clearTimeout(lightRef.current);},[]);
+
+  const startGame=(diff)=>{setDifficulty(diff);const cfg=DIFF[diff];const rounds=[];for(let i=0;i<cfg.rounds;i++)rounds.push(genRound(diff));g.rounds=rounds;g.currentR=0;g.score=0;g.results=[];setShowConfetti(false);setScreen('game');startRound(0,diff);};
+  const startRound=(idx,diff)=>{g.currentR=idx;const r=g.rounds[idx];g.lightIndex=0;g.lightSide=null;g.lightHits=0;g.lightTotal=r.lights.length;g.cogPhase='idle';g.cogIndex=0;g.cogCorrect=0;g.cogFeedback=null;g.cogTotal=r.problems?.length||r.questions?.length||(r.words?r.words.length:1);g.selectedWords=new Set();
+    if(r.mode==='light_word'){g.gamePhase='memorize';rerender();timerRef.current=setTimeout(()=>{g.gamePhase='playing';g.cogPhase='answering';rerender();startLights(r);},4000);}
+    else{g.gamePhase='intro';rerender();timerRef.current=setTimeout(()=>{g.gamePhase='playing';g.cogPhase='answering';rerender();startLights(r);},2000);}};
+
+  const startLights=(round)=>{let idx=0;const tick=()=>{if(idx>=round.lights.length){g.lightSide=null;rerender();timerRef.current=setTimeout(()=>{if(g.cogPhase!=='done')timerRef.current=setTimeout(()=>judgeRound(round),4000);else judgeRound(round);},500);return;}
+    g.lightSide=round.lights[idx];g.lightIndex=idx+1;rerender();const thisIdx=idx;
+    timerRef.current=setTimeout(()=>{if(g.lightIndex===thisIdx+1&&g.lightSide===round.lights[thisIdx]){g.lightSide=null;rerender();}},round.lightSpeed*0.8);
+    idx++;lightRef.current=setTimeout(tick,round.lightSpeed);};tick();};
+
+  const handleLightTap=(side)=>{if(g.gamePhase!=='playing'||!g.lightSide)return;if(side===g.lightSide)g.lightHits++;g.lightSide=null;rerender();};
+
+  const handleCogAnswer=(answer)=>{if(g.cogFeedback)return;const r=g.rounds[g.currentR];
+    if(r.mode==='light_math'){const correct=answer===r.problems[g.cogIndex].answer;if(correct)g.cogCorrect++;g.cogFeedback=correct?'⭕':'❌';rerender();setTimeout(()=>{g.cogFeedback=null;g.cogIndex++;if(g.cogIndex>=r.problems.length)g.cogPhase='done';rerender();checkEnd(r);},500);}
+    else if(r.mode==='light_color'){const correct=answer===r.questions[g.cogIndex].answer;if(correct)g.cogCorrect++;g.cogFeedback=correct?'⭕':'❌';rerender();setTimeout(()=>{g.cogFeedback=null;g.cogIndex++;if(g.cogIndex>=r.questions.length)g.cogPhase='done';rerender();checkEnd(r);},500);}
+    else if(r.mode==='light_count'){if(answer===r.targetCount)g.cogCorrect++;g.cogFeedback=answer===r.targetCount?'⭕':'❌';g.cogPhase='done';rerender();setTimeout(()=>{g.cogFeedback=null;rerender();checkEnd(r);},500);}
+    else if(r.mode==='light_word'){if(r.words.includes(answer)){g.selectedWords.add(answer);g.cogCorrect=g.selectedWords.size;if(g.selectedWords.size>=r.words.length)g.cogPhase='done';}rerender();checkEnd(r);}};
+
+  const finishWordRecall=()=>{g.cogPhase='done';rerender();checkEnd(g.rounds[g.currentR]);};
+  const checkEnd=(round)=>{if(g.cogPhase==='done'&&g.lightIndex>=g.lightTotal&&!g.lightSide)timerRef.current=setTimeout(()=>judgeRound(round),600);};
+
+  const judgeRound=(round)=>{clearTimeout(lightRef.current);clearTimeout(timerRef.current);g.gamePhase='judging';g.lightSide=null;
+    const lp=g.lightTotal>0?Math.round(g.lightHits/g.lightTotal*100):0;
+    const cp=g.cogTotal>0?Math.round(g.cogCorrect/g.cogTotal*100):0;
+    const cb=Math.round(lp*0.5+cp*0.5);let result;
+    if(cb>=70){result='great';g.score+=25;}else if(cb>=40){result='good';g.score+=12;}else{result='miss';g.score+=3;}
+    g.results.push({mode:round.mode,result,lightPct:lp,cogPct:cp,combined:cb,title:round.title});rerender();timerRef.current=setTimeout(()=>nextRound(),2200);};
+
+  const nextRound=()=>{if(g.currentR+1>=g.rounds.length)finishGame();else startRound(g.currentR+1,difficulty);};
+  const finishGame=()=>{g.phase='result';g.gamePhase='idle';rerender();const greats=g.results.filter(r=>r.result==='great').length;if(greats/g.rounds.length>=0.3){setShowConfetti(true);setTimeout(()=>setShowConfetti(false),4000);}setHistory(prev=>[{diff:difficulty,total:g.results.length,score:g.score,date:new Date().toISOString()},...prev].slice(0,20));setScreen('result');};
+  const goBack=()=>{clearTimeout(timerRef.current);clearTimeout(lightRef.current);g.phase='idle';g.gamePhase='idle';setScreen('select');rerender();};
+
+  const cfg=DIFF[difficulty]||DIFF.normal;
+  const btn={fontFamily:"'Zen Maru Gothic',sans-serif",cursor:'pointer',transition:'all 0.2s'};
+
+  const Confetti=showConfetti?(<div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:999,overflow:'hidden'}}><style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>{Array.from({length:50},(_,i)=>(<div key={i} style={{position:'absolute',top:-10,left:Math.random()*100+'%',width:6+Math.random()*8,height:6+Math.random()*8,background:['#E8652E','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6],borderRadius:Math.random()>0.5?'50%':2,animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards`}}/>))}</div>):null;
+
+  return (
+    <div style={{fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif",background:'#FAFAF8',minHeight:'100vh',color:'#333'}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+        @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(232,101,46,0.4)}50%{box-shadow:0 0 0 20px rgba(232,101,46,0)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{background:'white',padding:'12px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',boxShadow:'0 1px 4px rgba(0,0,0,0.03)',position:'sticky',top:0,zIndex:50}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {screen!=='select'&&<button onClick={goBack} style={{...btn,fontSize:20,background:'none',border:'none',color:'#6B6B6B',padding:'4px 8px'}}>←</button>}
+          <span style={{fontSize:16,fontWeight:900,color:'#E8652E',letterSpacing:'0.08em'}}>🧠 ダブルタスク</span>
+        </div>
+        {screen==='game'&&g.gamePhase!=='idle'&&(<span style={{fontSize:12,fontWeight:700,color:'white',background:'#888',padding:'3px 10px',borderRadius:50}}>{g.currentR+1}/{g.rounds.length}</span>)}
+      </div>
+
+      {screen==='select'&&(
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'40px 20px',textAlign:'center'}}>
+          <div style={{fontSize:64,marginBottom:16,animation:'bounce 3s ease-in-out infinite'}}>🧠</div>
+          <div style={{fontSize:24,fontWeight:900,color:'#E8652E',letterSpacing:'0.1em',marginBottom:6}}>ダブルタスク</div>
+          <div style={{fontSize:15,color:'#6B6B6B',marginBottom:8,lineHeight:1.9,letterSpacing:'0.03em'}}>2つのことを同時にこなす！<br/>頭と体を同時に使おう</div>
+          <div style={{fontSize:13,color:'#9E9E9E',marginBottom:28,background:'#F5F5F0',padding:'10px 18px',borderRadius:12}}>🧠 二重課題処理・注意分割のトレーニングです<br/>歩行中の転倒予防にもつながります</div>
+
+          <div style={{width:'100%',maxWidth:480,marginBottom:24,background:'white',borderRadius:16,padding:'20px 18px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',textAlign:'left'}}>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:12,letterSpacing:'0.05em'}}>🎯 遊び方</div>
+            <div style={{fontSize:14,color:'#6B6B6B',lineHeight:2.2,letterSpacing:'0.03em'}}>
+              ① 左右のボタンが交互に光ります💡<br/>
+              ② <b>光った方をすばやくタップ</b>（運動課題）<br/>
+              ③ 同時に中央に計算や問題が出ます<br/>
+              ④ <b>問題にも答える</b>（認知課題）<br/>
+              ⑤ 両方の成績で判定！
+            </div>
+          </div>
+
+          <div style={{width:'100%',maxWidth:480,marginBottom:24,background:'white',borderRadius:16,padding:'16px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',textAlign:'left'}}>
+            <div style={{fontSize:14,fontWeight:700,color:'#6B6B6B',marginBottom:8,letterSpacing:'0.05em'}}>💡 なぜ「同時に2つ」が大切？</div>
+            <div style={{fontSize:13,color:'#9E9E9E',lineHeight:1.9,letterSpacing:'0.02em'}}>歩きながら話す、料理しながら考える…日常は二重課題の連続です。この力が低下すると転倒リスクが高まります。</div>
+          </div>
+
+          <div style={{width:'100%',maxWidth:480}}>
+            <div style={{fontSize:14,fontWeight:700,color:'#6B6B6B',marginBottom:10,textAlign:'left',letterSpacing:'0.05em'}}>📊 難易度を選んでスタート</div>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {Object.entries(DIFF).map(([k,d])=>(
+                <button key={k} onClick={()=>startGame(k)} style={{...btn,fontSize:15,fontWeight:700,padding:'18px 20px',borderRadius:16,border:'2px solid #E8E8E8',background:'white',display:'flex',alignItems:'center',gap:14,textAlign:'left'}}>
+                  <span style={{fontSize:26}}>{d.emoji}</span>
+                  <div><div style={{fontSize:15,fontWeight:700}}>{d.label}</div><div style={{fontSize:12,color:'#6B6B6B',marginTop:2}}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {screen==='game'&&g.phase!=='result'&&(
+        <div style={{padding:'0 16px',maxWidth:580,margin:'0 auto'}}>
+          <div style={{display:'flex',justifyContent:'center',gap:20,padding:'8px 14px',background:'white',borderRadius:'0 0 12px 12px',marginBottom:6}}>
+            {[{v:g.score+'pt',l:'スコア'},{v:`💡${g.lightHits}/${g.lightTotal}`,l:'光タップ'},{v:`${g.currentR+1}/${g.rounds.length}`,l:'ラウンド'}].map((s,i)=>(<div key={i} style={{textAlign:'center'}}><div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#555'}}>{s.v}</div><div style={{fontSize:9,color:'#9E9E9E'}}>{s.l}</div></div>))}
+          </div>
+          <div style={{display:'flex',gap:2,marginBottom:8}}>{g.rounds.map((_,i)=>(<div key={i} style={{flex:1,height:4,borderRadius:2,background:i<g.results.length?(g.results[i].result==='great'?'#8BC34A':g.results[i].result==='good'?'#FFB74D':'#EF9A9A'):i===g.currentR?'#FFB74D':'#E8E8E8'}}/>))}</div>
+
+          {g.gamePhase==='intro'&&(<div style={{textAlign:'center',padding:'40px 20px',animation:'fadeUp 0.3s ease-out'}}><div style={{fontSize:22,fontWeight:900,color:'#E8652E',marginBottom:8}}>{g.rounds[g.currentR]?.title}</div><div style={{fontSize:48,marginTop:20,animation:'pulse 0.8s infinite'}}>🏁</div></div>)}
+
+          {g.gamePhase==='memorize'&&(<div style={{textAlign:'center',padding:'30px 20px',animation:'fadeUp 0.3s ease-out'}}><div style={{fontSize:18,fontWeight:900,color:'#E8652E',marginBottom:14}}>この3つの言葉を覚えてね</div><div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>{g.rounds[g.currentR]?.words?.map((w,i)=>(<div key={i} style={{background:'white',padding:'16px 24px',borderRadius:14,boxShadow:'0 2px 8px rgba(0,0,0,0.04)',fontSize:22,fontWeight:900,border:'2px solid #E8E8E8'}}>{w}</div>))}</div></div>)}
+
+          {g.gamePhase==='playing'&&(()=>{const round=g.rounds[g.currentR];return(
+            <div style={{animation:'fadeUp 0.2s ease-out'}}>
+              <div style={{textAlign:'center',marginBottom:6}}><span style={{fontSize:12,fontWeight:900,color:'#E8652E',background:'#FFF3E0',padding:'4px 12px',borderRadius:50}}>{round.title}</span></div>
+
+              <div style={{display:'flex',gap:10,marginBottom:8}}>
+                {['left','right'].map(side=>{const isLit=g.lightSide===side;return(
+                  <button key={side} onMouseDown={()=>handleLightTap(side)} onTouchStart={(e)=>{e.preventDefault();handleLightTap(side);}}
+                    style={{...btn,flex:1,height:90,borderRadius:18,background:isLit?(side==='left'?'#1E88E5':'#E8652E'):'white',
+                      border:`3px solid ${isLit?(side==='left'?'#1565C0':'#D4551E'):'#E8E8E8'}`,
+                      display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+                      boxShadow:isLit?`0 0 25px ${side==='left'?'rgba(30,136,229,0.4)':'rgba(232,101,46,0.4)'}`:'none',
+                      animation:isLit?'glow 1s infinite':undefined,userSelect:'none',WebkitUserSelect:'none'}}>
+                    <span style={{fontSize:28}}>💡</span>
+                    <span style={{fontSize:18,fontWeight:900,color:isLit?'white':(side==='left'?'#1E88E5':'#E8652E'),letterSpacing:'0.06em'}}>{side==='left'?'ひだり':'みぎ'}</span>
+                  </button>);})}
+              </div>
+
+              <div style={{display:'flex',gap:2,justifyContent:'center',marginBottom:8}}>{round.lights.map((_,i)=>(<div key={i} style={{width:6,height:6,borderRadius:'50%',background:i<g.lightIndex?'#E8652E':'#E0E0E0'}}/>))}</div>
+
+              <div style={{background:'white',borderRadius:16,padding:'16px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',minHeight:140,display:'flex',alignItems:'center',justifyContent:'center'}}>
+
+                {round.mode==='light_math'&&g.cogPhase==='answering'&&g.cogIndex<round.problems.length&&(
+                  <div style={{textAlign:'center',width:'100%'}}>
+                    <div style={{fontSize:30,fontWeight:900,fontFamily:'Outfit',marginBottom:12}}>{round.problems[g.cogIndex].q} = ?</div>
+                    <div style={{display:'flex',gap:10,justifyContent:'center'}}>
+                      {round.problems[g.cogIndex].opts.map((n,i)=>(<button key={i} onClick={()=>handleCogAnswer(n)} style={{...btn,fontSize:20,fontWeight:900,fontFamily:'Outfit',width:60,height:60,borderRadius:14,border:'2px solid #E8E8E8',background:'white'}}>{n}</button>))}
+                    </div>
+                    {g.cogFeedback&&<div style={{marginTop:8,fontSize:22,fontWeight:900,color:g.cogFeedback==='⭕'?'#2E7D32':'#C62828'}}>{g.cogFeedback}</div>}
+                  </div>
+                )}
+
+                {round.mode==='light_color'&&g.cogPhase==='answering'&&g.cogIndex<round.questions.length&&(
+                  <div style={{textAlign:'center',width:'100%'}}>
+                    <div style={{fontSize:13,color:'#9E9E9E',marginBottom:4}}>この文字の「色」は？</div>
+                    <div style={{fontSize:40,fontWeight:900,color:round.questions[g.cogIndex].inkColor,marginBottom:10}}>{round.questions[g.cogIndex].word}</div>
+                    <div style={{display:'flex',gap:8,justifyContent:'center'}}>
+                      {round.questions[g.cogIndex].opts.map((o,i)=>(<button key={i} onClick={()=>handleCogAnswer(o)} style={{...btn,fontSize:15,fontWeight:700,padding:'10px 18px',borderRadius:50,border:'2px solid #E8E8E8',background:'white'}}>{o}</button>))}
+                    </div>
+                    {g.cogFeedback&&<div style={{marginTop:8,fontSize:22,fontWeight:900,color:g.cogFeedback==='⭕'?'#2E7D32':'#C62828'}}>{g.cogFeedback}</div>}
+                  </div>
+                )}
+
+                {round.mode==='light_count'&&g.cogPhase==='answering'&&(
+                  <div style={{textAlign:'center',width:'100%'}}>
+                    <div style={{fontSize:14,color:'#9E9E9E',marginBottom:6}}>{round.target}はいくつ？</div>
+                    <div style={{display:'flex',gap:4,justifyContent:'center',flexWrap:'wrap',marginBottom:10}}>{round.items.map((item,i)=><span key={i} style={{fontSize:26}}>{item}</span>)}</div>
+                    <div style={{display:'flex',gap:10,justifyContent:'center'}}>
+                      {round.countOpts.map((n,i)=>(<button key={i} onClick={()=>handleCogAnswer(n)} style={{...btn,fontSize:18,fontWeight:900,fontFamily:'Outfit',width:52,height:52,borderRadius:14,border:'2px solid #E8E8E8',background:'white'}}>{n}</button>))}
+                    </div>
+                    {g.cogFeedback&&<div style={{marginTop:8,fontSize:22,fontWeight:900,color:g.cogFeedback==='⭕'?'#2E7D32':'#C62828'}}>{g.cogFeedback}</div>}
+                  </div>
+                )}
+
+                {round.mode==='light_word'&&g.cogPhase==='answering'&&(
+                  <div style={{textAlign:'center',width:'100%'}}>
+                    <div style={{fontSize:14,color:'#9E9E9E',marginBottom:8}}>覚えた言葉を選んでね（{g.selectedWords.size}/{round.words.length}）</div>
+                    <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}>
+                      {round.wordOpts.map((w,i)=>{const sel=g.selectedWords.has(w);return(<button key={i} onClick={()=>!sel&&handleCogAnswer(w)} style={{...btn,fontSize:15,fontWeight:700,padding:'10px 16px',borderRadius:50,border:`2px solid ${sel?'#66BB6A':'#E8E8E8'}`,background:sel?'#F1F8E9':'white',opacity:sel?0.6:1}}>{w}{sel?' ✓':''}</button>);})}
+                    </div>
+                    <button onClick={finishWordRecall} style={{...btn,marginTop:10,fontSize:12,padding:'8px 18px',borderRadius:50,border:'1px solid #E0E0E0',background:'#F5F5F0',color:'#6B6B6B'}}>これで確定</button>
+                  </div>
+                )}
+
+                {g.cogPhase==='done'&&<div style={{fontSize:18,fontWeight:700,color:'#2E7D32'}}>✅ 問題クリア！</div>}
+                {g.cogPhase==='idle'&&<div style={{fontSize:14,color:'#BDBDBD'}}>準備中…</div>}
+              </div>
+            </div>);})()}
+
+          {g.gamePhase==='judging'&&(()=>{const r=g.results[g.results.length-1];return(
+            <div style={{textAlign:'center',padding:'30px 20px',animation:'fadeUp 0.4s ease-out'}}>
+              <div style={{fontSize:48,marginBottom:8}}>{r.result==='great'?'🎉':r.result==='good'?'👍':'🤔'}</div>
+              <div style={{fontSize:22,fontWeight:900,color:r.result==='great'?'#2E7D32':r.result==='good'?'#E8652E':'#999'}}>{r.result==='great'?'すばらしい！':r.result==='good'?'いい感じ！':'もう少し！'}</div>
+              <div style={{display:'flex',justifyContent:'center',gap:24,marginTop:14}}>
+                <div style={{textAlign:'center'}}><div style={{fontFamily:'Outfit',fontSize:24,fontWeight:800,color:'#1E88E5'}}>{r.lightPct}%</div><div style={{fontSize:11,color:'#9E9E9E'}}>💡 光タップ</div></div>
+                <div style={{textAlign:'center'}}><div style={{fontFamily:'Outfit',fontSize:24,fontWeight:800,color:'#E8652E'}}>{r.cogPct}%</div><div style={{fontSize:11,color:'#9E9E9E'}}>🧠 認知</div></div>
+              </div>
+            </div>);})()}
+          <div style={{height:20}}/>
+        </div>
+      )}
+
+      {screen==='result'&&(()=>{
+        const total=g.rounds.length;const greats=g.results.filter(r=>r.result==='great').length;
+        const avgL=g.results.length>0?Math.round(g.results.reduce((s,r)=>s+r.lightPct,0)/g.results.length):0;
+        const avgC=g.results.length>0?Math.round(g.results.reduce((s,r)=>s+r.cogPct,0)/g.results.length):0;
+        const pct=greats/total;const stars=pct>=0.6?'⭐⭐⭐':pct>=0.3?'⭐⭐':'⭐';const msg=pct>=0.6?'二刀流マスター！':pct>=0.3?'いい調子！':'もっと練習！';
+        return(
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'30px 20px',textAlign:'center'}}>
+            <div style={{fontSize:48,marginBottom:16,animation:'fadeUp 0.6s ease-out'}}>{stars}</div>
+            <div style={{fontSize:24,fontWeight:900,color:'#E8652E',marginBottom:6,letterSpacing:'0.08em'}}>{msg}</div>
+            <div style={{fontSize:15,color:'#6B6B6B',marginBottom:24}}>{cfg.label}モード</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:14,width:'100%',maxWidth:300,marginBottom:20}}>
+              {[{v:`${avgL}%`,l:'💡 平均光タップ',c:'#1E88E5'},{v:`${avgC}%`,l:'🧠 平均認知',c:'#E8652E'}].map((s,i)=>(<div key={i} style={{background:'white',borderRadius:16,padding:'14px 8px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',textAlign:'center'}}><div style={{fontFamily:'Outfit',fontSize:24,fontWeight:800,color:s.c}}>{s.v}</div><div style={{fontSize:10,color:'#9E9E9E',marginTop:4}}>{s.l}</div></div>))}
+            </div>
+            <div style={{background:'white',borderRadius:16,padding:'14px',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',width:'100%',maxWidth:300,marginBottom:20}}>
+              <div style={{fontFamily:'Outfit',fontSize:32,fontWeight:900,color:'#E8652E'}}>{g.score}<span style={{fontSize:16}}>pt</span></div>
+              <div style={{fontSize:11,color:'#9E9E9E'}}>トータルスコア</div>
+            </div>
+            <div style={{width:'100%',maxWidth:480,marginBottom:24}}>
+              <div style={{fontSize:14,fontWeight:700,color:'#6B6B6B',marginBottom:8,textAlign:'left'}}>📋 ラウンド別</div>
+              {g.results.map((r,i)=>(<div key={i} style={{background:r.result==='great'?'#F1F8E9':r.result==='good'?'#FFF3E0':'#FAFAFA',borderRadius:12,padding:'8px 14px',marginBottom:4,borderLeft:`4px solid ${r.result==='great'?'#8BC34A':r.result==='good'?'#FFB74D':'#E0E0E0'}`,textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}}><div style={{fontSize:13,fontWeight:700}}>{r.result==='great'?'🎉':r.result==='good'?'👍':'🤔'} {r.title}</div><div style={{fontSize:11,fontWeight:800,fontFamily:'Outfit',color:'#555'}}>💡{r.lightPct}% 🧠{r.cogPct}%</div></div>))}
+            </div>
+            <div style={{width:'100%',maxWidth:480,marginBottom:24,padding:'14px 16px',background:'#FAFAF8',border:'1px solid #E8E8E8',borderRadius:12,textAlign:'left'}}>
+              <div style={{fontSize:13,fontWeight:700,color:'#6B6B6B',marginBottom:6,letterSpacing:'0.05em'}}>💡 ダブルタスクのコツ</div>
+              <div style={{fontSize:12,color:'#9E9E9E',lineHeight:1.9,letterSpacing:'0.02em'}}>最初は片方がおろそかになっても大丈夫。まず光タップを安定させてから、問題に注意を向けるのがコツです。</div>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:10,width:'100%',maxWidth:300}}>
+              <button onClick={()=>startGame(difficulty)} style={{...btn,fontSize:16,fontWeight:700,color:'white',background:'#E8652E',border:'none',padding:'16px 32px',borderRadius:60,letterSpacing:'0.06em'}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btn,fontSize:14,fontWeight:700,color:'#6B6B6B',background:'white',border:'2px solid #E0E0E0',padding:'14px 32px',borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>);})()}
+      {Confetti}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

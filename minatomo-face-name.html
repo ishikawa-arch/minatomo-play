@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>顔と名前 | みなともPlay</title>
+<meta name="description" content="人の顔と名前を覚える - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== FACE GENERATOR ==========
+const HAIR_STYLES = ['short','long','bald','curly','ponytail','bob'];
+const HAIR_COLORS = ['#2D2D2D','#5D4037','#795548','#9E9E9E','#FF8F00','#4E342E'];
+const SKIN_TONES = ['#FFCC80','#FFE0B2','#D7CCC8','#FFAB91','#FFF3E0','#EFEBE9'];
+const EYE_SHAPES = ['round','narrow','big'];
+const MOUTH_SHAPES = ['smile','neutral','small'];
+const ACCESSORIES = ['none','glasses','earrings','hat','ribbon'];
+const FACE_SHAPES = ['round','oval','square'];
+
+const NAMES_M = ['たなかさん','やまださん','すずきさん','さとうさん','いとうさん','わたなべさん','たかはしさん','こばやしさん','なかむらさん','かとうさん','よしださん','やまもとさん','いのうえさん','きむらさん','はやしさん','おおのさん','まつもとさん','いけださん'];
+const NAMES_F = ['はなこさん','よしこさん','けいこさん','みちこさん','かずこさん','あきこさん','ようこさん','まさこさん','ひろこさん','きょうこさん','さちこさん','のぶこさん','ちえこさん','ともこさん','くみこさん','えみこさん','みどりさん','かおりさん'];
+
+function seededRandom(seed) {
+  let s = seed;
+  return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+}
+
+function generateFace(seed) {
+  const r = seededRandom(seed);
+  const pick = (arr) => arr[Math.floor(r() * arr.length)];
+  return {
+    seed,
+    skin: pick(SKIN_TONES),
+    hair: pick(HAIR_STYLES),
+    hairColor: pick(HAIR_COLORS),
+    eyes: pick(EYE_SHAPES),
+    mouth: pick(MOUTH_SHAPES),
+    accessory: pick(ACCESSORIES),
+    faceShape: pick(FACE_SHAPES),
+    gender: r() < 0.5 ? 'm' : 'f',
+  };
+}
+
+function FaceAvatar({ face, size = 120 }) {
+  const s = size;
+  const cx = s/2, cy = s/2;
+  const faceRx = face.faceShape === 'round' ? s*0.35 : face.faceShape === 'oval' ? s*0.3 : s*0.32;
+  const faceRy = face.faceShape === 'round' ? s*0.35 : face.faceShape === 'oval' ? s*0.38 : s*0.34;
+
+  return (
+    <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
+      {/* Hair behind (long/ponytail) */}
+      {(face.hair === 'long' || face.hair === 'ponytail') && (
+        <ellipse cx={cx} cy={cy-s*0.05} rx={faceRx+6} ry={faceRy+10} fill={face.hairColor} />
+      )}
+      {face.hair === 'long' && (
+        <rect x={cx-faceRx-2} y={cy} width={faceRx*2+4} height={s*0.35} rx={8} fill={face.hairColor} />
+      )}
+      {face.hair === 'ponytail' && (
+        <ellipse cx={cx} cy={cy+s*0.32} rx={8} ry={14} fill={face.hairColor} />
+      )}
+
+      {/* Face */}
+      <ellipse cx={cx} cy={cy+2} rx={faceRx} ry={faceRy} fill={face.skin} />
+
+      {/* Ears */}
+      <ellipse cx={cx-faceRx+2} cy={cy+4} rx={6} ry={8} fill={face.skin} />
+      <ellipse cx={cx+faceRx-2} cy={cy+4} rx={6} ry={8} fill={face.skin} />
+
+      {/* Eyes */}
+      {face.eyes === 'round' && <>
+        <circle cx={cx-s*0.1} cy={cy-s*0.04} r={4} fill="#2D2D2D" />
+        <circle cx={cx+s*0.1} cy={cy-s*0.04} r={4} fill="#2D2D2D" />
+        <circle cx={cx-s*0.1+1} cy={cy-s*0.04-1} r={1.5} fill="white" />
+        <circle cx={cx+s*0.1+1} cy={cy-s*0.04-1} r={1.5} fill="white" />
+      </>}
+      {face.eyes === 'narrow' && <>
+        <ellipse cx={cx-s*0.1} cy={cy-s*0.04} rx={5} ry={2.5} fill="#2D2D2D" />
+        <ellipse cx={cx+s*0.1} cy={cy-s*0.04} rx={5} ry={2.5} fill="#2D2D2D" />
+      </>}
+      {face.eyes === 'big' && <>
+        <circle cx={cx-s*0.1} cy={cy-s*0.04} r={6} fill="white" stroke="#2D2D2D" strokeWidth="1.5" />
+        <circle cx={cx+s*0.1} cy={cy-s*0.04} r={6} fill="white" stroke="#2D2D2D" strokeWidth="1.5" />
+        <circle cx={cx-s*0.1} cy={cy-s*0.04} r={3} fill="#2D2D2D" />
+        <circle cx={cx+s*0.1} cy={cy-s*0.04} r={3} fill="#2D2D2D" />
+      </>}
+
+      {/* Eyebrows */}
+      <line x1={cx-s*0.14} y1={cy-s*0.1} x2={cx-s*0.06} y2={cy-s*0.11} stroke="#5D4037" strokeWidth="2" strokeLinecap="round" />
+      <line x1={cx+s*0.06} y1={cy-s*0.11} x2={cx+s*0.14} y2={cy-s*0.1} stroke="#5D4037" strokeWidth="2" strokeLinecap="round" />
+
+      {/* Nose */}
+      <ellipse cx={cx} cy={cy+s*0.04} rx={3} ry={4} fill="none" stroke={face.skin} strokeWidth="1.5" opacity="0.4" />
+
+      {/* Mouth */}
+      {face.mouth === 'smile' && (
+        <path d={`M ${cx-8} ${cy+s*0.13} Q ${cx} ${cy+s*0.2}, ${cx+8} ${cy+s*0.13}`} fill="none" stroke="#C62828" strokeWidth="2" strokeLinecap="round" />
+      )}
+      {face.mouth === 'neutral' && (
+        <line x1={cx-6} y1={cy+s*0.14} x2={cx+6} y2={cy+s*0.14} stroke="#C62828" strokeWidth="2" strokeLinecap="round" />
+      )}
+      {face.mouth === 'small' && (
+        <circle cx={cx} cy={cy+s*0.14} r={3} fill="#E57373" />
+      )}
+
+      {/* Blush */}
+      <circle cx={cx-s*0.18} cy={cy+s*0.08} r={6} fill="#FFAB91" opacity="0.3" />
+      <circle cx={cx+s*0.18} cy={cy+s*0.08} r={6} fill="#FFAB91" opacity="0.3" />
+
+      {/* Hair top */}
+      {face.hair === 'short' && (
+        <ellipse cx={cx} cy={cy-s*0.22} rx={faceRx-2} ry={s*0.16} fill={face.hairColor} />
+      )}
+      {face.hair === 'curly' && <>
+        {[-20,-10,0,10,20].map((dx,i) => (
+          <circle key={i} cx={cx+dx} cy={cy-s*0.24+Math.abs(dx)*0.3} r={12} fill={face.hairColor} />
+        ))}
+      </>}
+      {face.hair === 'bob' && <>
+        <ellipse cx={cx} cy={cy-s*0.18} rx={faceRx+4} ry={s*0.18} fill={face.hairColor} />
+        <rect x={cx-faceRx-4} y={cy-s*0.1} width={faceRx*2+8} height={s*0.18} rx={6} fill={face.hairColor} />
+      </>}
+      {(face.hair === 'long' || face.hair === 'ponytail') && (
+        <ellipse cx={cx} cy={cy-s*0.2} rx={faceRx+2} ry={s*0.17} fill={face.hairColor} />
+      )}
+      {face.hair === 'bald' && (
+        <ellipse cx={cx} cy={cy-s*0.22} rx={faceRx-6} ry={s*0.08} fill={face.skin} />
+      )}
+
+      {/* Accessories */}
+      {face.accessory === 'glasses' && <>
+        <circle cx={cx-s*0.1} cy={cy-s*0.04} r={8} fill="none" stroke="#616161" strokeWidth="2" />
+        <circle cx={cx+s*0.1} cy={cy-s*0.04} r={8} fill="none" stroke="#616161" strokeWidth="2" />
+        <line x1={cx-s*0.1+8} y1={cy-s*0.04} x2={cx+s*0.1-8} y2={cy-s*0.04} stroke="#616161" strokeWidth="1.5" />
+      </>}
+      {face.accessory === 'hat' && (
+        <rect x={cx-faceRx} y={cy-s*0.38} width={faceRx*2} height={s*0.12} rx={4} fill="#1E88E5" />
+      )}
+      {face.accessory === 'ribbon' && (
+        <path d={`M ${cx+faceRx-10} ${cy-s*0.18} l 10 -8 l 10 8 l -10 8 Z`} fill="#EC407A" />
+      )}
+      {face.accessory === 'earrings' && <>
+        <circle cx={cx-faceRx+1} cy={cy+s*0.1} r={3} fill="#FFD54F" />
+        <circle cx={cx+faceRx-1} cy={cy+s*0.1} r={3} fill="#FFD54F" />
+      </>}
+    </svg>
+  );
+}
+
+// ========== GAME ==========
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'3人・長く見れる', count:3, viewTime:12, rounds:3 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'4人・ふつう', count:4, viewTime:10, rounds:4 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'5人・短い', count:5, viewTime:8, rounds:4 },
+};
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    people: [],       // [{face, name}]
+    quizQueue: [],    // shuffled order of people to quiz
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    selected: null,
+    feedback: null,
+    viewTimeLeft: 0,
+    round: 0,
+    allResults: [],
+    options: [],
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => clearInterval(timerRef.current), []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    g.round = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.allResults = [];
+    setShowConfetti(false);
+    setScreen('game');
+    startRound(diff);
+  };
+
+  const startRound = (diff) => {
+    const cfg = DIFF[diff || difficulty];
+    g.round++;
+    // Generate people
+    const usedNames = new Set();
+    const people = [];
+    const namePool = shuffle([...NAMES_M, ...NAMES_F]);
+    for (let i = 0; i < cfg.count; i++) {
+      const seed = Math.floor(Math.random() * 100000) + g.round * 1000 + i;
+      const face = generateFace(seed);
+      let name;
+      do { name = namePool[i]; } while (usedNames.has(name));
+      usedNames.add(name);
+      people.push({ face, name });
+    }
+    g.people = people;
+    g.quizQueue = shuffle(people.map((_, i) => i));
+    g.currentQ = 0;
+    g.selected = null;
+    g.feedback = null;
+    g.viewTimeLeft = cfg.viewTime;
+    g.phase = 'viewing';
+    rerender();
+
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      g.viewTimeLeft--;
+      rerender();
+      if (g.viewTimeLeft <= 0) {
+        clearInterval(timerRef.current);
+        setupQuiz();
+      }
+    }, 1000);
+  };
+
+  const skipToQuiz = () => {
+    clearInterval(timerRef.current);
+    setupQuiz();
+  };
+
+  const setupQuiz = () => {
+    const idx = g.quizQueue[g.currentQ];
+    const person = g.people[idx];
+    // Options: correct + 3 wrong names
+    const wrongNames = shuffle(
+      [...NAMES_M, ...NAMES_F].filter(n => n !== person.name && !g.people.some(p => p.name === n))
+    ).slice(0, 3);
+    g.options = shuffle([person.name, ...wrongNames]);
+    g.selected = null;
+    g.feedback = null;
+    g.phase = 'quiz';
+    rerender();
+  };
+
+  const handleAnswer = (name) => {
+    if (g.selected !== null) return;
+    const idx = g.quizQueue[g.currentQ];
+    const person = g.people[idx];
+    g.selected = name;
+    const isCorrect = name === person.name;
+    if (isCorrect) { g.score += 15; g.correct++; }
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    g.allResults.push({ person, selected: name, correct: isCorrect });
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.currentQ + 1 >= g.quizQueue.length) {
+        // Round done
+        g.phase = 'round-end';
+        rerender();
+      } else {
+        g.currentQ++;
+        setupQuiz();
+      }
+    }, 1800);
+  };
+
+  const nextRoundOrFinish = () => {
+    const cfg = DIFF[difficulty];
+    if (g.round >= cfg.rounds) finishGame();
+    else startRound(difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const total = g.allResults.length;
+    const pct = total > 0 ? g.correct / total : 0;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearInterval(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🧑 顔と名前</span>
+        </div>
+        {screen === 'game' && g.phase !== 'idle' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>R{g.round}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🧑</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>顔と名前</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>顔を見て名前を覚えて<br/>あとから思い出そう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 人物記憶（顔と名前の結合）のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 何人かの顔と名前が表示されます<br/>
+              ② しっかり覚えてください<br/>
+              ③ 顔だけ表示されて「この人の名前は？」<br/>
+              ④ 4択から正しい名前を選ぼう！
+            </div>
+          </div>
+
+          {/* Sample faces */}
+          <div style={{ display:'flex', gap:12, marginBottom:24 }}>
+            {[42,87,153].map(seed => (
+              <div key={seed} style={{ background:'white', borderRadius:16, padding:8, boxShadow:'0 2px 12px rgba(0,0,0,0.06)' }}>
+                <FaceAvatar face={generateFace(seed)} size={70} />
+              </div>
+            ))}
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+              {[{v:g.score,l:'スコア',c:'#FF6B35'},{v:g.correct+'/'+g.allResults.length,l:'正解',c:'#2EC4B6'},{v:'R'+g.round,l:'ラウンド',c:'#7B1FA2'}].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* VIEWING - show all faces with names */}
+          {g.phase === 'viewing' && (
+            <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                <span style={{ fontSize:14, fontWeight:700, color:'#FF6B35' }}>👀 顔と名前を覚えてください</span>
+                <span style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:g.viewTimeLeft<=3?'#E53935':'#FF6B35', animation:g.viewTimeLeft<=3?'pulse 0.5s infinite':undefined }}>{g.viewTimeLeft}秒</span>
+              </div>
+              <div style={{ width:'100%', height:6, background:'#E8E8E8', borderRadius:3, marginBottom:14, overflow:'hidden' }}>
+                <div style={{ width:(g.viewTimeLeft/cfg.viewTime*100)+'%', height:'100%', background:g.viewTimeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:3, transition:'width 1s linear' }} />
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:g.people.length <= 3 ? 'repeat(3,1fr)' : `repeat(${Math.min(g.people.length,3)},1fr)`, gap:12 }}>
+                {g.people.map((p, i) => (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', textAlign:'center', animation:`fadeUp 0.4s ease-out ${i*0.1}s both` }}>
+                    <FaceAvatar face={p.face} size={90} />
+                    <div style={{ fontSize:13, fontWeight:900, color:'#FF6B35', marginTop:8 }}>{p.name}</div>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={skipToQuiz} style={{...btnBase, marginTop:16, width:'100%', fontSize:14, fontWeight:700, padding:'12px', borderRadius:50, border:'2px solid #E0E0E0', background:'white', color:'#6B6B6B' }}>
+                覚えた！テストへ →
+              </button>
+            </div>
+          )}
+
+          {/* QUIZ - show face, guess name */}
+          {g.phase === 'quiz' && (() => {
+            const idx = g.quizQueue[g.currentQ];
+            const person = g.people[idx];
+
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }} key={g.currentQ + '-' + g.round}>
+                {/* Quiz progress */}
+                <div style={{ display:'flex', gap:4, marginBottom:12 }}>
+                  {g.quizQueue.map((_, i) => (
+                    <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i < g.currentQ ? (g.allResults[g.allResults.length - g.quizQueue.length + i]?.correct ? '#66BB6A' : '#EF5350') : i === g.currentQ ? '#FFB74D' : '#E0E0E0' }} />
+                  ))}
+                </div>
+
+                <div style={{ textAlign:'center', marginBottom:10 }}>
+                  <span style={{ fontSize:14, fontWeight:700, color:'#7B1FA2' }}>この人の名前は？</span>
+                </div>
+
+                {/* Face card */}
+                <div style={{ background:'white', borderRadius:20, padding:20, boxShadow:'0 4px 24px rgba(0,0,0,0.06)', marginBottom:16, display:'flex', justifyContent:'center' }}>
+                  <FaceAvatar face={person.face} size={140} />
+                </div>
+
+                {/* Name options */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+                  {g.options.map((name, i) => {
+                    const isSelected = g.selected === name;
+                    const isCorrect = name === person.name;
+                    const answered = g.selected !== null;
+                    return (
+                      <button key={i} onClick={() => handleAnswer(name)} disabled={answered}
+                        style={{
+                          ...btnBase, fontSize:14, fontWeight:700, padding:'16px 12px', borderRadius:14,
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                          color:answered&&isCorrect?'#2E7D32':answered&&isSelected&&!isCorrect?'#C62828':'#2D2D2D',
+                          opacity:answered&&!isCorrect&&!isSelected?0.4:1,
+                          textAlign:'center',
+                        }}>
+                        {name}
+                        {answered && isCorrect && ' ✅'}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {g.feedback && (
+                  <div style={{ textAlign:'center', marginTop:12, fontSize:16, fontWeight:900, color:g.feedback==='correct'?'#2E7D32':'#C62828', animation:'fadeUp 0.3s ease-out' }}>
+                    {g.feedback === 'correct' ? '✅ 正解！' : `❌ この方は「${person.name}」`}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ROUND END - show all faces again */}
+          {g.phase === 'round-end' && (
+            <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+              <div style={{ textAlign:'center', marginBottom:12 }}>
+                <div style={{ fontSize:15, fontWeight:700, color:'#6B6B6B' }}>📋 この回のメンバー</div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:`repeat(${Math.min(g.people.length,3)},1fr)`, gap:12 }}>
+                {g.people.map((p, i) => (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 8px', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                    <FaceAvatar face={p.face} size={70} />
+                    <div style={{ fontSize:12, fontWeight:700, color:'#FF6B35', marginTop:6 }}>{p.name}</div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={nextRoundOrFinish} style={{...btnBase, marginTop:16, width:'100%', fontSize:15, fontWeight:700, padding:'16px', borderRadius:50, border:'none', background:'linear-gradient(135deg,#FF6B35,#FF8F5E)', color:'white', boxShadow:'0 4px 16px rgba(255,107,53,0.3)'}}>
+                {g.round >= cfg.rounds ? '結果を見る →' : '次のラウンドへ →'}
+              </button>
+            </div>
+          )}
+
+          <div style={{ height:24 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.allResults.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'すばらしい記憶力！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Review */}
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.35s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 回答の振り返り</div>
+              {g.allResults.map((r, i) => (
+                <div key={i} style={{
+                  background:r.correct?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px',
+                  marginBottom:6, borderLeft:`4px solid ${r.correct?'#66BB6A':'#FF6B35'}`,
+                  display:'flex', alignItems:'center', gap:10,
+                }}>
+                  <div style={{ flexShrink:0 }}><FaceAvatar face={r.person.face} size={48} /></div>
+                  <div style={{ flex:1, textAlign:'left' }}>
+                    <div style={{ fontSize:16, fontWeight:700 }}>{r.correct ? '✅' : '❌'} {r.person.name}</div>
+                    {!r.correct && <div style={{ fontSize:11, color:'#E65100' }}>選んだ: {r.selected}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left', animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 顔と名前を覚えるコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>顔の特徴（めがね、髪型など）と名前を結びつけてストーリーを作ると覚えやすくなります。例：「メガネのたなかさん」</div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.45s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

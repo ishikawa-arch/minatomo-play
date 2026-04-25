@@ -1,0 +1,544 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== きのうクイズ - 時間見当識トレーニング ==========
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+const DAYS = ['日','月','火','水','木','金','土'];
+const MONTHS_JP = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const SEASONS = [
+  { name:'春', months:[3,4,5] },
+  { name:'夏', months:[6,7,8] },
+  { name:'秋', months:[9,10,11] },
+  { name:'冬', months:[12,1,2] },
+];
+
+function getSeason(month) {
+  return SEASONS.find(s => s.months.includes(month))?.name || '?';
+}
+
+function addDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function genWrongDays(correct, count) {
+  const wrongs = new Set();
+  const all = DAYS.filter(d => d !== correct);
+  while (wrongs.size < count) wrongs.add(all[Math.floor(Math.random() * all.length)]);
+  return [...wrongs];
+}
+
+function genWrongNumbers(correct, count, min, max) {
+  const wrongs = new Set();
+  while (wrongs.size < count) {
+    const w = min + Math.floor(Math.random() * (max - min + 1));
+    if (w !== correct && w >= min && w <= max) wrongs.add(w);
+  }
+  return [...wrongs];
+}
+
+function generateQuestion(type, now) {
+  const today = new Date(now);
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  const date = today.getDate();
+  const dayIdx = today.getDay();
+  const dayName = DAYS[dayIdx];
+
+  if (type === 'today_day') {
+    const opts = shuffle([dayName, ...genWrongDays(dayName, 3)]);
+    return { q:'今日は何曜日？', answer:dayName+'曜日', opts:opts.map(d=>d+'曜日'), icon:'📅' };
+  }
+
+  if (type === 'today_date') {
+    const opts = shuffle([date, ...genWrongNumbers(date, 3, Math.max(1,date-3), Math.min(31,date+3))]);
+    return { q:`今日は${month}月 何日？`, answer:`${date}日`, opts:opts.map(d=>d+'日'), icon:'📅' };
+  }
+
+  if (type === 'yesterday_day') {
+    const yd = addDays(today, -1);
+    const yDay = DAYS[yd.getDay()];
+    const opts = shuffle([yDay, ...genWrongDays(yDay, 3)]);
+    return { q:'きのうは何曜日だった？', answer:yDay+'曜日', opts:opts.map(d=>d+'曜日'), icon:'⬅️' };
+  }
+
+  if (type === 'yesterday_date') {
+    const yd = addDays(today, -1);
+    const yDate = yd.getDate();
+    const yMonth = yd.getMonth() + 1;
+    const opts = shuffle([yDate, ...genWrongNumbers(yDate, 3, Math.max(1,yDate-3), Math.min(31,yDate+3))]);
+    return { q:`きのうは${yMonth}月 何日だった？`, answer:`${yDate}日`, opts:opts.map(d=>d+'日'), icon:'⬅️' };
+  }
+
+  if (type === 'tomorrow_day') {
+    const td = addDays(today, 1);
+    const tDay = DAYS[td.getDay()];
+    const opts = shuffle([tDay, ...genWrongDays(tDay, 3)]);
+    return { q:'あしたは何曜日？', answer:tDay+'曜日', opts:opts.map(d=>d+'曜日'), icon:'➡️' };
+  }
+
+  if (type === 'tomorrow_date') {
+    const td = addDays(today, 1);
+    const tDate = td.getDate();
+    const tMonth = td.getMonth() + 1;
+    const opts = shuffle([tDate, ...genWrongNumbers(tDate, 3, Math.max(1,tDate-3), Math.min(31,tDate+3))]);
+    return { q:`あしたは${tMonth}月 何日？`, answer:`${tDate}日`, opts:opts.map(d=>d+'日'), icon:'➡️' };
+  }
+
+  if (type === 'day_after') {
+    // 「○曜日の次は？」
+    const baseIdx = Math.floor(Math.random() * 7);
+    const baseName = DAYS[baseIdx];
+    const nextName = DAYS[(baseIdx + 1) % 7];
+    const opts = shuffle([nextName, ...genWrongDays(nextName, 3)]);
+    return { q:`${baseName}曜日の つぎは？`, answer:nextName+'曜日', opts:opts.map(d=>d+'曜日'), icon:'🔄' };
+  }
+
+  if (type === 'day_before') {
+    const baseIdx = Math.floor(Math.random() * 7);
+    const baseName = DAYS[baseIdx];
+    const prevName = DAYS[(baseIdx + 6) % 7];
+    const opts = shuffle([prevName, ...genWrongDays(prevName, 3)]);
+    return { q:`${baseName}曜日の まえは？`, answer:prevName+'曜日', opts:opts.map(d=>d+'曜日'), icon:'🔄' };
+  }
+
+  if (type === 'days_later') {
+    const n = 2 + Math.floor(Math.random() * 4); // 2-5 days
+    const fd = addDays(today, n);
+    const fDay = DAYS[fd.getDay()];
+    const opts = shuffle([fDay, ...genWrongDays(fDay, 3)]);
+    return { q:`${n}日後は 何曜日？`, answer:fDay+'曜日', opts:opts.map(d=>d+'曜日'), icon:'📆' };
+  }
+
+  if (type === 'what_month') {
+    const opts = shuffle([`${month}月`, ...genWrongNumbers(month, 3, Math.max(1,month-2), Math.min(12,month+2)).map(m=>m+'月')]);
+    return { q:'今は 何月？', answer:`${month}月`, opts, icon:'🗓️' };
+  }
+
+  if (type === 'what_season') {
+    const season = getSeason(month);
+    const allSeasons = ['春','夏','秋','冬'];
+    const opts = shuffle(allSeasons);
+    return { q:'今の季節は？', answer:season, opts, icon:'🌸' };
+  }
+
+  if (type === 'what_year') {
+    const opts = shuffle([year, year-1, year+1, year-2]);
+    return { q:'今年は 何年？', answer:`${year}年`, opts:opts.map(y=>y+'年'), icon:'📅' };
+  }
+
+  if (type === 'next_month') {
+    const nm = month === 12 ? 1 : month + 1;
+    const opts = shuffle([`${nm}月`, ...genWrongNumbers(nm, 3, Math.max(1,nm-2), Math.min(12,nm+2)).map(m=>m+'月')]);
+    return { q:'来月は 何月？', answer:`${nm}月`, opts, icon:'➡️' };
+  }
+
+  if (type === 'last_month') {
+    const lm = month === 1 ? 12 : month - 1;
+    const opts = shuffle([`${lm}月`, ...genWrongNumbers(lm, 3, Math.max(1,lm-2), Math.min(12,lm+2)).map(m=>m+'月')]);
+    return { q:'先月は 何月だった？', answer:`${lm}月`, opts, icon:'⬅️' };
+  }
+
+  if (type === 'ototoiDay') {
+    const od = addDays(today, -2);
+    const oDay = DAYS[od.getDay()];
+    const opts = shuffle([oDay, ...genWrongDays(oDay, 3)]);
+    return { q:'おととい（2日前）は\n何曜日だった？', answer:oDay+'曜日', opts:opts.map(d=>d+'曜日'), icon:'⏪' };
+  }
+
+  if (type === 'asatteDay') {
+    const ad = addDays(today, 2);
+    const aDay = DAYS[ad.getDay()];
+    const opts = shuffle([aDay, ...genWrongDays(aDay, 3)]);
+    return { q:'あさって（2日後）は\n何曜日？', answer:aDay+'曜日', opts:opts.map(d=>d+'曜日'), icon:'⏩' };
+  }
+
+  return generateQuestion('today_day', now);
+}
+
+const DIFF = {
+  easy:  { label:'かんたん', emoji:'🌱', desc:'今日・きのう・あした・15秒', rounds:8, timeLimit:15,
+           types:['today_day','today_date','yesterday_day','tomorrow_day','what_month','what_season'] },
+  normal:{ label:'ふつう', emoji:'🌿', desc:'おととい・あさって・10秒', rounds:10, timeLimit:10,
+           types:['today_day','today_date','yesterday_day','yesterday_date','tomorrow_day','tomorrow_date','day_after','day_before','what_month','what_season','what_year','next_month','last_month'] },
+  hard:  { label:'むずかしい', emoji:'🌳', desc:'○日後・計算あり・8秒', rounds:12, timeLimit:8,
+           types:['yesterday_date','tomorrow_date','day_after','day_before','days_later','what_year','next_month','last_month','ototoiDay','asatteDay'] },
+};
+
+export default function YesterdayQuiz() {
+  const [screen, setScreen] = useState('menu');
+  const [difficulty, setDifficulty] = useState('normal');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    rounds:[], currentR:0, score:0, correct:0, results:[],
+    currentQ:null, selected:null, feedback:null,
+    timeLeft:10, timeLimit:10,
+    history:[],
+  }).current;
+
+  const timerRef = useRef(null);
+  const countRef = useRef(null);
+  useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(countRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const now = Date.now();
+    const rounds = [];
+    const usedTypes = new Set();
+    for (let i = 0; i < cfg.rounds; i++) {
+      let type;
+      const available = cfg.types.filter(t => !usedTypes.has(t));
+      if (available.length > 0) {
+        type = available[Math.floor(Math.random() * available.length)];
+      } else {
+        usedTypes.clear();
+        type = cfg.types[Math.floor(Math.random() * cfg.types.length)];
+      }
+      usedTypes.add(type);
+      rounds.push(generateQuestion(type, now));
+    }
+    g.rounds = rounds; g.currentR = 0; g.score = 0; g.correct = 0; g.results = [];
+    g.selected = null; g.feedback = null;
+    g.currentQ = rounds[0];
+    g.timeLimit = cfg.timeLimit;
+    g.timeLeft = cfg.timeLimit;
+    setScreen('game');
+    rerender();
+    startCountdown();
+  };
+
+  const startCountdown = () => {
+    clearInterval(countRef.current);
+    g.timeLeft = g.timeLimit;
+    rerender();
+    countRef.current = setInterval(() => {
+      g.timeLeft = Math.max(0, g.timeLeft - 0.1);
+      rerender();
+      if (g.timeLeft <= 0) {
+        clearInterval(countRef.current);
+        handleTimeout();
+      }
+    }, 100);
+  };
+
+  const handleTimeout = () => {
+    if (g.feedback) return;
+    const q = g.currentQ;
+    g.selected = null;
+    g.feedback = 'timeout';
+    g.results.push({ q:q.q, answer:q.answer, selected:'⏰', correct:false, icon:q.icon });
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.selected = null; g.feedback = null;
+      g.currentR++;
+      if (g.currentR >= g.rounds.length) {
+        clearInterval(countRef.current);
+        setScreen('result');
+        g.history = [{ diff:difficulty, correct:g.correct, total:g.rounds.length, score:g.score, date:new Date().toISOString() }, ...g.history].slice(0,20);
+      } else {
+        g.currentQ = g.rounds[g.currentR];
+        startCountdown();
+      }
+      rerender();
+    }, 1500);
+  };
+
+  const handleAnswer = (ans) => {
+    if (g.feedback) return;
+    clearInterval(countRef.current);
+    const q = g.currentQ;
+    const isCorrect = ans === q.answer;
+    g.selected = ans;
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    if (isCorrect) {
+      g.correct++;
+      const timeBonus = Math.round(g.timeLeft / g.timeLimit * 10);
+      g.score += 10 + timeBonus;
+    }
+    g.results.push({ q:q.q, answer:q.answer, selected:ans, correct:isCorrect, icon:q.icon });
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.selected = null; g.feedback = null;
+      g.currentR++;
+      if (g.currentR >= g.rounds.length) {
+        setScreen('result');
+        g.history = [{ diff:difficulty, correct:g.correct, total:g.rounds.length, score:g.score, date:new Date().toISOString() }, ...g.history].slice(0,20);
+      } else {
+        g.currentQ = g.rounds[g.currentR];
+        startCountdown();
+      }
+      rerender();
+    }, isCorrect ? 1000 : 2000);
+  };
+
+  const goMenu = () => { clearTimeout(timerRef.current); clearInterval(countRef.current); setScreen('menu'); rerender(); };
+
+  const cfg = DIFF[difficulty];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  // Current date display
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${DAYS[now.getDay()]}）`;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'menu' && <button onClick={goMenu} style={{...bs, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>📆 きのうクイズ</span>
+        </div>
+        {screen === 'game' && (
+          <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#888', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* MENU */}
+      {screen === 'menu' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 3s ease-in-out infinite' }}>📆</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:6 }}>きのうクイズ</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.9, letterSpacing:'0.03em' }}>きのうは何日？あしたは何曜日？<br/>日にちと曜日のクイズ</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:20, background:'#F5F5F0', padding:'10px 18px', borderRadius:12 }}>🧠 時間の見当識・日付認識のトレーニングです</div>
+
+          {/* Today display */}
+          <div style={{ background:'white', borderRadius:16, padding:'16px 20px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:24, maxWidth:480, width:'100%' }}>
+            <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:4 }}>今日は</div>
+            <div style={{ fontSize:22, fontWeight:900, color:'#E8652E', letterSpacing:'0.06em' }}>{todayStr}</div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'20px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12, letterSpacing:'0.05em' }}>🎯 こんな問題が出ます</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {[
+                { icon:'📅', desc:'今日は何曜日？何日？' },
+                { icon:'⬅️', desc:'きのうは何曜日だった？' },
+                { icon:'➡️', desc:'あしたは何曜日？' },
+                { icon:'🔄', desc:'○曜日の次は？前は？' },
+                { icon:'📆', desc:'○日後は何曜日？' },
+                { icon:'🗓️', desc:'今は何月？来月は？季節は？' },
+              ].map((m,i) => (
+                <div key={i} style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <span style={{ fontSize:18, flexShrink:0 }}>{m.icon}</span>
+                  <span style={{ fontSize:13, color:'#6B6B6B' }}>{m.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, letterSpacing:'0.05em' }}>💡 なぜ「日にち」が大切？</div>
+            <div style={{ fontSize:13, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+              「今日は何日？」「昨日は何曜日？」をすぐ答えられることは、日常生活を送る上でとても大切です。毎日の確認を習慣にすると、時間の感覚が保たれます。
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left', letterSpacing:'0.05em' }}>📊 難易度を選んでスタート</div>
+            {Object.entries(DIFF).map(([k,d]) => (
+              <button key={k} onClick={() => startGame(k)} style={{...bs, width:'100%', fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'2px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left', marginBottom:10}}>
+                <span style={{ fontSize:26 }}>{d.emoji}</span>
+                <div><div style={{ fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+              </button>
+            ))}
+          </div>
+
+          {g.history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:480, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {g.history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:'#F5F5F0' }}>{hc?.emoji}</div>
+                      <div><div style={{fontSize:13,fontWeight:700}}>{hc?.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:11,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:18,fontWeight:800,color:'#E8652E'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* GAME */}
+      {screen === 'game' && g.currentQ && (
+        <div style={{ padding:'0 16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Status */}
+          <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderRadius:'0 0 12px 12px', marginBottom:6 }}>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#555' }}>{g.score}pt</div><div style={{ fontSize:9, color:'#9E9E9E' }}>スコア</div></div>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#555' }}>{g.correct}/{g.currentR + (g.feedback ? 1 : 0)}</div><div style={{ fontSize:9, color:'#9E9E9E' }}>正解</div></div>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#555' }}>{g.currentR+1}/{g.rounds.length}</div><div style={{ fontSize:9, color:'#9E9E9E' }}>問題</div></div>
+          </div>
+
+          {/* Progress */}
+          <div style={{ display:'flex', gap:2, marginBottom:10 }}>
+            {g.rounds.map((_,i) => (
+              <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].correct?'#8BC34A':'#EF9A9A'):i===g.currentR?'#FFB74D':'#E8E8E8' }} />
+            ))}
+          </div>
+
+          <div style={{ animation:'fadeUp 0.3s ease-out' }} key={g.currentR}>
+            {/* Timer bar */}
+            {!g.feedback && (
+              <div style={{ marginBottom:10 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:g.timeLeft <= 3 ? '#C62828' : '#9E9E9E' }}>⏱ のこり</span>
+                  <span style={{ fontSize:14, fontWeight:900, fontFamily:'Outfit', color:g.timeLeft <= 3 ? '#C62828' : '#555' }}>
+                    {Math.ceil(g.timeLeft)}秒
+                  </span>
+                </div>
+                <div style={{ width:'100%', height:6, background:'#E8E8E8', borderRadius:3, overflow:'hidden' }}>
+                  <div style={{
+                    width:`${(g.timeLeft / g.timeLimit) * 100}%`, height:'100%', borderRadius:3,
+                    background: g.timeLeft <= 3 ? '#EF5350' : g.timeLeft <= 5 ? '#FFB74D' : '#66BB6A',
+                    transition:'width 0.1s linear',
+                  }} />
+                </div>
+              </div>
+            )}
+
+            {/* Timeout feedback */}
+            {g.feedback === 'timeout' && (
+              <div style={{ textAlign:'center', marginBottom:10, animation:'fadeUp 0.3s ease-out' }}>
+                <div style={{ fontSize:24, fontWeight:900, color:'#C62828' }}>⏰ 時間切れ！</div>
+                <div style={{ fontSize:16, fontWeight:700, color:'#C62828', marginTop:4 }}>正解は「{g.currentQ.answer}」</div>
+              </div>
+            )}
+
+            {/* Question card */}
+            <div style={{ background:'white', borderRadius:18, padding:'24px 20px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center', marginBottom:14 }}>
+              <div style={{ fontSize:36, marginBottom:8 }}>{g.currentQ.icon}</div>
+              <div style={{ fontSize:22, fontWeight:900, color:'#333', lineHeight:1.6, letterSpacing:'0.04em', whiteSpace:'pre-line' }}>
+                {g.currentQ.q}
+              </div>
+            </div>
+
+            {/* Options */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+              {g.currentQ.opts.map((opt, i) => {
+                const isSelected = g.selected === opt;
+                const isCorrectAnswer = opt === g.currentQ.answer;
+                const showCorrect = g.feedback && isCorrectAnswer;
+                const showWrong = g.feedback === 'wrong' && isSelected;
+                const isTimeout = g.feedback === 'timeout';
+
+                return (
+                  <button key={i} onClick={() => handleAnswer(opt)}
+                    style={{
+                      ...bs, padding:'18px 12px', borderRadius:16, textAlign:'center',
+                      background: showCorrect ? '#F1F8E9' : showWrong ? '#FFF5F5' : 'white',
+                      border: `3px solid ${showCorrect ? '#66BB6A' : showWrong ? '#EF5350' : '#E8E8E8'}`,
+                      animation: showWrong ? 'shake 0.3s' : undefined,
+                      opacity: g.feedback && !isSelected && !isCorrectAnswer ? 0.4 : 1,
+                      pointerEvents: g.feedback ? 'none' : 'auto',
+                    }}>
+                    <span style={{ fontSize:20, fontWeight:900, color: showCorrect ? '#2E7D32' : showWrong ? '#C62828' : '#333' }}>
+                      {opt}
+                    </span>
+                    {showCorrect && <div style={{ fontSize:14, marginTop:4 }}>⭕</div>}
+                    {showWrong && <div style={{ fontSize:14, marginTop:4 }}>❌</div>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Feedback detail for wrong answers */}
+            {g.feedback === 'wrong' && (
+              <div style={{ textAlign:'center', marginTop:12, animation:'fadeUp 0.3s ease-out' }}>
+                <div style={{ fontSize:16, fontWeight:900, color:'#C62828' }}>
+                  正解は「{g.currentQ.answer}」
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ height:20 }} />
+        </div>
+      )}
+
+      {/* RESULT */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.8 ? '⭐⭐⭐' : pct >= 0.5 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.8 ? 'カレンダー名人！' : pct >= 0.5 ? 'いい調子！' : 'もっと練習！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', marginBottom:6, letterSpacing:'0.08em' }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:340, marginBottom:20 }}>
+              {[
+                {v:`${g.correct}/${total}`,l:'正解数',c:'#2E7D32'},
+                {v:`${Math.round(pct*100)}%`,l:'正答率',c:'#555'},
+                {v:`${g.score}pt`,l:'スコア',c:'#E8652E'},
+              ].map((x,i) => (
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:x.c }}>{x.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{x.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Today reminder */}
+            <div style={{ background:'white', borderRadius:16, padding:'12px 16px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:20, maxWidth:400, width:'100%' }}>
+              <div style={{ fontSize:12, color:'#9E9E9E' }}>今日は</div>
+              <div style={{ fontSize:18, fontWeight:900, color:'#E8652E' }}>{todayStr}</div>
+            </div>
+
+            {/* Round details */}
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📋 結果の振り返り</div>
+              {g.results.map((r,i) => (
+                <div key={i} style={{ background:r.correct?'#F1F8E9':'#FFF5F5', borderRadius:12, padding:'10px 14px', marginBottom:4, borderLeft:`4px solid ${r.correct?'#8BC34A':'#EF9A9A'}`, textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700 }}>{r.correct?'⭕':'❌'} {r.q}</div>
+                    {!r.correct && <div style={{ fontSize:11, color:'#C62828', marginTop:2 }}>あなた: {r.selected} → 正解: {r.answer}</div>}
+                  </div>
+                  <span style={{ fontSize:16 }}>{r.icon}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24, padding:'14px 16px', background:'#FAFAF8', border:'1px solid #E8E8E8', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 コツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.9 }}>
+                毎朝「今日は何月何日、○曜日」と声に出して確認する習慣をつけると、日付の感覚が保たれます。カレンダーを見る・新聞の日付を確認するのも効果的です。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...bs, fontSize:16, fontWeight:700, color:'white', background:'#E8652E', border:'none', padding:'16px 32px', borderRadius:60, letterSpacing:'0.06em'}}>もう一度プレイ 🔄</button>
+              <button onClick={goMenu} style={{...bs, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

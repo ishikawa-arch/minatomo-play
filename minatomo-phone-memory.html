@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>でんごんばんごう | みなともPlay</title>
+<meta name="description" content="伝言の電話番号を覚える - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+const NAMES = ['田中さん','鈴木さん','佐藤さん','山田さん','中村さん','小林さん','加藤さん','吉田さん','山本さん','松本さん','井上さん','木村さん','林さん','渡辺さん','伊藤さん'];
+const PLACES = ['病院','市役所','銀行','薬局','歯医者','美容院','スーパー','図書館','駅前','郵便局','学校','会社','自宅','お店','教室'];
+const TIMES = ['9時','10時','11時','13時','14時','15時','16時','17時','9時半','10時半','14時半','15時半'];
+const MESSAGES = [
+  (n,p,t) => `${n}から電話がありました。${t}に${p}に来てほしいそうです。`,
+  (n,p,t) => `${n}が${p}で待っています。${t}までに来てください。`,
+  (n,p,t) => `${n}より伝言です。${t}に${p}へお迎えをお願いします。`,
+  (n,p,t) => `${n}から：${p}の予約が${t}に変更になりました。`,
+  (n,p,t) => `${n}が${t}ごろ${p}に届けものをするそうです。`,
+];
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+function randomDigit() { return Math.floor(Math.random() * 10); }
+function randomDigits(n) { return Array.from({length:n}, randomDigit).join(''); }
+
+// Realistic Japanese phone number formats
+const PHONE_FORMATS = {
+  easy: [
+    // 4桁: 内線番号
+    () => { const d = randomDigits(4); return { digits:d, display:d, label:'内線番号' }; },
+    // 4桁: 部屋番号風
+    () => { const d = randomDigits(4); return { digits:d, display:d, label:'番号' }; },
+  ],
+  normal: [
+    // 固定電話: 市外局番(2-3桁)-局番(2-3桁)-4桁 → 合計8-10桁
+    () => { const a='052', b=randomDigits(3), c=randomDigits(4); return { digits:a+b+c, display:`${a}-${b}-${c}`, label:'固定電話' }; },
+    () => { const a='06', b=randomDigits(4), c=randomDigits(4); return { digits:a+b+c, display:`${a}-${b}-${c}`, label:'固定電話' }; },
+    () => { const a='03', b=randomDigits(4), c=randomDigits(4); return { digits:a+b+c, display:`${a}-${b}-${c}`, label:'固定電話' }; },
+    () => { const a='0567', b=randomDigits(2), c=randomDigits(4); return { digits:a+b+c, display:`${a}-${b}-${c}`, label:'固定電話' }; },
+    () => { const a='0587', b=randomDigits(2), c=randomDigits(4); return { digits:a+b+c, display:`${a}-${b}-${c}`, label:'固定電話' }; },
+    // フリーダイヤル 0120
+    () => { const b=randomDigits(3), c=randomDigits(3); return { digits:'0120'+b+c, display:`0120-${b}-${c}`, label:'フリーダイヤル' }; },
+  ],
+  hard: [
+    // 携帯: 090/080/070-XXXX-XXXX
+    () => { const p=['090','080','070'][Math.floor(Math.random()*3)]; const b=randomDigits(4), c=randomDigits(4); return { digits:p+b+c, display:`${p}-${b}-${c}`, label:'携帯電話' }; },
+    // 固定電話
+    () => { const a='052', b=randomDigits(3), c=randomDigits(4); return { digits:a+b+c, display:`${a}-${b}-${c}`, label:'固定電話' }; },
+    () => { const a='03', b=randomDigits(4), c=randomDigits(4); return { digits:a+b+c, display:`${a}-${b}-${c}`, label:'固定電話' }; },
+  ],
+};
+
+function generatePhone(diff) {
+  const fmts = PHONE_FORMATS[diff];
+  return fmts[Math.floor(Math.random() * fmts.length)]();
+}
+
+function formatInput(input, targetDisplay) {
+  // Format input to match the target pattern (add hyphens at same positions)
+  const hyphenPositions = [];
+  let digitIdx = 0;
+  for (let i = 0; i < targetDisplay.length; i++) {
+    if (targetDisplay[i] === '-') hyphenPositions.push(digitIdx);
+    else digitIdx++;
+  }
+  let result = '';
+  let dIdx = 0;
+  for (let i = 0; i < input.length; i++) {
+    if (hyphenPositions.includes(dIdx)) result += '-';
+    result += input[i];
+    dIdx++;
+  }
+  if (hyphenPositions.includes(dIdx)) result += '-';
+  return result;
+}
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'4桁の内線番号', rounds:5, hasInterference:false, viewTime:10 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'固定電話・フリーダイヤル', rounds:5, hasInterference:false, viewTime:10 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'携帯番号11桁・質問あり', rounds:5, hasInterference:true, viewTime:10 },
+};
+
+// Interference questions about the message
+function generateInterference(name, place, time) {
+  const allQ = [
+    { q:'電話をくれたのは誰？', answer:name, wrongs:shuffle(NAMES.filter(n=>n!==name)).slice(0,3) },
+    { q:'どこに行く？', answer:place, wrongs:shuffle(PLACES.filter(p=>p!==place)).slice(0,3) },
+    { q:'何時？', answer:time, wrongs:shuffle(TIMES.filter(t=>t!==time)).slice(0,3) },
+  ];
+  const picked = shuffle(allQ).slice(0, 1);
+  return picked.map(q => ({ ...q, opts: shuffle([q.answer, ...q.wrongs]) }));
+}
+
+function generateRound(diff) {
+  const cfg = DIFF[diff];
+  const phone = generatePhone(diff);
+
+  const name = NAMES[Math.floor(Math.random() * NAMES.length)];
+  const place = PLACES[Math.floor(Math.random() * PLACES.length)];
+  const time = TIMES[Math.floor(Math.random() * TIMES.length)];
+  const msgFn = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+  const message = msgFn(name, place, time);
+
+  const interference = cfg.hasInterference ? generateInterference(name, place, time) : [];
+
+  return { digits: phone.digits, display: phone.display, digitCount: phone.digits.length, label: phone.label, name, place, time, message, interference };
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle', // idle, viewing, interference, recalling, feedback, result
+    rounds: [],
+    currentR: 0,
+    score: 0,
+    correct: 0,
+    inputValue: '',
+    viewTimeLeft: 0,
+    // Interference
+    interQ: 0,
+    interResults: [],
+    // Results
+    results: [],
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => { clearInterval(timerRef.current); clearTimeout(timerRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff));
+    g.rounds = rounds;
+    g.currentR = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.results = [];
+    setShowConfetti(false);
+    setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    const cfg = DIFF[diff || difficulty];
+    g.currentR = idx;
+    g.inputValue = '';
+    g.interQ = 0;
+    g.interResults = [];
+    g.viewTimeLeft = cfg.viewTime;
+    g.phase = 'viewing';
+    rerender();
+
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      g.viewTimeLeft--;
+      rerender();
+      if (g.viewTimeLeft <= 0) {
+        clearInterval(timerRef.current);
+        const round = g.rounds[g.currentR];
+        if (round.interference.length > 0) {
+          g.phase = 'interference';
+        } else {
+          g.phase = 'recalling';
+        }
+        rerender();
+      }
+    }, 1000);
+  };
+
+  const skipToNext = () => {
+    clearInterval(timerRef.current);
+    const round = g.rounds[g.currentR];
+    if (round.interference.length > 0) {
+      g.phase = 'interference';
+    } else {
+      g.phase = 'recalling';
+    }
+    rerender();
+  };
+
+  const answerInterference = (opt) => {
+    const round = g.rounds[g.currentR];
+    const q = round.interference[g.interQ];
+    const correct = opt === q.answer;
+    g.interResults.push({ correct, selected: opt, answer: q.answer });
+    if (correct) g.score += 3;
+
+    timerRef.current = setTimeout(() => {
+      if (g.interQ + 1 >= round.interference.length) {
+        g.phase = 'recalling';
+      } else {
+        g.interQ++;
+      }
+      rerender();
+    }, 600);
+    rerender();
+  };
+
+  const tapKey = (key) => {
+    if (key === 'del') {
+      g.inputValue = g.inputValue.slice(0, -1);
+    } else {
+      if (g.inputValue.length >= 15) return;
+      g.inputValue += key;
+    }
+    rerender();
+  };
+
+  const submitRecall = () => {
+    const round = g.rounds[g.currentR];
+    // Compare digits only (ignore formatting)
+    const inputDigits = g.inputValue.replace(/\D/g, '');
+    const isCorrect = inputDigits === round.digits;
+
+    if (isCorrect) {
+      g.score += round.digitCount * 5;
+      g.correct++;
+    }
+
+    g.results.push({
+      round,
+      inputDigits,
+      correct: isCorrect,
+      interResults: [...g.interResults],
+    });
+    g.phase = 'feedback';
+    rerender();
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.rounds.length;
+    if (pct >= 0.6) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.rounds.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearInterval(timerRef.current); clearTimeout(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  // Phone-style numpad
+  const PhoneNumpad = () => (
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, maxWidth:240, margin:'0 auto' }}>
+      {[1,2,3,4,5,6,7,8,9,'del',0,'ok'].map(key => {
+        if (key === 'ok') return (
+          <button key={key} onClick={submitRecall} disabled={!g.inputValue}
+            style={{...btnBase, fontSize:13, fontWeight:900, padding:'12px', borderRadius:10,
+              border:'none', background:g.inputValue?'#FF6B35':'#E0E0E0',
+              color:g.inputValue?'white':'#9E9E9E'}}>
+            決定
+          </button>
+        );
+        return (
+          <button key={key} onClick={() => key === 'del' ? tapKey('del') : tapKey(String(key))}
+            style={{...btnBase, fontSize:key==='del'?11:20, fontWeight:700,
+              fontFamily:typeof key==='number'?'Outfit':'inherit',
+              padding:'12px', borderRadius:10,
+              border:'2px solid #E8E8E8', background:key==='del'?'#FFF3E0':'white',
+              color:key==='del'?'#E65100':'#2D2D2D'}}>
+            {key === 'del' ? '←消す' : key}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>📞 でんごんばんごう</span>
+        </div>
+        {screen === 'game' && g.phase !== 'idle' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>📞</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>でんごんばんごう</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>伝言メッセージの番号を<br/>覚えて入力しよう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 数字記憶・干渉課題のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 伝言メッセージと番号が表示されます<br/>
+              ② 番号をしっかり覚えてください<br/>
+              ③ 伝言の内容について質問されます<br/>
+              ④ 最後に番号を入力して答え合わせ！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>💡 ポイント</div>
+            <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.8, textAlign:'left' }}>
+              番号を覚えながら伝言の内容も把握する「二重課題」です。番号だけに集中しすぎず、メッセージ全体を理解しましょう。
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:6 }}>
+              {[{v:g.score,l:'スコア',c:'#FF6B35'},{v:g.correct+'/'+g.results.length,l:'正解',c:'#2EC4B6'},{v:(g.currentR+1)+'/'+g.rounds.length,l:'問題',c:'#7B1FA2'}].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Progress */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', gap:3, marginBottom:8 }}>
+              {g.rounds.map((_,i) => (
+                <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i < g.results.length ? (g.results[i].correct ? '#66BB6A' : '#EF5350') : i === g.currentR ? '#FFB74D' : '#E8E8E8' }} />
+              ))}
+            </div>
+          )}
+
+          {/* VIEWING - memorize message */}
+          {g.phase === 'viewing' && (() => {
+            const round = g.rounds[g.currentR];
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#FF6B35' }}>📩 伝言メッセージ</span>
+                  <span style={{ fontFamily:'Outfit', fontSize:20, fontWeight:800, color:g.viewTimeLeft<=3?'#E53935':'#FF6B35', animation:g.viewTimeLeft<=3?'pulse 0.5s infinite':undefined }}>{g.viewTimeLeft}秒</span>
+                </div>
+                <div style={{ width:'100%', height:5, background:'#E8E8E8', borderRadius:3, marginBottom:12, overflow:'hidden' }}>
+                  <div style={{ width:(g.viewTimeLeft/cfg.viewTime*100)+'%', height:'100%', background:g.viewTimeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:3, transition:'width 1s linear' }} />
+                </div>
+
+                {/* Message card */}
+                <div style={{ background:'white', borderRadius:16, padding:'18px', boxShadow:'0 4px 20px rgba(0,0,0,0.08)', border:'2px solid #E3F2FD' }}>
+                  {/* Message bubble */}
+                  <div style={{ background:'#E3F2FD', borderRadius:12, padding:'12px 16px', marginBottom:14 }}>
+                    <div style={{ fontSize:14, color:'#1565C0', lineHeight:1.8 }}>
+                      💬 {round.message}
+                    </div>
+                  </div>
+
+                  {/* Phone number - prominent */}
+                  <div style={{ background:'#FFF3E0', borderRadius:14, padding:'14px', textAlign:'center', border:'2px dashed #FFB74D' }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#E65100', marginBottom:6 }}>📞 折り返しの番号（{round.label}）</div>
+                    <div style={{ fontFamily:'Outfit', fontSize:36, fontWeight:900, color:'#E65100', letterSpacing:3 }}>
+                      {round.display}
+                    </div>
+                    <div style={{ fontSize:11, color:'#9E9E9E', marginTop:4 }}>{round.digitCount}桁</div>
+                  </div>
+                </div>
+
+                <button onClick={skipToNext} style={{...btnBase, marginTop:12, width:'100%', fontSize:14, fontWeight:700, padding:'12px', borderRadius:50, border:'2px solid #E0E0E0', background:'white', color:'#6B6B6B'}}>
+                  覚えた！ →
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* INTERFERENCE - questions about message */}
+          {g.phase === 'interference' && (() => {
+            const round = g.rounds[g.currentR];
+            const q = round.interference[g.interQ];
+            if (!q) return null;
+            const lastResult = g.interResults.length > 0 ? g.interResults[g.interResults.length - 1] : null;
+            const justAnswered = lastResult && g.interResults.length === g.interQ + 1;
+
+            return (
+              <div style={{ animation:'fadeUp 0.3s ease-out' }} key={g.interQ}>
+                <div style={{ textAlign:'center', marginBottom:10 }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#7B1FA2', background:'#F3E5F5', padding:'6px 16px', borderRadius:50 }}>
+                    🤔 伝言の内容を思い出して
+                  </span>
+                </div>
+
+                <div style={{ background:'white', borderRadius:16, padding:'20px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:14, textAlign:'center' }}>
+                  <div style={{ fontSize:24, fontWeight:900, color:'#2D2D2D' }}>{q.q}</div>
+                </div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                  {q.opts.map((opt, i) => {
+                    const answered = g.interResults.length > g.interQ;
+                    const isCorrect = opt === q.answer;
+                    const isSelected = answered && g.interResults[g.interQ]?.selected === opt;
+                    return (
+                      <button key={i} onClick={() => !answered && answerInterference(opt)} disabled={answered}
+                        style={{
+                          ...btnBase, fontSize:15, fontWeight:700, padding:'16px 12px', borderRadius:14, textAlign:'center',
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                          opacity:answered&&!isCorrect&&!isSelected?0.3:1,
+                        }}>
+                        {opt} {answered && isCorrect ? '✅' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ textAlign:'center', marginTop:12, fontSize:11, color:'#9E9E9E' }}>
+                  📞 番号を覚えていますか？この後入力します！
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* RECALLING - input the number */}
+          {g.phase === 'recalling' && (() => {
+            const round = g.rounds[g.currentR];
+            const formatted = formatInput(g.inputValue, round.display);
+
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ textAlign:'center', marginBottom:10 }}>
+                  <span style={{ fontSize:14, fontWeight:900, color:'#FF6B35', background:'#FFF3E0', padding:'6px 18px', borderRadius:50 }}>
+                    📞 番号を入力してください（{round.label}）
+                  </span>
+                </div>
+
+                {/* Input display */}
+                <div style={{ background:'white', borderRadius:14, padding:'14px', marginBottom:10, boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center', border:'3px solid #E8E8E8' }}>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginBottom:4 }}>{round.digitCount}桁の{round.label}</div>
+                  <div style={{ fontFamily:'Outfit', fontSize:34, fontWeight:900, color:g.inputValue?'#2D2D2D':'#BDBDBD', letterSpacing:3, minHeight:40 }}>
+                    {formatted || '- - - -'}
+                  </div>
+                  <div style={{ fontSize:11, color:'#9E9E9E', marginTop:4 }}>
+                    入力: {g.inputValue.length} / {round.digitCount}桁
+                  </div>
+                </div>
+
+                <PhoneNumpad />
+              </div>
+            );
+          })()}
+
+          {/* FEEDBACK */}
+          {g.phase === 'feedback' && (() => {
+            const result = g.results[g.results.length - 1];
+            const round = result.round;
+
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ textAlign:'center', marginBottom:14 }}>
+                  <div style={{ fontSize:42, marginBottom:6 }}>{result.correct ? '🎉' : '😢'}</div>
+                  <div style={{ fontSize:20, fontWeight:900, color:result.correct?'#2E7D32':'#C62828' }}>
+                    {result.correct ? '正解！' : 'おしい！'}
+                  </div>
+                </div>
+
+                {/* Show correct number */}
+                <div style={{ background:'#FFF3E0', borderRadius:14, padding:'14px', textAlign:'center', marginBottom:10, border:'2px solid #FFB74D' }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'#E65100', marginBottom:4 }}>正解の番号</div>
+                  <div style={{ fontFamily:'Outfit', fontSize:30, fontWeight:900, color:'#E65100', letterSpacing:3 }}>{round.display}</div>
+                </div>
+
+                {!result.correct && (
+                  <div style={{ background:'#FFEBEE', borderRadius:12, padding:'10px 14px', marginBottom:10, textAlign:'center' }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#C62828', marginBottom:2 }}>あなたの入力</div>
+                    <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:'#C62828', letterSpacing:2 }}>
+                      {formatInput(result.inputDigits, round.display)}
+                    </div>
+                    {/* Highlight differences */}
+                    <div style={{ display:'flex', justifyContent:'center', gap:2, marginTop:6 }}>
+                      {round.digits.split('').map((d, i) => {
+                        const inputD = result.inputDigits[i];
+                        const match = d === inputD;
+                        return (
+                          <span key={i} style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, width:18, textAlign:'center', color:match?'#66BB6A':'#C62828', borderBottom:match?'2px solid #66BB6A':'2px solid #C62828' }}>
+                            {inputD ?? '·'}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>🟢 合ってる桁 🔴 ちがう桁</div>
+                  </div>
+                )}
+
+                {/* Interference results */}
+                {result.interResults.length > 0 && (
+                  <div style={{ background:'#F3E5F5', borderRadius:12, padding:'10px 14px', marginBottom:10 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#7B1FA2', marginBottom:4 }}>伝言の質問</div>
+                    {result.interResults.map((ir, i) => (
+                      <div key={i} style={{ fontSize:12, fontWeight:700, color:ir.correct?'#2E7D32':'#C62828' }}>
+                        {ir.correct ? '✅' : '❌'} {round.interference[i].q} → {ir.selected}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button onClick={nextRound} style={{...btnBase, width:'100%', fontSize:15, fontWeight:700, padding:'14px', borderRadius:50, background:result.correct?'#66BB6A':'#FF6B35', border:'none', color:'white'}}>
+                  {g.currentR+1 >= g.rounds.length ? '結果を見る →' : '次の伝言へ →'}
+                </button>
+              </div>
+            );
+          })()}
+
+          <div style={{ height:16 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.8 ? '⭐⭐⭐' : pct >= 0.4 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.8 ? '伝言マスター！' : pct >= 0.4 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'番号正解'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 結果の振り返り</div>
+              {g.results.map((r, i) => (
+                <div key={i} style={{ background:r.correct?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:6, borderLeft:`4px solid ${r.correct?'#66BB6A':'#FF6B35'}`, textAlign:'left' }}>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:2 }}>
+                    {r.correct ? '✅' : '❌'} {r.round.display}（{r.round.label}）
+                  </div>
+                  {!r.correct && (
+                    <div style={{ fontSize:11, color:'#C62828' }}>入力: {formatInput(r.inputDigits, r.round.display)}</div>
+                  )}
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{r.round.name}・{r.round.place}・{r.round.time}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 覚えるコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                番号を3〜4桁ずつのかたまり（チャンク）に分けて覚えると記憶しやすくなります。「090」「1234」「5678」のように、リズムをつけて頭の中で繰り返しましょう。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

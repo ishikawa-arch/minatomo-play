@@ -1,0 +1,520 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+
+// ========== STORY DATA ==========
+const STORIES = {
+  easy: [
+    {
+      id: 'e1',
+      title: 'お買い物',
+      text: 'けさ、田中さんは朝の9時にスーパーへ行きました。りんごを3つと、牛乳を1本買いました。お会計は650円でした。',
+      questions: [
+        { q: '田中さんはどこへ行きましたか？', opts: ['コンビニ','スーパー','八百屋','デパート'], ans: 1 },
+        { q: 'りんごはいくつ買いましたか？', opts: ['1つ','2つ','3つ','5つ'], ans: 2 },
+        { q: 'お会計はいくらでしたか？', opts: ['450円','550円','650円','750円'], ans: 2 },
+      ]
+    },
+    {
+      id: 'e2',
+      title: 'お散歩',
+      text: '日曜日の午後、山田さんは公園を散歩しました。ベンチに座って、おにぎりを食べました。池には白い鳥が2羽いました。',
+      questions: [
+        { q: '何曜日のお話ですか？', opts: ['土曜日','日曜日','月曜日','水曜日'], ans: 1 },
+        { q: '山田さんは何を食べましたか？', opts: ['サンドイッチ','パン','おにぎり','お弁当'], ans: 2 },
+        { q: '池にいた鳥は何羽でしたか？', opts: ['1羽','2羽','3羽','5羽'], ans: 1 },
+      ]
+    },
+    {
+      id: 'e3',
+      title: 'お花',
+      text: '佐藤さんは花屋で赤いバラを5本買いました。お店の人はとても親切でした。花はお母さんへのプレゼントです。',
+      questions: [
+        { q: '佐藤さんは何を買いましたか？', opts: ['チューリップ','ひまわり','バラ','カーネーション'], ans: 2 },
+        { q: 'バラは何本でしたか？', opts: ['3本','5本','7本','10本'], ans: 1 },
+        { q: '花は誰へのプレゼントですか？', opts: ['お父さん','お母さん','友達','先生'], ans: 1 },
+      ]
+    },
+    {
+      id: 'e4',
+      title: 'バス',
+      text: '木村さんは朝8時のバスに乗りました。バスは青色でした。病院の前で降りて、歯の治療を受けました。',
+      questions: [
+        { q: 'バスは何色でしたか？', opts: ['赤色','青色','緑色','黄色'], ans: 1 },
+        { q: '木村さんはどこで降りましたか？', opts: ['駅の前','学校の前','病院の前','公園の前'], ans: 2 },
+        { q: '何の治療を受けましたか？', opts: ['目','耳','歯','足'], ans: 2 },
+      ]
+    },
+  ],
+  normal: [
+    {
+      id: 'n1',
+      title: '誕生日会',
+      text: '先週の土曜日、鈴木さんの家で孫の誕生日会がありました。孫のゆうきくんは7歳になりました。ケーキはイチゴのショートケーキで、ろうそくを7本立てました。プレゼントは赤い自転車です。お友達が4人来てくれて、みんなでカードゲームをして遊びました。',
+      questions: [
+        { q: '誕生日会は何曜日でしたか？', opts: ['金曜日','土曜日','日曜日','月曜日'], ans: 1 },
+        { q: 'ゆうきくんは何歳になりましたか？', opts: ['5歳','6歳','7歳','8歳'], ans: 2 },
+        { q: 'ケーキは何のケーキでしたか？', opts: ['チョコレート','イチゴ','チーズ','モンブラン'], ans: 1 },
+        { q: 'プレゼントは何でしたか？', opts: ['ゲーム','ぬいぐるみ','自転車','本'], ans: 2 },
+        { q: 'お友達は何人来ましたか？', opts: ['3人','4人','5人','6人'], ans: 1 },
+      ]
+    },
+    {
+      id: 'n2',
+      title: '旅行の思い出',
+      text: '中村さん夫婦は先月、京都へ2泊3日の旅行に行きました。新幹線で行って、旅館に泊まりました。1日目は金閣寺を見ました。2日目は嵐山で竹林を歩いて、湯どうふを食べました。お土産に八つ橋を3箱買いました。',
+      questions: [
+        { q: 'どこへ旅行に行きましたか？', opts: ['東京','大阪','京都','奈良'], ans: 2 },
+        { q: '何泊の旅行でしたか？', opts: ['1泊2日','2泊3日','3泊4日','日帰り'], ans: 1 },
+        { q: '1日目に見たのはどこですか？', opts: ['清水寺','金閣寺','銀閣寺','伏見稲荷'], ans: 1 },
+        { q: '2日目に何を食べましたか？', opts: ['天ぷら','湯どうふ','すき焼き','抹茶'], ans: 1 },
+        { q: 'お土産は何を買いましたか？', opts: ['お茶','漬物','八つ橋','もみじ饅頭'], ans: 2 },
+      ]
+    },
+    {
+      id: 'n3',
+      title: '動物園',
+      text: '高橋さんは孫を連れて動物園に行きました。最初にゾウを見ました。ゾウは大きな耳をパタパタと動かしていました。次にキリンを見て、最後にペンギンのショーを見ました。お昼はカレーライスを食べて、ぬいぐるみのパンダをお土産に買いました。',
+      questions: [
+        { q: '最初に見た動物は何ですか？', opts: ['キリン','ライオン','ゾウ','ペンギン'], ans: 2 },
+        { q: 'ゾウはどこを動かしていましたか？', opts: ['鼻','耳','しっぽ','足'], ans: 1 },
+        { q: '最後に見たのは何ですか？', opts: ['ライオン','サル','キリン','ペンギンのショー'], ans: 3 },
+        { q: 'お昼に食べたのは何ですか？', opts: ['うどん','カレーライス','ハンバーガー','お弁当'], ans: 1 },
+        { q: 'お土産は何の動物のぬいぐるみですか？', opts: ['ゾウ','キリン','パンダ','ペンギン'], ans: 2 },
+      ]
+    },
+  ],
+  hard: [
+    {
+      id: 'h1',
+      title: '新しいご近所さん',
+      text: '先週の火曜日、渡辺さんの隣の家に新しい家族が引っ越してきました。ご主人は銀行に勤める山口さんという方で、奥さんは小学校の先生です。子どもは男の子が2人いて、お兄ちゃんは10歳、弟は6歳です。犬を1匹飼っていて、名前はポチです。渡辺さんは手作りのカステラを持って挨拶に行きました。山口さんは大阪から引っ越してきたそうで、前の家は駅から近いマンションだったそうです。',
+      questions: [
+        { q: '引っ越しは何曜日でしたか？', opts: ['月曜日','火曜日','水曜日','木曜日'], ans: 1 },
+        { q: '新しいご近所さんの名字は？', opts: ['田中','山口','鈴木','佐藤'], ans: 1 },
+        { q: 'ご主人の職場はどこですか？', opts: ['病院','市役所','銀行','学校'], ans: 2 },
+        { q: '子どもは何人いますか？', opts: ['1人','2人','3人','4人'], ans: 1 },
+        { q: '犬の名前は何ですか？', opts: ['タロウ','ポチ','ハチ','コロ'], ans: 1 },
+        { q: '渡辺さんは何を持って挨拶に行きましたか？', opts: ['クッキー','カステラ','ようかん','おせんべい'], ans: 1 },
+        { q: 'どこから引っ越してきましたか？', opts: ['東京','名古屋','大阪','福岡'], ans: 2 },
+      ]
+    },
+    {
+      id: 'h2',
+      title: '商店街の一日',
+      text: '水曜日の朝10時、小林さんは商店街に出かけました。まず魚屋でサバを2匹買いました。1匹380円で合計760円です。次にパン屋でメロンパンとカレーパンを1つずつ買いました。花屋の前を通ると、黄色いチューリップがきれいだったので5本買いました。帰り道に郵便局に寄って、北海道の姉に手紙を出しました。全部で2時間ほどの外出でした。',
+      questions: [
+        { q: '何曜日に出かけましたか？', opts: ['月曜日','火曜日','水曜日','木曜日'], ans: 2 },
+        { q: '魚屋で何を買いましたか？', opts: ['サンマ','サバ','アジ','タイ'], ans: 1 },
+        { q: 'サバは何匹買いましたか？', opts: ['1匹','2匹','3匹','4匹'], ans: 1 },
+        { q: 'パン屋で買ったパンの組み合わせは？', opts: ['あんパンとカレーパン','メロンパンと食パン','メロンパンとカレーパン','クリームパンとメロンパン'], ans: 2 },
+        { q: 'チューリップは何色でしたか？', opts: ['赤','白','ピンク','黄色'], ans: 3 },
+        { q: '郵便局で何をしましたか？', opts: ['荷物を送った','手紙を出した','貯金をした','切手を買った'], ans: 1 },
+        { q: '手紙は誰に出しましたか？', opts: ['妹','姉','弟','兄'], ans: 1 },
+      ]
+    },
+  ],
+};
+
+const DIFF = {
+  easy:   { label: 'かんたん', emoji: '🌱', desc: '短いお話・3問', readTime: 20 },
+  normal: { label: 'ふつう', emoji: '🌿', desc: '少し長いお話・5問', readTime: 30 },
+  hard:   { label: 'むずかしい', emoji: '🌳', desc: '長いお話・7問', readTime: 45 },
+};
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function formatTime(s){return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60);}
+
+const ENCOURAGEMENT = ['正解！👏','すごい！✨','その通り！🎉','よく覚えていますね！🧠','バッチリ！⭐','お見事！💪'];
+
+export default function StoryMemory() {
+  const [screen, setScreen] = useState('select');
+  const [difficulty, setDifficulty] = useState('easy');
+  const [story, setStory] = useState(null);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [showResult, setShowResult] = useState(false);
+  const [readTimeLeft, setReadTimeLeft] = useState(0);
+  const [totalTime, setTotalTime] = useState(0);
+  const [history, setHistory] = useState([]);
+  const [encouragement, setEncouragement] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const timerRef = useRef(null);
+  const totalTimerRef = useRef(null);
+
+  // Reading countdown
+  useEffect(() => {
+    if (screen === 'reading' && readTimeLeft > 0) {
+      timerRef.current = setTimeout(() => setReadTimeLeft(t => t - 1), 1000);
+      return () => clearTimeout(timerRef.current);
+    }
+    if (screen === 'reading' && readTimeLeft === 0) {
+      setScreen('questions');
+    }
+  }, [screen, readTimeLeft]);
+
+  // Total timer during questions
+  useEffect(() => {
+    if (screen === 'questions') {
+      totalTimerRef.current = setInterval(() => setTotalTime(t => t + 1), 1000);
+      return () => clearInterval(totalTimerRef.current);
+    }
+    return () => clearInterval(totalTimerRef.current);
+  }, [screen]);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const stories = STORIES[diff];
+    const picked = stories[Math.floor(Math.random() * stories.length)];
+    setStory(picked);
+    setCurrentQ(0);
+    setAnswers([]);
+    setSelected(null);
+    setShowResult(false);
+    setReadTimeLeft(DIFF[diff].readTime);
+    setTotalTime(0);
+    setEncouragement('');
+    setScreen('reading');
+  };
+
+  const skipReading = () => {
+    setReadTimeLeft(0);
+    setScreen('questions');
+  };
+
+  const answerQuestion = (optIndex) => {
+    if (selected !== null) return;
+    setSelected(optIndex);
+    const correct = story.questions[currentQ].ans === optIndex;
+    const newAnswers = [...answers, { qIndex: currentQ, selected: optIndex, correct }];
+    setAnswers(newAnswers);
+
+    if (correct) {
+      setEncouragement(ENCOURAGEMENT[Math.floor(Math.random() * ENCOURAGEMENT.length)]);
+    } else {
+      setEncouragement('');
+    }
+
+    setTimeout(() => {
+      if (currentQ + 1 < story.questions.length) {
+        setCurrentQ(currentQ + 1);
+        setSelected(null);
+        setEncouragement('');
+      } else {
+        clearInterval(totalTimerRef.current);
+        finishGame(newAnswers);
+      }
+    }, 1500);
+  };
+
+  const finishGame = (finalAnswers) => {
+    const correct = finalAnswers.filter(a => a.correct).length;
+    const total = finalAnswers.length;
+    const pct = correct / total;
+    const score = Math.round(pct * 100);
+
+    setHistory(prev => [{
+      diff: difficulty,
+      correct, total, score,
+      time: totalTime,
+      storyTitle: story.title,
+      date: new Date().toISOString(),
+    }, ...prev].slice(0, 20));
+
+    if (pct >= 0.8) setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 4000);
+    setScreen('result');
+  };
+
+  const goBack = () => {
+    clearTimeout(timerRef.current);
+    clearInterval(totalTimerRef.current);
+    setScreen('select');
+  };
+
+  const correctCount = answers.filter(a => a.correct).length;
+  const cfg = DIFF[difficulty];
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  // Confetti
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+        @media (min-width: 768px) {
+          #root { zoom: 1.25; }
+        }
+        @media (min-width: 1200px) {
+          #root { zoom: 1.8; }
+        }
+        @media (min-width: 1920px) {
+          #root { zoom: 2.4; }
+        }
+`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{
+          position:'absolute', top:-10, left:Math.random()*100+'%',
+          width:6+Math.random()*8, height:6+Math.random()*8,
+          background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6],
+          borderRadius: Math.random()>0.5?'50%':2,
+          animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards`,
+        }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>📖 物語記憶テスト</span>
+        </div>
+        {(screen === 'reading' || screen === 'questions') && (
+          <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#888', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+        )}
+      </div>
+
+      {/* ===== SELECT SCREEN ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 3s ease-in-out infinite' }}>📖</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:6 }}>物語記憶テスト</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.9 }}>短いお話を読んで覚えましょう。<br/>お話が消えたあと、内容について質問します。</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#F5F5F0', padding:'10px 18px', borderRadius:12 }}>
+            🧠 エピソード記憶のトレーニングです
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'2px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div>
+                    <div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div>
+                    <div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}・読む時間{d.readTime}秒</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* How to play */}
+          <div style={{ width:'100%', maxWidth:480, marginTop:28, background:'white', borderRadius:16, padding:'20px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12, letterSpacing:'0.05em' }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2.2, letterSpacing:'0.03em' }}>
+              ① 難易度を選ぶ<br/>
+              ② お話を読んで覚える（制限時間あり）<br/>
+              ③ お話が消えたあと、質問に答える<br/>
+              ④ 全問正解を目指そう！
+            </div>
+          </div>
+
+          {/* History */}
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:480, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff];
+                const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:700}}>「{h.storyTitle}」・{hc.label}</div>
+                        <div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div>
+                      </div>
+                    </div>
+                    <div style={{textAlign:'right'}}>
+                      <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#E8652E'}}>{h.correct}/{h.total}</div>
+                      <div style={{fontSize:10,color:'#9E9E9E'}}>{formatTime(h.time)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== READING SCREEN ===== */}
+      {screen === 'reading' && story && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'24px 20px', maxWidth:580, margin:'0 auto' }}>
+          {/* Timer */}
+          <div style={{ width:'100%', marginBottom:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <span style={{ fontSize:13, fontWeight:700, color:'#6B6B6B' }}>⏱ 残り時間</span>
+              <span style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color: readTimeLeft <= 5 ? '#E53935' : '#FF6B35', animation: readTimeLeft <= 5 ? 'pulse 0.5s infinite' : undefined }}>{readTimeLeft}秒</span>
+            </div>
+            <div style={{ width:'100%', height:8, background:'#E8E8E8', borderRadius:4, overflow:'hidden' }}>
+              <div style={{ width: (readTimeLeft / DIFF[difficulty].readTime * 100) + '%', height:'100%', background: readTimeLeft <= 5 ? '#E53935' : 'linear-gradient(90deg, #FF6B35, #FF8F5E)', borderRadius:4, transition:'width 1s linear' }} />
+            </div>
+          </div>
+
+          {/* Story Card */}
+          <div style={{ background:'white', borderRadius:20, padding:'28px 24px', boxShadow:'0 4px 24px rgba(0,0,0,0.08)', width:'100%', animation:'fadeUp 0.6s ease-out' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
+              <span style={{ fontSize:24 }}>📖</span>
+              <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>「{story.title}」</span>
+            </div>
+            <div style={{ fontSize:17, lineHeight:2.2.2, color:'#333', fontWeight:500 }}>
+              {story.text}
+            </div>
+          </div>
+
+          <div style={{ marginTop:16, fontSize:13, color:'#9E9E9E', textAlign:'center' }}>
+            よく読んで覚えてください。時間がなくなるとお話が消えます。
+          </div>
+
+          <button onClick={skipReading} style={{...btnBase, marginTop:20, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'12px 28px', borderRadius:50 }}>
+            覚えた！質問へ進む →
+          </button>
+        </div>
+      )}
+
+      {/* ===== QUESTIONS SCREEN ===== */}
+      {screen === 'questions' && story && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'24px 20px', maxWidth:580, margin:'0 auto' }}>
+          {/* Progress */}
+          <div style={{ width:'100%', marginBottom:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <span style={{ fontSize:13, fontWeight:700, color:'#6B6B6B' }}>問題 {currentQ + 1} / {story.questions.length}</span>
+              <span style={{ fontSize:13, fontWeight:700, color:'#2EC4B6' }}>正解 {correctCount}</span>
+            </div>
+            <div style={{ display:'flex', gap:4 }}>
+              {story.questions.map((_, i) => (
+                <div key={i} style={{
+                  flex:1, height:6, borderRadius:3,
+                  background: i < answers.length
+                    ? (answers[i].correct ? '#66BB6A' : '#EF5350')
+                    : i === currentQ ? '#FF6B35' : '#E8E8E8',
+                  transition:'background 0.3s',
+                }} />
+              ))}
+            </div>
+          </div>
+
+          {/* Encouragement */}
+          <div style={{ minHeight:32, fontSize:15, fontWeight:700, color:'#2EC4B6', textAlign:'center', marginBottom:4, opacity: encouragement ? 1 : 0, transition:'opacity 0.3s' }}>
+            {encouragement || '\u00A0'}
+          </div>
+
+          {/* Question Card */}
+          <div style={{ background:'white', borderRadius:20, padding:'24px 20px', boxShadow:'0 4px 24px rgba(0,0,0,0.08)', width:'100%', animation:'fadeUp 0.4s ease-out' }} key={currentQ}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#9E9E9E', marginBottom:8 }}>「{story.title}」について</div>
+            <div style={{ fontSize:17, fontWeight:700, lineHeight:1.6, marginBottom:20, color:'#333' }}>
+              {story.questions[currentQ].q}
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {story.questions[currentQ].opts.map((opt, oi) => {
+                const isCorrect = story.questions[currentQ].ans === oi;
+                const isSelected = selected === oi;
+                const answered = selected !== null;
+
+                let bg = 'white';
+                let border = '#E8E8E8';
+                let color = '#2D2D2D';
+                if (answered) {
+                  if (isCorrect) { bg = '#E8F5E9'; border = '#66BB6A'; color = '#2E7D32'; }
+                  else if (isSelected && !isCorrect) { bg = '#FFEBEE'; border = '#EF5350'; color = '#C62828'; }
+                }
+
+                return (
+                  <button key={oi} onClick={() => answerQuestion(oi)} disabled={answered}
+                    style={{
+                      ...btnBase, fontSize:15, fontWeight:600,
+                      padding:'16px 18px', borderRadius:14,
+                      border: `3px solid ${border}`, background: bg, color,
+                      textAlign:'left', display:'flex', alignItems:'center', gap:12,
+                      opacity: answered && !isCorrect && !isSelected ? 0.5 : 1,
+                    }}>
+                    <div style={{
+                      width:32, height:32, borderRadius:'50%', flexShrink:0,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:14, fontWeight:700, fontFamily:'Outfit',
+                      background: answered && isCorrect ? '#66BB6A' : answered && isSelected ? '#EF5350' : '#F5F5F5',
+                      color: answered && (isCorrect || isSelected) ? 'white' : '#9E9E9E',
+                    }}>
+                      {answered && isCorrect ? '✓' : answered && isSelected ? '✗' : String.fromCharCode(65 + oi)}
+                    </div>
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== RESULT SCREEN ===== */}
+      {screen === 'result' && story && (() => {
+        const total = story.questions.length;
+        const correct = answers.filter(a => a.correct).length;
+        const pct = correct / total;
+        const stars = pct >= 0.8 ? '⭐⭐⭐' : pct >= 0.5 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.8 ? 'すばらしい記憶力！' : pct >= 0.5 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'calc(100vh - 56px)', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>
+              「{story.title}」・{cfg.label}モード
+            </div>
+
+            {/* Score */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[{v:`${correct}/${total}`,l:'正解数'},{v:formatTime(totalTime),l:'回答時間'},{v:Math.round(pct*100)+'%',l:'正答率'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:26, fontWeight:800, color:'#E8652E' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Answer review */}
+            <div style={{ width:'100%', maxWidth:400, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 回答の振り返り</div>
+              {story.questions.map((q, i) => {
+                const a = answers[i];
+                return (
+                  <div key={i} style={{
+                    background: a?.correct ? '#F1F8E9' : '#FFF3E0',
+                    borderRadius:12, padding:'12px 14px', marginBottom:6,
+                    borderLeft: `4px solid ${a?.correct ? '#66BB6A' : '#FF6B35'}`,
+                    textAlign:'left',
+                  }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:4 }}>Q{i+1}. {q.q}</div>
+                    <div style={{ fontSize:13, fontWeight:700, color: a?.correct ? '#2E7D32' : '#E65100' }}>
+                      {a?.correct ? '✓ ' : '✗ '}{q.opts[a?.selected]}
+                      {!a?.correct && <span style={{ color:'#2E7D32', marginLeft:8 }}>（正解: {q.opts[q.ans]}）</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.5s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>
+                別のお話に挑戦 🔄
+              </button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>
+                設定を変える
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}

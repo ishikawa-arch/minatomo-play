@@ -1,0 +1,383 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【リハビリ脳トレ】ぎゃくからタップ ==========
+// Digit Span Backwards - ワーキングメモリ＋逆操作（実行機能）
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function genSequence(length) {
+  // Pick `length` unique digits 0-9
+  const pool = shuffle([0,1,2,3,4,5,6,7,8,9]);
+  return pool.slice(0, length);
+}
+
+// Progressive difficulty: starts at 3, goes up. If correct, increase span. If wrong, stay or decrease.
+const START_SPAN = 3;
+const MAX_SPAN = 7;
+const TOTAL_TRIALS = 10;
+
+export default function DigitBackward() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    trialIdx:0, currentSpan:START_SPAN, maxSpanAchieved:0,
+    phase:'idle', // intro, showing, recall, feedback
+    seq:[], showingIdx:-1,
+    tapped:[], // digits tapped by user
+    feedback:null,
+    score:0, correctTrials:0,
+    trialHistory:[],
+  }).current;
+
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.trialIdx = 0; g.currentSpan = START_SPAN; g.maxSpanAchieved = 0;
+    g.score = 0; g.correctTrials = 0; g.trialHistory = [];
+    setScreen('play');
+    startTrial();
+  };
+
+  const startTrial = () => {
+    g.seq = genSequence(g.currentSpan);
+    g.showingIdx = -1;
+    g.tapped = [];
+    g.feedback = null;
+    g.phase = 'intro';
+    rerender();
+
+    timerRef.current = setTimeout(() => showDigit(0), 1200);
+  };
+
+  const showDigit = (idx) => {
+    if (idx >= g.seq.length) {
+      // Done showing - now recall
+      g.showingIdx = -1;
+      g.phase = 'recall';
+      rerender();
+      return;
+    }
+    g.phase = 'showing';
+    g.showingIdx = idx;
+    rerender();
+    timerRef.current = setTimeout(() => {
+      g.showingIdx = -1;
+      rerender();
+      timerRef.current = setTimeout(() => showDigit(idx + 1), 200);
+    }, 900);
+  };
+
+  const handleTap = (digit) => {
+    if (g.phase !== 'recall' || g.feedback) return;
+    g.tapped.push(digit);
+    rerender();
+
+    if (g.tapped.length >= g.seq.length) {
+      // Check answer - reversed sequence
+      const expected = [...g.seq].reverse();
+      const correct = g.tapped.every((d, i) => d === expected[i]);
+      g.feedback = correct ? 'correct' : 'wrong';
+      g.phase = 'feedback';
+
+      if (correct) {
+        g.correctTrials++;
+        g.score += 10 * g.currentSpan;
+        if (g.currentSpan > g.maxSpanAchieved) g.maxSpanAchieved = g.currentSpan;
+      }
+
+      g.trialHistory.push({
+        span: g.currentSpan,
+        correct,
+        seq: g.seq,
+        tapped: [...g.tapped],
+      });
+
+      rerender();
+
+      timerRef.current = setTimeout(() => {
+        // Adaptive: if correct, increase span; if wrong, decrease or stay
+        if (correct && g.currentSpan < MAX_SPAN) {
+          g.currentSpan++;
+        } else if (!correct && g.currentSpan > START_SPAN) {
+          g.currentSpan--;
+        }
+        g.trialIdx++;
+        if (g.trialIdx >= TOTAL_TRIALS) {
+          setScreen('done'); rerender();
+        } else {
+          startTrial();
+        }
+      }, 1500);
+    }
+  };
+
+  const handleBackspace = () => {
+    if (g.phase !== 'recall' || g.feedback) return;
+    if (g.tapped.length > 0) {
+      g.tapped.pop();
+      rerender();
+    }
+  };
+
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @keyframes digitPop{0%{transform:scale(0);opacity:0}40%{transform:scale(1.2);opacity:1}100%{transform:scale(1);opacity:1}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🔢 ぎゃくからタップ</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {g.trialIdx + 1} / {TOTAL_TRIALS}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+          <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8 }}>
+            <div style={{ width:50, height:50, borderRadius:12, background:'#E8652E', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:28, fontWeight:900, color:'white' }}>3</div>
+            <span style={{ fontSize:16, color:'#BDBDBD' }}>→</span>
+            <div style={{ width:50, height:50, borderRadius:12, background:'#E8652E', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:28, fontWeight:900, color:'white' }}>7</div>
+            <span style={{ fontSize:16, color:'#BDBDBD' }}>→</span>
+            <div style={{ width:50, height:50, borderRadius:12, background:'#E8652E', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:28, fontWeight:900, color:'white' }}>2</div>
+          </div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#C62828', margin:'8px 0' }}>↓ ぎゃく</div>
+          <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:20 }}>
+            <div style={{ width:50, height:50, borderRadius:12, background:'white', border:'3px solid #66BB6A', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:28, fontWeight:900, color:'#2E7D32' }}>2</div>
+            <span style={{ fontSize:16, color:'#BDBDBD' }}>→</span>
+            <div style={{ width:50, height:50, borderRadius:12, background:'white', border:'3px solid #66BB6A', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:28, fontWeight:900, color:'#2E7D32' }}>7</div>
+            <span style={{ fontSize:16, color:'#BDBDBD' }}>→</span>
+            <div style={{ width:50, height:50, borderRadius:12, background:'white', border:'3px solid #66BB6A', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontSize:28, fontWeight:900, color:'#2E7D32' }}>3</div>
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            ぎゃくじゅんにタップ！
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            あたまの中で くみ直そう
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28 }}>
+            ワーキングメモリ＋遂行機能
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && (
+        <div style={{ padding:'12px 16px', maxWidth:520, margin:'0 auto' }}>
+          {/* Progress */}
+          <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:10, overflow:'hidden' }}>
+            <div style={{ width:`${(g.trialIdx / TOTAL_TRIALS) * 100}%`, height:'100%', background:'#8BC34A', transition:'width 0.3s' }} />
+          </div>
+
+          {/* Stats bar */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:12, color:'#9E9E9E' }}>pt</span></span>
+            <div style={{ display:'flex', gap:8, fontSize:12, fontWeight:700 }}>
+              <span style={{ color:'#555' }}>いま <span style={{ fontFamily:'Outfit', fontWeight:900, color:'#E8652E' }}>{g.currentSpan}</span>けた</span>
+              {g.maxSpanAchieved > 0 && <span style={{ color:'#2E7D32' }}>さいこう {g.maxSpanAchieved}けた</span>}
+            </div>
+          </div>
+
+          {/* INTRO */}
+          {g.phase === 'intro' && (
+            <div style={{ textAlign:'center', padding:'80px 0' }}>
+              <div style={{ fontSize:18, fontWeight:700, color:'#9E9E9E', marginBottom:8 }}>この問題は</div>
+              <div style={{ fontSize:36, fontWeight:900, color:'#E8652E' }}>{g.currentSpan}けた</div>
+              <div style={{ fontSize:14, color:'#9E9E9E', marginTop:12 }}>みててね…</div>
+            </div>
+          )}
+
+          {/* SHOWING */}
+          {g.phase === 'showing' && (
+            <div style={{
+              width:'100%', height:260, borderRadius:24,
+              background:'white', border:'2px solid #E8E8E8',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              marginBottom:10,
+            }}>
+              {g.showingIdx >= 0 && (
+                <div key={g.showingIdx} style={{ animation:'digitPop 0.3s ease-out' }}>
+                  <div style={{
+                    width:160, height:160, borderRadius:'50%',
+                    background:'#E8652E',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    boxShadow:'0 8px 24px rgba(232,101,46,0.3)',
+                  }}>
+                    <span style={{ fontFamily:'Outfit,sans-serif', fontSize:96, fontWeight:900, color:'white' }}>
+                      {g.seq[g.showingIdx]}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* RECALL */}
+          {(g.phase === 'recall' || g.phase === 'feedback') && (
+            <div>
+              {/* Instruction */}
+              <div style={{ textAlign:'center', marginBottom:8 }}>
+                <span style={{ fontSize:18, fontWeight:900, color:'#C62828' }}>ぎゃくじゅんにタップ！</span>
+              </div>
+
+              {/* Tapped display */}
+              <div style={{
+                background:'white', borderRadius:16, padding:'16px 12px',
+                minHeight:80, boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
+                display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                marginBottom:12,
+                border: g.feedback === 'correct' ? '3px solid #66BB6A' : g.feedback === 'wrong' ? '3px solid #EF5350' : '3px solid transparent',
+                animation: g.feedback === 'wrong' ? 'shake 0.3s' : undefined,
+              }}>
+                {g.tapped.length === 0 && (
+                  <span style={{ fontSize:14, color:'#BDBDBD', fontStyle:'italic' }}>ここに出るよ</span>
+                )}
+                {g.tapped.map((d, i) => {
+                  const expected = [...g.seq].reverse();
+                  const isCorrect = g.feedback && d === expected[i];
+                  return (
+                    <div key={i} style={{
+                      width:44, height:44, borderRadius:10,
+                      background: g.feedback
+                        ? (isCorrect ? '#F1F8E9' : '#FFF5F5')
+                        : '#FFF3E0',
+                      border: `3px solid ${g.feedback
+                        ? (isCorrect ? '#66BB6A' : '#EF5350')
+                        : '#E8652E'}`,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                    }}>
+                      <span style={{ fontFamily:'Outfit,sans-serif', fontSize:24, fontWeight:900, color: g.feedback ? (isCorrect ? '#2E7D32' : '#C62828') : '#E8652E' }}>{d}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Progress dots for remaining digits */}
+              {g.phase === 'recall' && (
+                <div style={{ display:'flex', justifyContent:'center', gap:6, marginBottom:12 }}>
+                  {Array.from({ length: g.seq.length }).map((_, i) => (
+                    <div key={i} style={{
+                      width: i === g.tapped.length ? 12 : 8, height:8, borderRadius:4,
+                      background: i < g.tapped.length ? '#E8652E' : '#E0E0E0',
+                      transition:'all 0.2s',
+                    }} />
+                  ))}
+                </div>
+              )}
+
+              {/* Feedback */}
+              {g.feedback && (
+                <div style={{ textAlign:'center', marginBottom:12, animation:'fadeUp 0.2s' }}>
+                  <span style={{ fontSize:40 }}>{g.feedback === 'correct' ? '⭕' : '❌'}</span>
+                  {g.feedback === 'wrong' && (
+                    <div style={{ fontSize:13, fontWeight:700, color:'#C62828', marginTop:2 }}>
+                      こたえ：{[...g.seq].reverse().join(' → ')}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Number pad */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6 }}>
+                {[0,1,2,3,4,5,6,7,8,9].map(d => (
+                  <button key={d} onClick={() => handleTap(d)}
+                    disabled={g.phase !== 'recall' || g.feedback !== null}
+                    style={{
+                      ...bs, height:56, borderRadius:12,
+                      background: g.tapped.includes(d) ? '#F5F5F0' : 'white',
+                      border:'2px solid #E8E8E8',
+                      fontFamily:'Outfit,sans-serif', fontSize:22, fontWeight:900, color:'#333',
+                      opacity: g.phase !== 'recall' || g.feedback ? 0.5 : 1,
+                    }}>
+                    {d}
+                  </button>
+                ))}
+              </div>
+
+              {/* Backspace */}
+              {g.phase === 'recall' && !g.feedback && g.tapped.length > 0 && (
+                <button onClick={handleBackspace} style={{
+                  ...bs, width:'100%', marginTop:8,
+                  padding:'10px', borderRadius:12,
+                  background:'white', border:'2px solid #E8E8E8',
+                  fontSize:14, fontWeight:700, color:'#666',
+                }}>
+                  ← ひとつ けす
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const emoji = g.maxSpanAchieved >= 6 ? '🎉' : g.maxSpanAchieved >= 4 ? '👍' : '😊';
+        const msg = g.maxSpanAchieved >= 6 ? 'すばらしい！' : g.maxSpanAchieved >= 4 ? 'いいね！' : 'またやろう！';
+        // Note: normal adult digit span backward ≈ 5-6
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#9E9E9E', marginBottom:4 }}>スコア</div>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ background:'white', borderRadius:16, padding:'14px 20px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:20, minWidth:260 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginBottom:8 }}>認知機能レポート</div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ fontSize:14, fontWeight:700, color:'#555' }}>さいだいスパン</span>
+                <span style={{ fontFamily:'Outfit', fontSize:18, fontWeight:900, color:'#E8652E' }}>{g.maxSpanAchieved}けた</span>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ fontSize:14, fontWeight:700, color:'#555' }}>せいかいすう</span>
+                <span style={{ fontFamily:'Outfit', fontSize:16, fontWeight:900, color:'#2E7D32' }}>{g.correctTrials} / {TOTAL_TRIALS}</span>
+              </div>
+              <div style={{ fontSize:11, color:'#9E9E9E', marginTop:6, fontWeight:600 }}>
+                ※ おとなの平均は 5〜6 けた
+              </div>
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>数字スパン | みなともPlay</title>
+<meta name="description" content="数字を正順・逆順で覚える - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'順唱のみ・3桁から', startLen:3, maxLen:7, modes:['forward'] },
+  normal: { label:'ふつう', emoji:'🌿', desc:'順唱＋逆唱・3桁から', startLen:3, maxLen:8, modes:['forward','backward'] },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'順唱＋逆唱・4桁から', startLen:4, maxLen:10, modes:['forward','backward'] },
+};
+
+const MODE_INFO = {
+  forward:  { label:'順唱', desc:'同じ順番で入力', icon:'➡️', color:'#FF6B35' },
+  backward: { label:'逆唱', desc:'逆の順番で入力', icon:'⬅️', color:'#7B1FA2' },
+};
+
+const MSGS = ['正解！👏','すごい！✨','バッチリ！⭐','その調子！💪','完璧！💯','覚えてた！🧠','お見事！👍','ナイス！🎉'];
+
+function formatTime(s) { return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60); }
+
+function generateDigits(len) {
+  const digits = [];
+  for (let i = 0; i < len; i++) {
+    let d;
+    do { d = Math.floor(Math.random() * 10); } while (i > 0 && d === digits[i-1]);
+    digits.push(d);
+  }
+  return digits;
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [mode, setMode] = React.useState('forward');
+  const [digits, setDigits] = React.useState([]);
+  const [showIndex, setShowIndex] = React.useState(-1);
+  const [phase, setPhase] = React.useState('idle'); // idle, showing, input, feedback, gameover
+  const [playerInput, setPlayerInput] = React.useState([]);
+  const [seqLength, setSeqLength] = React.useState(3);
+  const [round, setRound] = React.useState(1);
+  const [score, setScore] = React.useState(0);
+  const [maxReached, setMaxReached] = React.useState(0);
+  const [lives, setLives] = React.useState(2);
+  const [seconds, setSeconds] = React.useState(0);
+  const [feedbackType, setFeedbackType] = React.useState(null);
+  const [progressMsg, setProgressMsg] = React.useState('');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [modeIndex, setModeIndex] = React.useState(0); // for cycling modes
+  const [forwardMax, setForwardMax] = React.useState(0);
+  const [backwardMax, setBackwardMax] = React.useState(0);
+  const timerRef = React.useRef(null);
+  const showRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (screen === 'game' && phase !== 'gameover' && phase !== 'ready') {
+      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+      return () => clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [screen, phase]);
+
+  React.useEffect(() => {
+    return () => { clearInterval(timerRef.current); clearTimeout(showRef.current); };
+  }, []);
+
+  const startGame = React.useCallback((diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    setSeqLength(cfg.startLen);
+    setRound(1);
+    setScore(0);
+    setMaxReached(cfg.startLen);
+    setLives(2);
+    setSeconds(0);
+    setFeedbackType(null);
+    setProgressMsg('');
+    setShowConfetti(false);
+    setForwardMax(0);
+    setBackwardMax(0);
+    setModeIndex(0);
+    setMode(cfg.modes[0]);
+    setScreen('game');
+
+    setTimeout(() => {
+      showSequence(cfg.startLen);
+    }, 1000);
+  }, []);
+
+  const showSequence = React.useCallback((len) => {
+    const newDigits = generateDigits(len);
+    setDigits(newDigits);
+    setPlayerInput([]);
+    setFeedbackType(null);
+    setPhase('ready');
+    setShowIndex(-1);
+
+    // Ready countdown then show digits
+    showRef.current = setTimeout(() => {
+      setPhase('showing');
+
+      // Show each digit one by one
+      newDigits.forEach((_, i) => {
+        showRef.current = setTimeout(() => setShowIndex(i), (i + 1) * 900);
+      });
+
+      // Hide and switch to input
+      showRef.current = setTimeout(() => {
+        setShowIndex(-1);
+        setPhase('input');
+      }, (newDigits.length + 1) * 900);
+    }, 1500);
+  }, []);
+
+  const handleNumberTap = React.useCallback((num) => {
+    if (phase !== 'input') return;
+    const newInput = [...playerInput, num];
+    setPlayerInput(newInput);
+
+    const expectedLen = digits.length;
+    if (newInput.length === expectedLen) {
+      // Check answer
+      const expected = mode === 'backward' ? [...digits].reverse() : digits;
+      const correct = newInput.every((n, i) => n === expected[i]);
+
+      if (correct) {
+        const bonus = mode === 'backward' ? 15 : 10;
+        const newScore = score + seqLength * bonus;
+        setScore(newScore);
+        setMaxReached(Math.max(maxReached, seqLength));
+        if (mode === 'forward') setForwardMax(m => Math.max(m, seqLength));
+        if (mode === 'backward') setBackwardMax(m => Math.max(m, seqLength));
+        setFeedbackType('correct');
+        setPhase('feedback');
+        setProgressMsg(MSGS[Math.floor(Math.random() * MSGS.length)]);
+        setTimeout(() => setProgressMsg(''), 2000);
+
+        setTimeout(() => {
+          const cfg = DIFF[difficulty];
+          const newLen = Math.min(seqLength + 1, cfg.maxLen);
+
+          if (seqLength >= cfg.maxLen) {
+            // Check if we need to switch mode
+            if (cfg.modes.length > 1 && modeIndex === 0) {
+              // Switch to backward
+              setModeIndex(1);
+              setMode('backward');
+              setSeqLength(cfg.startLen);
+              setLives(2);
+              setRound(r => r + 1);
+              setFeedbackType(null);
+              setTimeout(() => showSequence(cfg.startLen), 1500);
+            } else {
+              finishGame(newScore, true);
+            }
+          } else {
+            setSeqLength(newLen);
+            setRound(r => r + 1);
+            setFeedbackType(null);
+            showSequence(newLen);
+          }
+        }, 1500);
+      } else {
+        setFeedbackType('wrong');
+        setPhase('feedback');
+        const newLives = lives - 1;
+        setLives(newLives);
+
+        setTimeout(() => {
+          if (newLives <= 0) {
+            // Check mode switch before game over
+            const cfg = DIFF[difficulty];
+            if (cfg.modes.length > 1 && modeIndex === 0) {
+              setModeIndex(1);
+              setMode('backward');
+              setSeqLength(cfg.startLen);
+              setLives(2);
+              setRound(r => r + 1);
+              setFeedbackType(null);
+              setTimeout(() => showSequence(cfg.startLen), 1500);
+            } else {
+              finishGame(score, false);
+            }
+          } else {
+            setFeedbackType(null);
+            showSequence(seqLength);
+          }
+        }, 2500);
+      }
+    }
+  }, [phase, playerInput, digits, mode, score, seqLength, maxReached, lives, difficulty, modeIndex]);
+
+  const finishGame = (finalScore, perfect) => {
+    clearInterval(timerRef.current);
+    setPhase('gameover');
+    if (perfect) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+
+    setHistory(prev => [{
+      diff: difficulty, score: finalScore,
+      forwardMax: Math.max(forwardMax, mode === 'forward' ? seqLength : forwardMax),
+      backwardMax: Math.max(backwardMax, mode === 'backward' ? seqLength : backwardMax),
+      time: seconds, perfect, date: new Date().toISOString(),
+    }, ...prev].slice(0, 20));
+
+    setScreen('result');
+  };
+
+  const goBack = () => {
+    clearInterval(timerRef.current);
+    clearTimeout(showRef.current);
+    setPhase('idle');
+    setScreen('select');
+  };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const modeInfo = MODE_INFO[mode];
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes digitPop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🔢 数字スパンテスト</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:10, fontWeight:700, color:'white', background:modeInfo.color, padding:'3px 10px', borderRadius:50 }}>{modeInfo.icon} {modeInfo.label}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{seqLength}桁</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🔢</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>数字スパンテスト</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>
+            表示される数字を覚えて入力しよう！<br/>順唱（そのまま）と逆唱（逆から）の2モード。
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>
+            🧠 言語性短期記憶＋ワーキングメモリのトレーニングです
+          </div>
+
+          {/* Mode explanation */}
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:12, textAlign:'left' }}>📝 2つのモードがあります</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'#FFF3E0', borderRadius:12 }}>
+                <span style={{ fontSize:22 }}>➡️</span>
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#FF6B35' }}>順唱</span>
+                  <span style={{ fontSize:12, color:'#6B6B6B', marginLeft:8 }}>同じ順番で入力（例: 3-7-1 → 3-7-1）</span>
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'#F3E5F5', borderRadius:12 }}>
+                <span style={{ fontSize:22 }}>⬅️</span>
+                <div style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#7B1FA2' }}>逆唱</span>
+                  <span style={{ fontSize:12, color:'#6B6B6B', marginLeft:8 }}>逆の順番で入力（例: 3-7-1 → 1-7-3）</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div>
+                    <div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div>
+                    <div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* History */}
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff];
+                const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:700}}>順{h.forwardMax}桁 {h.backwardMax>0?`逆${h.backwardMax}桁`:''}</div>
+                        <div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div>
+                      </div>
+                    </div>
+                    <div style={{textAlign:'right'}}>
+                      <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                      <div style={{fontSize:10,color:'#9E9E9E'}}>{h.perfect?'🏆':''} {formatTime(h.time)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+            {[
+              { v:`R${round}`, l:'ラウンド', c:'#FF6B35' },
+              { v:score, l:'スコア', c:'#FF6B35' },
+              { v:formatTime(seconds), l:'時間', c:'#2EC4B6' },
+              { v:'❤️'.repeat(lives)+'🖤'.repeat(2-lives), l:'ライフ', c:'#E53935' },
+            ].map((s,i) => (
+              <div key={i} style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Mode indicator */}
+          <div style={{ textAlign:'center', padding:'8px 0', marginBottom:4 }}>
+            <span style={{ fontSize:13, fontWeight:700, color:modeInfo.color, background: mode==='forward'?'#FFF3E0':'#F3E5F5', padding:'6px 16px', borderRadius:50 }}>
+              {modeInfo.icon} {modeInfo.label}モード — {modeInfo.desc}
+            </span>
+          </div>
+
+          {/* Display area */}
+          <div style={{
+            background:'white', borderRadius:24, padding:'32px 20px',
+            boxShadow:'0 4px 24px rgba(0,0,0,0.06)', marginBottom:16,
+            minHeight:160, display:'flex', flexDirection:'column',
+            alignItems:'center', justifyContent:'center',
+          }}>
+            {/* Ready phase */}
+            {phase === 'ready' && (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{
+                  fontFamily:'Outfit', fontSize:48, fontWeight:800,
+                  color:'#2EC4B6', lineHeight:1, marginBottom:12,
+                  animation:'digitPop 0.6s ease-out',
+                }}>
+                  Ready?
+                </div>
+                <div style={{ fontSize:15, fontWeight:700, color:'#6B6B6B' }}>
+                  {seqLength}桁の数字が表示されます
+                </div>
+                <div style={{ fontSize:13, fontWeight:700, color:modeInfo.color, marginTop:8, background:mode==='forward'?'#FFF3E0':'#F3E5F5', padding:'6px 14px', borderRadius:50, display:'inline-block' }}>
+                  {modeInfo.icon} {modeInfo.label}モード
+                </div>
+              </div>
+            )}
+
+            {/* Showing phase */}
+            {phase === 'showing' && (
+              <div style={{ textAlign:'center' }}>
+                {showIndex >= 0 ? (
+                  <div key={showIndex} style={{ animation:'digitPop 0.4s ease-out' }}>
+                    <div style={{
+                      fontFamily:'Outfit', fontSize:80, fontWeight:800,
+                      color:'#FF6B35', lineHeight:1,
+                      textShadow:'0 4px 16px rgba(255,107,53,0.2)',
+                    }}>
+                      {digits[showIndex]}
+                    </div>
+                    <div style={{ marginTop:8, fontSize:12, color:'#9E9E9E' }}>
+                      {showIndex + 1} / {digits.length}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize:18, fontWeight:700, color:'#6B6B6B' }}>
+                    👀 よく見てください...
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Input phase */}
+            {phase === 'input' && (
+              <div style={{ textAlign:'center', width:'100%' }}>
+                <div style={{ fontSize:14, fontWeight:700, color:'#2EC4B6', marginBottom:16 }}>
+                  {mode === 'backward' ? '⬅️ 逆の順番で入力してください' : '➡️ 同じ順番で入力してください'}
+                </div>
+                {/* Input display */}
+                <div style={{ display:'flex', justifyContent:'center', gap:8, marginBottom:8, minHeight:56 }}>
+                  {Array.from({ length: digits.length }, (_, i) => (
+                    <div key={i} style={{
+                      width:44, height:52, borderRadius:12,
+                      border: `3px solid ${i < playerInput.length ? '#2EC4B6' : '#E0E0E0'}`,
+                      background: i < playerInput.length ? '#E0F7FA' : 'white',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontFamily:'Outfit', fontSize:28, fontWeight:800,
+                      color: i < playerInput.length ? '#2EC4B6' : '#E0E0E0',
+                      transition:'all 0.2s',
+                    }}>
+                      {i < playerInput.length ? playerInput[i] : ''}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize:11, color:'#9E9E9E' }}>
+                  {playerInput.length} / {digits.length}
+                </div>
+              </div>
+            )}
+
+            {/* Feedback */}
+            {phase === 'feedback' && feedbackType === 'correct' && (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ fontSize:48, marginBottom:8 }}>✅</div>
+                <div style={{ fontSize:20, fontWeight:900, color:'#66BB6A' }}>{progressMsg || '正解！'}</div>
+                <div style={{ display:'flex', justifyContent:'center', gap:6, marginTop:12 }}>
+                  {playerInput.map((n, i) => (
+                    <div key={i} style={{ width:36, height:42, borderRadius:10, background:'#E8F5E9', border:'2px solid #66BB6A', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit', fontSize:22, fontWeight:800, color:'#2E7D32' }}>{n}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {phase === 'feedback' && feedbackType === 'wrong' && (
+              <div style={{ textAlign:'center', animation:'shake 0.4s ease-out' }}>
+                <div style={{ fontSize:48, marginBottom:8 }}>❌</div>
+                <div style={{ fontSize:18, fontWeight:900, color:'#EF5350', marginBottom:12 }}>おしい！</div>
+                <div style={{ fontSize:12, color:'#6B6B6B', marginBottom:8 }}>あなたの回答:</div>
+                <div style={{ display:'flex', justifyContent:'center', gap:4, marginBottom:12 }}>
+                  {playerInput.map((n, i) => {
+                    const expected = mode === 'backward' ? [...digits].reverse() : digits;
+                    const ok = n === expected[i];
+                    return (
+                      <div key={i} style={{ width:32, height:38, borderRadius:8, background:ok?'#E8F5E9':'#FFEBEE', border:`2px solid ${ok?'#66BB6A':'#EF5350'}`, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit', fontSize:18, fontWeight:800, color:ok?'#2E7D32':'#C62828' }}>{n}</div>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize:12, color:'#6B6B6B', marginBottom:4 }}>正解:</div>
+                <div style={{ display:'flex', justifyContent:'center', gap:4 }}>
+                  {(mode === 'backward' ? [...digits].reverse() : digits).map((n, i) => (
+                    <div key={i} style={{ width:32, height:38, borderRadius:8, background:'#FFF3E0', border:'2px solid #FF6B35', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#E65100' }}>{n}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Number pad */}
+          {phase === 'input' && (
+            <div style={{ maxWidth:320, margin:'0 auto' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+                {[1,2,3,4,5,6,7,8,9].map(n => (
+                  <button key={n} onClick={() => handleNumberTap(n)}
+                    style={{
+                      ...btnBase, fontFamily:'Outfit', fontSize:28, fontWeight:800,
+                      width:'100%', aspectRatio:'1.2', borderRadius:16,
+                      border:'3px solid #E8E8E8', background:'white',
+                      color:'#2D2D2D', display:'flex', alignItems:'center',
+                      justifyContent:'center',
+                    }}>
+                    {n}
+                  </button>
+                ))}
+                <div />
+                <button onClick={() => handleNumberTap(0)}
+                  style={{
+                    ...btnBase, fontFamily:'Outfit', fontSize:28, fontWeight:800,
+                    width:'100%', aspectRatio:'1.2', borderRadius:16,
+                    border:'3px solid #E8E8E8', background:'white',
+                    color:'#2D2D2D', display:'flex', alignItems:'center',
+                    justifyContent:'center',
+                  }}>
+                  0
+                </button>
+                <button onClick={() => { if (playerInput.length > 0) setPlayerInput(playerInput.slice(0,-1)); }}
+                  style={{
+                    ...btnBase, fontSize:20, fontWeight:700,
+                    width:'100%', aspectRatio:'1.2', borderRadius:16,
+                    border:'3px solid #E8E8E8', background:'#FFF3E0',
+                    color:'#FF6B35', display:'flex', alignItems:'center',
+                    justifyContent:'center',
+                  }}>
+                  ←
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Spacer */}
+          <div style={{ height:24 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const h = history[0] || {};
+        const fMax = h.forwardMax || 0;
+        const bMax = h.backwardMax || 0;
+        const totalMax = Math.max(fMax, bMax);
+        const maxPossible = DIFF[difficulty].maxLen;
+        const pct = totalMax / maxPossible;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = h.perfect ? '全クリア！🏆' : pct >= 0.7 ? 'すばらしい！' : pct >= 0.4 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'calc(100vh - 56px)', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>
+              {cfg.label}モード・ラウンド{round}まで到達
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[{v:h.score||0,l:'スコア'},{v:formatTime(h.time||0),l:'プレイ時間'},{v:`${totalMax}桁`,l:'最大記憶数'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:26, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Forward / Backward comparison */}
+            <div style={{ width:'100%', maxWidth:360, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.35s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8 }}>📊 数字スパン</div>
+              <div style={{ background:'white', borderRadius:16, padding:'20px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+                {/* Forward bar */}
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:'#FF6B35' }}>➡️ 順唱</span>
+                    <span style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#FF6B35' }}>{fMax}桁</span>
+                  </div>
+                  <div style={{ width:'100%', height:14, background:'#F5F5F5', borderRadius:7, overflow:'hidden' }}>
+                    <div style={{
+                      width: (fMax / maxPossible * 100) + '%',
+                      height:'100%', borderRadius:7,
+                      background:'linear-gradient(90deg, #FF6B35, #FF8F5E)',
+                      transition:'width 0.8s ease-out',
+                    }} />
+                  </div>
+                </div>
+
+                {/* Backward bar */}
+                {DIFF[difficulty].modes.includes('backward') && (
+                  <div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                      <span style={{ fontSize:13, fontWeight:700, color:'#7B1FA2' }}>⬅️ 逆唱</span>
+                      <span style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#7B1FA2' }}>{bMax}桁</span>
+                    </div>
+                    <div style={{ width:'100%', height:14, background:'#F5F5F5', borderRadius:7, overflow:'hidden' }}>
+                      <div style={{
+                        width: (bMax / maxPossible * 100) + '%',
+                        height:'100%', borderRadius:7,
+                        background:'linear-gradient(90deg, #7B1FA2, #AB47BC)',
+                        transition:'width 0.8s ease-out',
+                      }} />
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ textAlign:'center', marginTop:14, fontSize:12, color:'#6B6B6B', lineHeight:1.7 }}>
+                  {fMax > 0 && <>順唱 <strong style={{color:'#FF6B35'}}>{fMax}桁</strong></>}
+                  {bMax > 0 && <> ／ 逆唱 <strong style={{color:'#7B1FA2'}}>{bMax}桁</strong></>}
+                  {' '}を記憶できました
+                  {bMax > 0 && fMax > bMax + 2 && <><br/><span style={{fontSize:11,color:'#9E9E9E'}}>💡 逆唱が苦手な傾向です。ワーキングメモリの強化に取り組みましょう</span></>}
+                  {bMax > 0 && bMax >= fMax && <><br/><span style={{fontSize:11,color:'#9E9E9E'}}>💡 逆唱もしっかりできています！ワーキングメモリが良好です</span></>}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

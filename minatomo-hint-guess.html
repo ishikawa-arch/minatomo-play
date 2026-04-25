@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>しりとりあて | みなともPlay</title>
+<meta name="description" content="ヒントから推理して当てる - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+const QUIZZES = [
+  // どうぶつ - hints: vague → obvious, confusers = similar animals
+  { answer:'ゾウ', emoji:'🐘', category:'どうぶつ', confusers:['カバ','サイ','ウシ'], hints:['草食動物です','体がとても大きい','灰色の体','耳が大きい','鼻がとても長い'] },
+  { answer:'ネコ', emoji:'🐱', category:'どうぶつ', confusers:['イヌ','ウサギ','ハムスター'], hints:['ペットとして飼われる','高いところが好き','毛がふわふわ','ネズミを追いかける','ニャーと鳴く'] },
+  { answer:'イヌ', emoji:'🐕', category:'どうぶつ', confusers:['ネコ','オオカミ','キツネ'], hints:['ペットとして飼われる','外に出るのが好き','しっぽを振る','人間の友だち','ワンと鳴く'] },
+  { answer:'ウサギ', emoji:'🐰', category:'どうぶつ', confusers:['ハムスター','リス','ネコ'], hints:['小さくてかわいい','ぴょんぴょん跳ねる','白やグレーの毛','にんじんが好き','耳がとても長い'] },
+  { answer:'ペンギン', emoji:'🐧', category:'どうぶつ', confusers:['アザラシ','カモメ','ダチョウ'], hints:['鳥の仲間','寒いところに住む','泳ぐのが得意','白と黒の体','飛べない鳥'] },
+  { answer:'キリン', emoji:'🦒', category:'どうぶつ', confusers:['シマウマ','ゾウ','ラクダ'], hints:['アフリカにいる','草食動物','黄色い体にもよう','動物の中でいちばん背が高い','首がとても長い'] },
+  { answer:'パンダ', emoji:'🐼', category:'どうぶつ', confusers:['クマ','コアラ','タヌキ'], hints:['動物園の人気者','丸い体','中国にいる','笹を食べる','白と黒のもよう'] },
+  { answer:'カエル', emoji:'🐸', category:'どうぶつ', confusers:['カメ','ヤモリ','イモリ'], hints:['雨の日に元気','水辺にいる','ジャンプが得意','子どもの頃はおたまじゃくし','ケロケロと鳴く'] },
+
+  // たべもの
+  { answer:'スイカ', emoji:'🍉', category:'たべもの', confusers:['メロン','かぼちゃ','ぶどう'], hints:['大きくて丸い','夏に食べる','黒い種がある','中は赤い','緑と黒のしま模様'] },
+  { answer:'おもち', emoji:'🍡', category:'たべもの', confusers:['だんご','豆腐','ごはん'], hints:['白い食べ物','焼いたり煮たりする','お米からできる','よくのびる','お正月に食べる'] },
+  { answer:'バナナ', emoji:'🍌', category:'たべもの', confusers:['きゅうり','とうもろこし','さつまいも'], hints:['皮をむいて食べる','房になっている','サルが好き','細長い形','黄色いくだもの'] },
+  { answer:'たまご', emoji:'🥚', category:'たべもの', confusers:['豆腐','じゃがいも','おもち'], hints:['料理によく使う','ゆでたり焼いたりする','白くて丸い','割って使う','ニワトリが産む'] },
+  { answer:'カレー', emoji:'🍛', category:'たべもの', confusers:['シチュー','ハヤシライス','みそ汁'], hints:['子どもも大人も好き','じゃがいもやにんじんが入る','ごはんにかける','スパイシーな味','茶色いソース'] },
+  { answer:'りんご', emoji:'🍎', category:'たべもの', confusers:['もも','なし','トマト'], hints:['丸い形の果物','ジュースにもなる','シャキシャキする','秋に収穫する','赤くてまるい'] },
+  { answer:'おにぎり', emoji:'🍙', category:'たべもの', confusers:['おすし','サンドイッチ','おもち'], hints:['お弁当によく入る','お米でできている','中に具が入る','のりが巻いてある','三角の形'] },
+  { answer:'みそ汁', emoji:'🍲', category:'たべもの', confusers:['すまし汁','おでん','シチュー'], hints:['温かい料理','お椀で飲む','日本の家庭料理','豆腐やわかめが入る','味噌を溶かして作る'] },
+
+  // にちじょう
+  { answer:'めがね', emoji:'👓', category:'にちじょう', confusers:['サングラス','虫めがね','望遠鏡'], hints:['フレームがある','レンズが2つ','鼻にのせる','ものがよく見えるようになる','目にかけるもの'] },
+  { answer:'かさ', emoji:'☂️', category:'にちじょう', confusers:['帽子','レインコート','長靴'], hints:['柄がある','開いたり閉じたりする','頭の上にさす','濡れないようにする','雨の日に使う'] },
+  { answer:'時計', emoji:'⏰', category:'にちじょう', confusers:['カレンダー','タイマー','温度計'], hints:['数字が並んでいる','壁にかけたり腕につけたり','針が動く','チクタク音がする','時間がわかる'] },
+  { answer:'テレビ', emoji:'📺', category:'にちじょう', confusers:['ラジオ','パソコン','タブレット'], hints:['電気で動く','リビングにある','リモコンで操作する','大きな画面がある','ニュースやドラマが見られる'] },
+  { answer:'冷蔵庫', emoji:'🧊', category:'にちじょう', confusers:['電子レンジ','洗濯機','食器棚'], hints:['電気で動く','台所にある','ドアを開けて使う','中が冷たい','食べ物を冷やす大きな箱'] },
+  { answer:'ふとん', emoji:'🛏️', category:'にちじょう', confusers:['まくら','毛布','ベッド'], hints:['やわらかい','上にかけたり下に敷いたり','朝たたむ','押し入れにしまう','寝るときに使う'] },
+  { answer:'はさみ', emoji:'✂️', category:'にちじょう', confusers:['カッター','ホッチキス','のり'], hints:['文房具のひとつ','持ち手が2つ','金属でできている','2つの刃がある','紙をチョキチョキ切る'] },
+  { answer:'せっけん', emoji:'🧼', category:'にちじょう', confusers:['シャンプー','歯みがき粉','ハンドクリーム'], hints:['いいにおいがする','お風呂でも使う','きれいになる','泡が出る','手を洗うときに使う'] },
+
+  // しぜん
+  { answer:'太陽', emoji:'☀️', category:'しぜん', confusers:['月','星','ライト'], hints:['丸い形','東からのぼる','あたたかい','とても明るい','昼間に空で輝く'] },
+  { answer:'虹', emoji:'🌈', category:'しぜん', confusers:['夕焼け','オーロラ','雲'], hints:['めったに見られない','きれいな色','アーチの形','7つの色がある','雨のあとに空に出る'] },
+  { answer:'雪', emoji:'❄️', category:'しぜん', confusers:['雨','ひょう','霜'], hints:['空から降ってくる','冷たい','つもると真っ白','雪だるまが作れる','冬に降る白いもの'] },
+  { answer:'桜', emoji:'🌸', category:'しぜん', confusers:['梅','もも','チューリップ'], hints:['日本の象徴','花びらが散る','お花見をする','ピンク色の花','春に咲く木'] },
+  { answer:'月', emoji:'🌙', category:'しぜん', confusers:['星','太陽','人工衛星'], hints:['地球のまわりを回る','丸くなったり細くなったり','うさぎがいるという伝説','十五夜に見る','夜空に光る'] },
+  { answer:'海', emoji:'🌊', category:'しぜん', confusers:['湖','川','プール'], hints:['広い','魚がいる','泳いだり遊んだり','波がある','しょっぱい水がたくさん'] },
+
+  // のりもの
+  { answer:'新幹線', emoji:'🚄', category:'のりもの', confusers:['電車','地下鉄','モノレール'], hints:['駅で乗る','白い車体','日本中を走る','「のぞみ」「ひかり」がある','とても速い電車'] },
+  { answer:'飛行機', emoji:'✈️', category:'のりもの', confusers:['ヘリコプター','ロケット','グライダー'], hints:['とても速い','遠くへ行ける','空港から出発する','翼がある','空を飛ぶのりもの'] },
+  { answer:'自転車', emoji:'🚲', category:'のりもの', confusers:['バイク','三輪車','キックボード'], hints:['子どもも乗れる','ベルがある','タイヤが2つ','自分の力で動く','ペダルをこぐ'] },
+  { answer:'救急車', emoji:'🚑', category:'のりもの', confusers:['消防車','パトカー','タクシー'], hints:['急いでいる','白い車体に赤い線','サイレンが鳴る','病院へ運ぶ','ピーポーピーポー'] },
+  { answer:'バス', emoji:'🚌', category:'のりもの', confusers:['タクシー','電車','トラック'], hints:['料金を払って乗る','運転手さんがいる','決まったルートを走る','バス停で待つ','たくさんの人が乗れる大きい車'] },
+
+  // ばしょ
+  { answer:'学校', emoji:'🏫', category:'ばしょ', confusers:['塾','幼稚園','図書館'], hints:['友だちに会える','チャイムが鳴る','教室がある','先生がいる','勉強するところ'] },
+  { answer:'病院', emoji:'🏥', category:'ばしょ', confusers:['薬局','歯医者','保健室'], hints:['白い服を着た人がいる','薬をもらう','注射をされることも','お医者さんがいる','体の具合が悪いとき行く'] },
+  { answer:'郵便局', emoji:'🏣', category:'ばしょ', confusers:['銀行','コンビニ','役所'], hints:['荷物を送れる','切手を売っている','〒マーク','赤いポストがある','手紙を出すところ'] },
+  { answer:'図書館', emoji:'📚', category:'ばしょ', confusers:['本屋','学校','博物館'], hints:['勉強もできる','静かにする場所','本を借りられる','図書カードが必要','本がたくさんあるところ'] },
+];
+
+const CAT_COLORS = {
+  'どうぶつ':{ bg:'#FFF3E0', color:'#E65100', icon:'🐾' },
+  'たべもの':{ bg:'#E8F5E9', color:'#2E7D32', icon:'🍽️' },
+  'にちじょう':{ bg:'#E3F2FD', color:'#1565C0', icon:'🏠' },
+  'しぜん':{ bg:'#F3E5F5', color:'#7B1FA2', icon:'🌿' },
+  'のりもの':{ bg:'#FFF8E1', color:'#F57F17', icon:'🚗' },
+  'ばしょ':{ bg:'#FCE4EC', color:'#C2185B', icon:'📍' },
+};
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'ヒント多め・4つから選ぶ', maxHints:4, wrongCount:3, rounds:8 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'似た選択肢・ヒント3つ目から', maxHints:4, wrongCount:3, rounds:10 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'紛らわしい選択肢・5ヒント', maxHints:5, wrongCount:3, rounds:12 },
+};
+
+function generateRound(diff, usedSet) {
+  const cfg = DIFF[diff];
+  const pool = QUIZZES.filter(q => !usedSet.has(q.answer));
+  if (pool.length === 0) usedSet.clear();
+  const src = pool.length > 0 ? pool : QUIZZES;
+  const quiz = src[Math.floor(Math.random() * src.length)];
+  usedSet.add(quiz.answer);
+
+  // Use confusers (similar/confusing wrong answers)
+  const wrongs = shuffle(quiz.confusers).slice(0, cfg.wrongCount).map(name => {
+    const match = QUIZZES.find(q => q.answer === name);
+    return { answer:name, emoji:match?.emoji || '❓' };
+  });
+
+  const opts = shuffle([{ answer:quiz.answer, emoji:quiz.emoji }, ...wrongs]);
+  const hints = quiz.hints.slice(0, cfg.maxHints);
+
+  return { ...quiz, hints, opts };
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase:'idle', // playing, answered, result
+    rounds:[], currentR:0,
+    hintsShown:1,
+    score:0, correct:0,
+    selected:null, feedback:null,
+    results:[],
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    const usedSet = new Set();
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff, usedSet));
+    g.rounds = rounds; g.currentR = 0; g.score = 0; g.correct = 0;
+    g.selected = null; g.feedback = null; g.results = [];
+    g.hintsShown = 1;
+    g.phase = 'playing';
+    setShowConfetti(false); setScreen('game');
+    rerender();
+  };
+
+  const showMoreHints = () => {
+    const round = g.rounds[g.currentR];
+    if (g.hintsShown < round.hints.length) {
+      g.hintsShown++;
+      rerender();
+    }
+  };
+
+  const handleAnswer = (ans) => {
+    if (g.selected !== null) return;
+    const round = g.rounds[g.currentR];
+    g.selected = ans;
+    const isCorrect = ans === round.answer;
+    if (isCorrect) {
+      // Fewer hints = more points
+      const bonus = Math.max(1, round.hints.length - g.hintsShown + 1) * 5;
+      g.score += bonus;
+      g.correct++;
+      g.feedback = 'correct';
+    } else {
+      g.feedback = 'wrong';
+    }
+    // Show all hints after answering
+    g.hintsShown = round.hints.length;
+    g.results.push({ round, correct:isCorrect, hintsUsed:g.hintsShown });
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.selected = null; g.feedback = null;
+      g.currentR++;
+      g.hintsShown = 1;
+      if (g.currentR >= g.rounds.length) finishGame();
+      else { g.phase = 'playing'; rerender(); }
+    }, isCorrect ? 1200 : 2000);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.rounds.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, correct:g.correct, total:g.rounds.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+        @keyframes reveal{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>📣 しりとりあて</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>📣</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>しりとりあて</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>ヒントを読んで<br/>なんのことか当てよう！</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 推理力・語彙力・意味記憶のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', lineHeight:2 }}>
+              ① ヒントが1つずつ出てきます<br/>
+              ② 「これかな？」と思ったら答えよう<br/>
+              ③ 少ないヒントで当てるほど高得点！<br/>
+              ④ 「もう1つヒント」ボタンで追加ヒントも
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>🏷️ こんなカテゴリが出ます</div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'center' }}>
+              {Object.entries(CAT_COLORS).map(([k,v]) => (
+                <span key={k} style={{ fontSize:12, fontWeight:700, padding:'5px 12px', borderRadius:50, background:v.bg, color:v.color }}>
+                  {v.icon} {k}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:13,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:11,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:18,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const round = g.rounds[g.currentR];
+        if (!round) return null;
+        const answered = g.selected !== null;
+        const cc = CAT_COLORS[round.category] || { bg:'#F5F5F5', color:'#6B6B6B', icon:'❓' };
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status */}
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+              {[{v:g.score,l:'スコア',c:'#FF6B35'},{v:g.correct+'/'+(g.currentR+(answered?1:0)),l:'正解',c:'#2EC4B6'},{v:(g.currentR+1)+'/'+g.rounds.length,l:'問題',c:'#7B1FA2'}].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display:'flex', gap:2, marginBottom:8 }}>
+              {g.rounds.map((_,i) => (
+                <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].correct?'#66BB6A':'#EF5350'):i===g.currentR?'#FFB74D':'#E8E8E8' }} />
+              ))}
+            </div>
+
+            <div style={{ animation:'fadeUp 0.25s ease-out' }} key={g.currentR}>
+              {/* Category + mystery */}
+              <div style={{ textAlign:'center', marginBottom:8 }}>
+                <span style={{ fontSize:13, fontWeight:700, color:cc.color, background:cc.bg, padding:'5px 14px', borderRadius:50 }}>
+                  {cc.icon} {round.category}
+                </span>
+              </div>
+
+              <div style={{ textAlign:'center', marginBottom:6 }}>
+                <span style={{ fontSize:48, display:'inline-block', animation:answered?'reveal 0.5s ease-out':undefined }}>
+                  {answered ? round.emoji : '❓'}
+                </span>
+              </div>
+
+              {/* Hints */}
+              <div style={{ background:'white', borderRadius:18, padding:'16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:10 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8 }}>💡 ヒント（{g.hintsShown}/{round.hints.length}）</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {round.hints.slice(0, g.hintsShown).map((hint, i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', background:i === g.hintsShown-1 && !answered?'#FFF3E0':'#F5F5F5', borderRadius:10, animation:i === g.hintsShown-1?'fadeUp 0.3s ease-out':undefined }}>
+                      <div style={{ width:24, height:24, borderRadius:'50%', background:['#FF6B35','#1E88E5','#43A047','#7B1FA2','#00ACC1'][i%5], display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                        <span style={{ fontFamily:'Outfit', fontSize:12, fontWeight:900, color:'white' }}>{i+1}</span>
+                      </div>
+                      <span style={{ fontSize:16, fontWeight:700 }}>{hint}</span>
+                    </div>
+                  ))}
+
+                  {/* Hidden hints */}
+                  {!answered && Array.from({length:round.hints.length - g.hintsShown}).map((_,i) => (
+                    <div key={`h${i}`} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', background:'#FAFAFA', borderRadius:10, border:'2px dashed #E0E0E0' }}>
+                      <div style={{ width:24, height:24, borderRadius:'50%', background:'#E0E0E0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                        <span style={{ fontFamily:'Outfit', fontSize:12, fontWeight:900, color:'white' }}>?</span>
+                      </div>
+                      <span style={{ fontSize:14, color:'#BDBDBD' }}>ヒント{g.hintsShown + i + 1}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* More hints button */}
+                {!answered && g.hintsShown < round.hints.length && (
+                  <button onClick={showMoreHints} style={{...btnBase, marginTop:10, width:'100%', fontSize:14, fontWeight:700, padding:'10px', borderRadius:50, background:'#FFF3E0', border:'2px solid #FFB74D', color:'#E65100'}}>
+                    💡 もう1つヒントを見る（得点が減ります）
+                  </button>
+                )}
+
+                {/* Points info */}
+                {!answered && (
+                  <div style={{ textAlign:'center', marginTop:6, fontSize:11, color:'#9E9E9E' }}>
+                    いま答えると +{Math.max(1, round.hints.length - g.hintsShown + 1) * 5}点
+                  </div>
+                )}
+              </div>
+
+              {/* Answer reveal */}
+              {answered && (
+                <div style={{ textAlign:'center', marginBottom:10, animation:'reveal 0.4s ease-out' }}>
+                  <div style={{ fontSize:28, fontWeight:900, color:g.feedback==='correct'?'#2E7D32':'#C62828' }}>
+                    {g.feedback === 'correct' ? '⭕ 正解！' : `❌ 正解は「${round.answer}」`}
+                  </div>
+                  {g.feedback === 'correct' && (
+                    <div style={{ fontSize:14, color:'#FF6B35', fontWeight:700, marginTop:4 }}>
+                      ヒント{g.results[g.results.length-1]?.hintsUsed || g.hintsShown}つで正解！
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Options */}
+              {!answered && (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                  {round.opts.map((opt,i) => (
+                    <button key={i} onClick={() => handleAnswer(opt.answer)}
+                      style={{...btnBase, padding:'18px 10px', borderRadius:14, textAlign:'center',
+                        border:'3px solid #E8E8E8', background:'white',
+                        display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <span style={{ fontSize:20, fontWeight:900 }}>{opt.answer}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ height:20 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? '推理名人！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:11, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 結果の振り返り</div>
+              {g.results.map((r,i) => {
+                const cc = CAT_COLORS[r.round.category] || {};
+                return (
+                  <div key={i} style={{ background:r.correct?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:6, borderLeft:`4px solid ${r.correct?'#66BB6A':'#FF6B35'}`, textAlign:'left', display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:24 }}>{r.round.emoji}</span>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:700 }}>
+                        {r.correct ? '✅' : '❌'} {r.round.answer}
+                      </div>
+                      <div style={{ fontSize:11, color:'#9E9E9E' }}>
+                        {r.correct ? `ヒント${r.hintsUsed}つで正解` : 'まちがい'}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 推理のコツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.8 }}>
+                ヒントを読んだら「どんなもの？」「どこにある？」「何に使う？」と考えましょう。1つ目のヒントだけで当てられたらすごい！迷ったらヒントを追加してOKです。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

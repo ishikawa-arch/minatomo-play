@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>リズムタップ | みなともPlay</title>
+<meta name="description" content="外的リズム手がかり - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="attention">
+<meta name="minatomo-category" content="">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== リズムタップ - 外的リズム手がかり ==========
+// External rhythmic cueing for movement timing training.
+
+function createBeep(audioCtx, freq, duration) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'ゆっくり・ガイド多め', bpmRange:[50,70], rounds:5, modes:['onbeat','keep'] },
+  normal: { label:'ふつう', emoji:'🌿', desc:'ふつう速度・テンポ変化', bpmRange:[60,90], rounds:6, modes:['onbeat','keep','change'] },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'速め・パターン・テンポ変化', bpmRange:[70,110], rounds:7, modes:['onbeat','keep','change','pattern'] },
+};
+
+const PATTERNS = [
+  { name:'タン・タン・タン・ウン', beats:[1,1,1,0], display:'● ● ● ○' },
+  { name:'タン・ウン・タン・タン', beats:[1,0,1,1], display:'● ○ ● ●' },
+  { name:'タン・タン・ウン・タン', beats:[1,1,0,1], display:'● ● ○ ●' },
+  { name:'タタン・タタン', beats:[1,1,1,1], display:'●● ●●', subdivide:true },
+];
+
+function generateRound(diff) {
+  const cfg = DIFF[diff];
+  const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+  const bpm = cfg.bpmRange[0] + Math.floor(Math.random() * (cfg.bpmRange[1] - cfg.bpmRange[0]));
+
+  if (mode === 'onbeat') {
+    return { mode, bpm, beatCount:8, title:'リズムに合わせてタップ', desc:'光と音に合わせてタップしよう' };
+  }
+  if (mode === 'keep') {
+    return { mode, bpm, guidedBeats:4, freeBeats:6, title:'テンポをキープ', desc:'音が止まっても同じテンポでタップし続けよう' };
+  }
+  if (mode === 'change') {
+    const startBpm = bpm;
+    const endBpm = Math.random() < 0.5 ? bpm + 15 + Math.floor(Math.random()*15) : Math.max(40, bpm - 15 - Math.floor(Math.random()*10));
+    return { mode, bpm:startBpm, endBpm, beatCount:10, title:'テンポチェンジ', desc:'だんだん速く（遅く）なるリズムについていこう' };
+  }
+  if (mode === 'pattern') {
+    const pattern = PATTERNS[Math.floor(Math.random() * PATTERNS.length)];
+    return { mode, bpm, pattern, repeats:3, title:'リズムパターン', desc:`「${pattern.name}」のリズムでタップ` };
+  }
+  return { mode:'onbeat', bpm, beatCount:8 };
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase:'idle',
+    rounds:[], currentR:0,
+    score:0, perfectCount:0, goodCount:0, missCount:0,
+    results:[],
+    // Game state
+    gamePhase:'waiting', // waiting, playing, judging
+    beatIndex:0, totalBeats:0,
+    tapTimes:[], beatTimes:[], expectedTimes:[],
+    currentBpm:0,
+    flashBeat:false, guidedPhase:true,
+    accuracy:0,
+  }).current;
+
+  const audioRef = React.useRef(null);
+  const timerRef = React.useRef(null);
+  const beatTimerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    return () => {
+      clearTimeout(timerRef.current);
+      clearInterval(beatTimerRef.current);
+    };
+  }, []);
+
+  const getAudioCtx = () => {
+    if (!audioRef.current) {
+      audioRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioRef.current.state === 'suspended') audioRef.current.resume();
+    return audioRef.current;
+  };
+
+  const playTick = (high) => {
+    try {
+      const ctx = getAudioCtx();
+      createBeep(ctx, high ? 880 : 660, 0.08);
+    } catch(e) {}
+  };
+
+  const playTap = () => {
+    try {
+      const ctx = getAudioCtx();
+      createBeep(ctx, 440, 0.05);
+    } catch(e) {}
+  };
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff));
+    g.rounds = rounds; g.currentR = 0;
+    g.score = 0; g.perfectCount = 0; g.goodCount = 0; g.missCount = 0;
+    g.results = [];
+    setShowConfetti(false); setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    g.currentR = idx;
+    const round = g.rounds[idx];
+    g.beatIndex = 0; g.tapTimes = []; g.beatTimes = []; g.expectedTimes = [];
+    g.flashBeat = false; g.accuracy = 0;
+    g.currentBpm = round.bpm;
+    g.guidedPhase = true;
+    g.gamePhase = 'countdown';
+    rerender();
+
+    // 3-2-1 countdown
+    let count = 3;
+    const countDown = () => {
+      g.beatIndex = count;
+      rerender();
+      if (count > 0) {
+        count--;
+        timerRef.current = setTimeout(countDown, 600);
+      } else {
+        g.gamePhase = 'playing';
+        g.beatIndex = 0;
+        rerender();
+        startBeats(round);
+      }
+    };
+    timerRef.current = setTimeout(countDown, 500);
+  };
+
+  const startBeats = (round) => {
+    if (round.mode === 'onbeat') {
+      let beat = 0;
+      const total = round.beatCount;
+      g.totalBeats = total;
+      const interval = 60000 / round.bpm;
+
+      const tick = () => {
+        if (beat < total) {
+          g.flashBeat = true;
+          g.expectedTimes.push(Date.now());
+          playTick(beat % 4 === 0);
+          rerender();
+          setTimeout(() => { g.flashBeat = false; rerender(); }, 120);
+          beat++;
+          g.beatIndex = beat;
+          beatTimerRef.current = setTimeout(tick, interval);
+        } else {
+          // Wait for final taps
+          timerRef.current = setTimeout(() => judgeRound(round), interval);
+        }
+      };
+      tick();
+    }
+
+    else if (round.mode === 'keep') {
+      let beat = 0;
+      const guidedTotal = round.guidedBeats;
+      const freeTotal = round.freeBeats;
+      g.totalBeats = guidedTotal + freeTotal;
+      const interval = 60000 / round.bpm;
+
+      const tick = () => {
+        if (beat < guidedTotal) {
+          // Guided phase - play sound
+          g.flashBeat = true;
+          g.guidedPhase = true;
+          g.expectedTimes.push(Date.now());
+          playTick(beat % 4 === 0);
+          rerender();
+          setTimeout(() => { g.flashBeat = false; rerender(); }, 120);
+          beat++;
+          g.beatIndex = beat;
+          beatTimerRef.current = setTimeout(tick, interval);
+        } else if (beat < guidedTotal + freeTotal) {
+          // Free phase - no sound, just expected times
+          g.guidedPhase = false;
+          g.expectedTimes.push(Date.now());
+          beat++;
+          g.beatIndex = beat;
+          rerender();
+          beatTimerRef.current = setTimeout(tick, interval);
+        } else {
+          timerRef.current = setTimeout(() => judgeRound(round), interval);
+        }
+      };
+      tick();
+    }
+
+    else if (round.mode === 'change') {
+      let beat = 0;
+      const total = round.beatCount;
+      g.totalBeats = total;
+      const startBpm = round.bpm;
+      const endBpm = round.endBpm;
+
+      const tick = () => {
+        if (beat < total) {
+          const progress = beat / (total - 1);
+          const currentBpm = startBpm + (endBpm - startBpm) * progress;
+          g.currentBpm = Math.round(currentBpm);
+          const interval = 60000 / currentBpm;
+
+          g.flashBeat = true;
+          g.expectedTimes.push(Date.now());
+          playTick(beat % 4 === 0);
+          rerender();
+          setTimeout(() => { g.flashBeat = false; rerender(); }, 120);
+          beat++;
+          g.beatIndex = beat;
+          beatTimerRef.current = setTimeout(tick, interval);
+        } else {
+          timerRef.current = setTimeout(() => judgeRound(round), 60000 / g.currentBpm);
+        }
+      };
+      tick();
+    }
+
+    else if (round.mode === 'pattern') {
+      const pattern = round.pattern;
+      const totalBeats = pattern.beats.length * round.repeats;
+      g.totalBeats = totalBeats;
+      const interval = 60000 / round.bpm;
+      let beat = 0;
+
+      const tick = () => {
+        if (beat < totalBeats) {
+          const patternIdx = beat % pattern.beats.length;
+          const isHit = pattern.beats[patternIdx] === 1;
+
+          if (isHit) {
+            g.flashBeat = true;
+            playTick(patternIdx === 0);
+          }
+          g.expectedTimes.push({ time:Date.now(), isHit });
+          rerender();
+          if (isHit) setTimeout(() => { g.flashBeat = false; rerender(); }, 120);
+          beat++;
+          g.beatIndex = beat;
+          beatTimerRef.current = setTimeout(tick, interval);
+        } else {
+          timerRef.current = setTimeout(() => judgeRound(round), interval);
+        }
+      };
+      tick();
+    }
+  };
+
+  const handleTap = () => {
+    if (g.gamePhase !== 'playing') return;
+    playTap();
+    g.tapTimes.push(Date.now());
+    rerender();
+  };
+
+  const judgeRound = (round) => {
+    clearInterval(beatTimerRef.current);
+    g.gamePhase = 'judging';
+
+    // Calculate accuracy: how close taps are to expected beat times
+    let expected;
+    if (round.mode === 'pattern') {
+      expected = g.expectedTimes.filter(e => e.isHit).map(e => e.time);
+    } else {
+      expected = [...g.expectedTimes];
+    }
+
+    if (expected.length === 0 || g.tapTimes.length === 0) {
+      g.accuracy = 0;
+      g.missCount++;
+      g.results.push({ mode:round.mode, result:'miss', accuracy:0 });
+      rerender();
+      timerRef.current = setTimeout(() => nextRound(), 2000);
+      return;
+    }
+
+    // Match each expected beat to closest tap
+    const interval = 60000 / round.bpm;
+    const tolerance = interval * 0.35; // 35% of beat interval
+    let matchCount = 0;
+    let totalOffset = 0;
+
+    expected.forEach(expTime => {
+      const closest = g.tapTimes.reduce((best, tap) => {
+        const diff = Math.abs(tap - expTime);
+        return diff < Math.abs(best - expTime) ? tap : best;
+      }, g.tapTimes[0]);
+      const offset = Math.abs(closest - expTime);
+      if (offset < tolerance) {
+        matchCount++;
+        totalOffset += offset;
+      }
+    });
+
+    const accuracy = expected.length > 0 ? Math.round((matchCount / expected.length) * 100) : 0;
+    g.accuracy = accuracy;
+
+    let result;
+    if (accuracy >= 80) {
+      result = 'perfect'; g.perfectCount++; g.score += 25;
+    } else if (accuracy >= 50) {
+      result = 'good'; g.goodCount++; g.score += 12;
+    } else {
+      result = 'miss'; g.missCount++; g.score += 3;
+    }
+
+    g.results.push({ mode:round.mode, result, accuracy, bpm:round.bpm, taps:g.tapTimes.length, expected:expected.length });
+    rerender();
+    timerRef.current = setTimeout(() => nextRound(), 2000);
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; g.gamePhase = 'idle'; rerender();
+    const pct = g.perfectCount / g.rounds.length;
+    if (pct >= 0.3) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, perfect:g.perfectCount, good:g.goodCount, miss:g.missCount, total:g.rounds.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => {
+    clearTimeout(timerRef.current); clearInterval(beatTimerRef.current);
+    g.phase = 'idle'; g.gamePhase = 'idle'; setScreen('select'); rerender();
+  };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#E8652E','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  const MODE_LABELS = {
+    onbeat:'🥁 リズムに合わせて',
+    keep:'🎯 テンポキープ',
+    change:'📈 テンポチェンジ',
+    pattern:'🎵 リズムパターン',
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+        @keyframes beatFlash{0%{transform:scale(1);box-shadow:0 0 0 0 rgba(232,101,46,0.5)}50%{transform:scale(1.2);box-shadow:0 0 0 20px rgba(232,101,46,0)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(232,101,46,0)}}
+        @keyframes tapRipple{0%{transform:scale(0.95);opacity:1}100%{transform:scale(1.1);opacity:0.7}}
+        @media (min-width: 768px) { #root { zoom: 1.25; } }
+        @media (min-width: 1200px) { #root { zoom: 1.8; } }
+        @media (min-width: 1920px) { #root { zoom: 2.4; } }
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🥁 リズムタップ</span>
+        </div>
+        {screen === 'game' && g.gamePhase !== 'idle' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#888', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 3s ease-in-out infinite' }}>🥁</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:6 }}>リズムタップ</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.9, letterSpacing:'0.03em' }}>リズムに合わせて<br/>一定のテンポでタップしよう！</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:28, background:'#F5F5F0', padding:'10px 18px', borderRadius:12 }}>🧠 リズム感覚・動作タイミングのトレーニングです<br/>外的リズム手がかりに基づく訓練です</div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'20px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12, letterSpacing:'0.05em' }}>🎯 4つのモード</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {[
+                { icon:'🥁', name:'リズムに合わせて', desc:'光と音のリズムにぴったり合わせてタップ' },
+                { icon:'🎯', name:'テンポキープ', desc:'音が止まっても同じテンポでタップし続ける' },
+                { icon:'📈', name:'テンポチェンジ', desc:'だんだん速く（遅く）なるリズムについていく' },
+                { icon:'🎵', name:'リズムパターン', desc:'「タン・タン・タン・ウン」等のパターンをタップ' },
+              ].map((m,i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                  <span style={{ fontSize:22, flexShrink:0, marginTop:2 }}>{m.icon}</span>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:700, letterSpacing:'0.03em' }}>{m.name}</div>
+                    <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.6 }}>{m.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, letterSpacing:'0.05em' }}>💡 なぜリズムが大切？</div>
+            <div style={{ fontSize:13, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+              一定のリズムで動き続けることは、歩行や日常動作をスムーズにするために大切です。外からリズムを与える（外的手がかり）ことで、動作の開始・維持がスムーズになることが多くの研究で示されています。
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left', letterSpacing:'0.05em' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'2px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:480, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:'#F5F5F0' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:13,fontWeight:700}}>{hc.label}・🎉{h.perfect} 👍{h.good}</div><div style={{fontSize:11,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:18,fontWeight:800,color:'#E8652E'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase !== 'result' && (
+        <div style={{ padding:'0 16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Status */}
+          <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'8px 14px', background:'white', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+            {[{v:g.score,l:'スコア'},{v:`🎉${g.perfectCount} 👍${g.goodCount}`,l:'判定'},{v:`${g.currentR+1}/${g.rounds.length}`,l:'ラウンド'}].map((s,i) => (
+              <div key={i} style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#555' }}>{s.v}</div>
+                <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Progress */}
+          <div style={{ display:'flex', gap:2, marginBottom:10 }}>
+            {g.rounds.map((_,i) => (
+              <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].result==='perfect'?'#8BC34A':g.results[i].result==='good'?'#FFB74D':'#EF9A9A'):i===g.currentR?'#FFB74D':'#E8E8E8' }} />
+            ))}
+          </div>
+
+          {/* Countdown */}
+          {g.gamePhase === 'countdown' && (
+            <div style={{ textAlign:'center', padding:'60px 20px', animation:'fadeUp 0.3s ease-out' }}>
+              <div style={{ fontSize:80, fontWeight:900, color:'#E8652E', fontFamily:'Outfit', animation:'pulse 0.6s infinite' }}>
+                {g.beatIndex > 0 ? g.beatIndex : 'GO!'}
+              </div>
+              <div style={{ fontSize:16, color:'#9E9E9E', marginTop:16 }}>
+                {g.rounds[g.currentR]?.title}
+              </div>
+            </div>
+          )}
+
+          {/* Playing */}
+          {g.gamePhase === 'playing' && (() => {
+            const round = g.rounds[g.currentR];
+            return (
+              <div style={{ textAlign:'center' }}>
+                {/* Mode label */}
+                <div style={{ marginBottom:6 }}>
+                  <span style={{ fontSize:14, fontWeight:900, color:'#E8652E', background:'#FFF3E0', padding:'5px 16px', borderRadius:50 }}>
+                    {MODE_LABELS[round.mode]}
+                  </span>
+                </div>
+
+                <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:4 }}>{round.desc}</div>
+
+                {/* BPM display */}
+                <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:12 }}>
+                  ♩ = {g.currentBpm} BPM
+                  {round.mode === 'keep' && !g.guidedPhase && (
+                    <span style={{ color:'#E8652E', fontWeight:700 }}> 🔇 音なし！自分でキープ！</span>
+                  )}
+                  {round.mode === 'change' && (
+                    <span style={{ color:'#E8652E', fontWeight:700 }}> {round.bpm < round.endBpm ? '⬆️ 加速中' : '⬇️ 減速中'}</span>
+                  )}
+                </div>
+
+                {/* Pattern display */}
+                {round.mode === 'pattern' && (
+                  <div style={{ fontSize:20, fontWeight:900, color:'#333', marginBottom:12, letterSpacing:'0.15em' }}>
+                    {round.pattern.display}
+                  </div>
+                )}
+
+                {/* Visual metronome */}
+                <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
+                  <div style={{
+                    width:140, height:140, borderRadius:'50%',
+                    background: g.flashBeat ? '#E8652E' : '#F5F5F0',
+                    border: `4px solid ${g.flashBeat ? '#E8652E' : '#E0E0E0'}`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    transition: g.flashBeat ? 'none' : 'all 0.15s',
+                    animation: g.flashBeat ? 'beatFlash 0.3s ease-out' : undefined,
+                  }}>
+                    <span style={{ fontSize:48, color: g.flashBeat ? 'white' : '#BDBDBD' }}>
+                      {g.flashBeat ? '●' : '○'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Beat progress */}
+                <div style={{ display:'flex', gap:4, justifyContent:'center', marginBottom:16 }}>
+                  {Array.from({length:g.totalBeats}).map((_,i) => (
+                    <div key={i} style={{
+                      width:12, height:12, borderRadius:'50%',
+                      background: i < g.beatIndex ? '#E8652E' : '#E0E0E0',
+                      transition:'all 0.2s',
+                    }} />
+                  ))}
+                </div>
+
+                {/* Tap count */}
+                <div style={{ fontSize:14, color:'#9E9E9E', marginBottom:12 }}>
+                  タップ回数: <span style={{ fontFamily:'Outfit', fontWeight:800, color:'#555' }}>{g.tapTimes.length}</span>
+                </div>
+
+                {/* BIG TAP BUTTON */}
+                <button
+                  onMouseDown={handleTap}
+                  onTouchStart={(e) => { e.preventDefault(); handleTap(); }}
+                  style={{
+                    ...btnBase, width:'85%', padding:'32px', borderRadius:24,
+                    background:'linear-gradient(180deg,#E8652E,#D4551E)',
+                    border:'none', color:'white', fontSize:24, fontWeight:900,
+                    letterSpacing:'0.1em',
+                    boxShadow:'0 4px 20px rgba(232,101,46,0.3)',
+                    userSelect:'none', WebkitUserSelect:'none',
+                  }}>
+                  👆 タップ！
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Judging */}
+          {g.gamePhase === 'judging' && (
+            <div style={{ textAlign:'center', padding:'40px 20px', animation:'fadeUp 0.4s ease-out' }}>
+              <div style={{ fontSize:48, marginBottom:12 }}>
+                {g.accuracy >= 80 ? '🎉' : g.accuracy >= 50 ? '👍' : '🤔'}
+              </div>
+              <div style={{ fontSize:24, fontWeight:900, color: g.accuracy >= 80 ? '#2E7D32' : g.accuracy >= 50 ? '#E8652E' : '#999', letterSpacing:'0.06em' }}>
+                {g.accuracy >= 80 ? 'ぴったり！' : g.accuracy >= 50 ? 'いい感じ！' : 'もう少し！'}
+              </div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#6B6B6B', marginTop:8 }}>
+                リズム一致度: <span style={{ fontFamily:'Outfit', fontWeight:900, color:'#E8652E' }}>{g.accuracy}%</span>
+              </div>
+              <div style={{ fontSize:13, color:'#9E9E9E', marginTop:4 }}>
+                タップ {g.tapTimes.length}回 / 目標 {g.rounds[g.currentR]?.mode === 'pattern'
+                  ? g.expectedTimes.filter(e=>e.isHit).length
+                  : g.expectedTimes.length}拍
+              </div>
+            </div>
+          )}
+
+          <div style={{ height:20 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const pct = total > 0 ? g.perfectCount / total : 0;
+        const stars = pct >= 0.6 ? '⭐⭐⭐' : pct >= 0.3 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.6 ? 'リズム感バッチリ！' : pct >= 0.3 ? 'いい調子！' : 'もっと練習！';
+
+        const avgAccuracy = g.results.length > 0 ? Math.round(g.results.reduce((s,r)=>s+r.accuracy,0)/g.results.length) : 0;
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', marginBottom:6, letterSpacing:'0.08em' }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:20 }}>
+              {[
+                {v:`🎉 ${g.perfectCount}`,l:'ぴったり',c:'#2E7D32'},
+                {v:`👍 ${g.goodCount}`,l:'いい感じ',c:'#E8652E'},
+                {v:`${avgAccuracy}%`,l:'平均一致度',c:'#555'},
+              ].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ background:'white', borderRadius:16, padding:'14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', width:'100%', maxWidth:360, marginBottom:20 }}>
+              <div style={{ fontFamily:'Outfit', fontSize:32, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{fontSize:16}}>pt</span></div>
+              <div style={{ fontSize:11, color:'#9E9E9E' }}>トータルスコア</div>
+            </div>
+
+            {/* Round details */}
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📋 ラウンド別</div>
+              {g.results.map((r,i) => (
+                <div key={i} style={{ background:r.result==='perfect'?'#F1F8E9':r.result==='good'?'#FFF3E0':'#FAFAFA', borderRadius:12, padding:'8px 14px', marginBottom:4, borderLeft:`4px solid ${r.result==='perfect'?'#8BC34A':r.result==='good'?'#FFB74D':'#E0E0E0'}`, textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div style={{ fontSize:13, fontWeight:700 }}>
+                    {r.result==='perfect'?'🎉':r.result==='good'?'👍':'🤔'} {MODE_LABELS[r.mode]}
+                  </div>
+                  <div style={{ fontFamily:'Outfit', fontSize:14, fontWeight:800, color:'#555' }}>{r.accuracy}%</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24, padding:'14px 16px', background:'#FAFAF8', border:'1px solid #E8E8E8', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6, letterSpacing:'0.05em' }}>💡 リズムトレーニングのコツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+                リズムに合わせて「イチ、ニ、イチ、ニ」と心の中で数えてみましょう。歩くときも同じリズムを意識すると、動きがスムーズになります。音楽を聴きながら歩く練習もおすすめです。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#E8652E', border:'none', padding:'16px 32px', borderRadius:60, letterSpacing:'0.06em'}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

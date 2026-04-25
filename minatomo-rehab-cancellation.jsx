@@ -1,0 +1,370 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【リハビリ脳トレ】ぜんぶさがせ！ ==========
+// Cancellation Task - 視覚探索・半側空間無視のトレーニング
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+const LEVELS = [
+  { targets:6, distractors:8, target:'⭐', distPool:['✨','❤️','🌸'], label:'レベル1' },
+  { targets:8, distractors:14, target:'🍎', distPool:['🍊','🍇','🍓'], label:'レベル2' },
+  { targets:10, distractors:22, target:'🐱', distPool:['🐶','🐸','🐰','🐧'], label:'レベル3' },
+];
+
+function genRound(level, seed) {
+  const total = level.targets + level.distractors;
+  const items = [];
+
+  // Generate spread-out positions across full screen (for neglect detection)
+  const positions = [];
+  let s = seed;
+  for (let i = 0; i < total; i++) {
+    let x, y, ok;
+    let tries = 0;
+    do {
+      s = (s * 9301 + 49297) % 233280;
+      x = 6 + (s / 233280) * 82; // wide spread left-right
+      s = (s * 9301 + 49297) % 233280;
+      y = 6 + (s / 233280) * 80;
+      ok = true;
+      for (const p of positions) {
+        if (Math.sqrt((x-p.x)**2 + (y-p.y)**2) < 13) { ok = false; break; }
+      }
+      tries++;
+    } while (!ok && tries < 80);
+    positions.push({ x, y });
+  }
+
+  // Distribute targets and distractors
+  const roleArr = [];
+  for (let i = 0; i < level.targets; i++) roleArr.push('target');
+  for (let i = 0; i < level.distractors; i++) roleArr.push('distractor');
+  const shuffledRoles = shuffle(roleArr);
+
+  shuffledRoles.forEach((role, i) => {
+    items.push({
+      id: i,
+      x: positions[i].x,
+      y: positions[i].y,
+      isTarget: role === 'target',
+      emoji: role === 'target' ? level.target : level.distPool[Math.floor(Math.random() * level.distPool.length)],
+      tapped: false,
+    });
+  });
+
+  return { items, totalTargets: level.targets };
+}
+
+export default function Cancellation() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    levelIdx:0, items:[],
+    targetsFound:0, errors:0,
+    phase:'idle',
+    startTime:0, elapsedTime:0,
+    levelResults:[],
+    totalTargets:0,
+    wrongTap:null, // id of wrong tapped
+    leftSideMisses:0, rightSideMisses:0,
+  }).current;
+
+  const timerRef = useRef(null);
+  const rafRef = useRef(null);
+  useEffect(() => () => { clearTimeout(timerRef.current); cancelAnimationFrame(rafRef.current); }, []);
+
+  const startGame = () => {
+    g.levelIdx = 0; g.levelResults = [];
+    setScreen('play');
+    startLevel(0);
+  };
+
+  const startLevel = (idx) => {
+    g.levelIdx = idx;
+    const level = LEVELS[idx];
+    const round = genRound(level, Date.now() % 100000);
+    g.items = round.items;
+    g.totalTargets = round.totalTargets;
+    g.targetsFound = 0;
+    g.errors = 0;
+    g.wrongTap = null;
+    g.startTime = Date.now();
+    g.elapsedTime = 0;
+    g.phase = 'playing';
+    rerender();
+    tickTimer();
+  };
+
+  const tickTimer = () => {
+    if (g.phase !== 'playing') return;
+    g.elapsedTime = Date.now() - g.startTime;
+    rerender();
+    rafRef.current = requestAnimationFrame(tickTimer);
+  };
+
+  const handleTap = (item) => {
+    if (g.phase !== 'playing' || item.tapped) return;
+
+    if (item.isTarget) {
+      item.tapped = true;
+      g.targetsFound++;
+      rerender();
+
+      if (g.targetsFound >= g.totalTargets) {
+        finishLevel();
+      }
+    } else {
+      // Wrong tap
+      g.errors++;
+      g.wrongTap = item.id;
+      rerender();
+      timerRef.current = setTimeout(() => {
+        g.wrongTap = null;
+        rerender();
+      }, 500);
+    }
+  };
+
+  const finishLevel = () => {
+    cancelAnimationFrame(rafRef.current);
+    g.phase = 'levelEnd';
+
+    // Analyze untapped targets by side (for neglect detection)
+    const untappedTargets = g.items.filter(it => it.isTarget && !it.tapped);
+    g.leftSideMisses = untappedTargets.filter(it => it.x < 50).length;
+    g.rightSideMisses = untappedTargets.filter(it => it.x >= 50).length;
+
+    const level = LEVELS[g.levelIdx];
+    g.levelResults.push({
+      level: level.label,
+      time: g.elapsedTime,
+      errors: g.errors,
+      completed: g.targetsFound,
+      total: g.totalTargets,
+    });
+
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.levelIdx + 1 >= LEVELS.length) {
+        setScreen('done'); rerender();
+      } else {
+        startLevel(g.levelIdx + 1);
+      }
+    }, 2500);
+  };
+
+  const level = LEVELS[g.levelIdx];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translate(-50%,-50%)}25%{transform:translate(calc(-50% - 6px),-50%)}75%{transform:translate(calc(-50% + 6px),-50%)}}
+        @keyframes catchFade{0%{transform:translate(-50%,-50%) scale(1);opacity:1}100%{transform:translate(-50%,-50%) scale(1.4);opacity:0}}
+        @keyframes arrowBlink{0%,100%{opacity:0.3}50%{opacity:0.9}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🔎 ぜんぶさがせ！</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {level?.label}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+          {/* Demo */}
+          <div style={{
+            position:'relative', width:200, height:100, marginBottom:16,
+            background:'white', borderRadius:12, border:'2px solid #E8E8E8',
+          }}>
+            {[
+              {e:'⭐',x:15,y:30,t:true},{e:'✨',x:45,y:50,t:false},
+              {e:'⭐',x:75,y:25,t:true},{e:'❤️',x:30,y:70,t:false},
+              {e:'⭐',x:85,y:65,t:true},{e:'🌸',x:55,y:20,t:false},
+            ].map((it, i) => (
+              <span key={i} style={{
+                position:'absolute', left:it.x+'%', top:it.y+'%', transform:'translate(-50%,-50%)',
+                fontSize:24,
+                background: it.t ? 'rgba(255,243,224,0.9)' : 'transparent',
+                borderRadius:8, padding:2,
+                outline: it.t ? '2px solid #E8652E' : 'none',
+              }}>{it.e}</span>
+            ))}
+          </div>
+          <div style={{ fontSize:14, color:'#E8652E', fontWeight:700, marginBottom:20 }}>⭐ をぜんぶさがしてタップ！</div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            画面ぜんぶをよくみて！
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            左の ➡️ はしっこも わすれずに
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28 }}>
+            視覚探索・半側空間への注意
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && level && (
+        <div style={{ padding:'12px 16px', maxWidth:600, margin:'0 auto' }}>
+          {/* Progress of levels */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:10 }}>
+            {LEVELS.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.levelIdx ? 20 : 14, height:6, borderRadius:3,
+                background: i < g.levelIdx ? '#8BC34A' : i === g.levelIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Target indicator + stats */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:13, fontWeight:700, color:'#9E9E9E' }}>さがすもの</span>
+              <div style={{
+                width:40, height:40, borderRadius:10,
+                background:'#FFF3E0', border:'3px solid #E8652E',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:24,
+              }}>{level.target}</div>
+            </div>
+            <div style={{ textAlign:'right' }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>
+                {g.targetsFound}<span style={{ fontSize:14, color:'#9E9E9E' }}>/{g.totalTargets}</span>
+              </div>
+              {g.errors > 0 && <div style={{ fontSize:11, fontWeight:700, color:'#C62828' }}>エラー {g.errors}</div>}
+            </div>
+          </div>
+
+          {/* Time */}
+          <div style={{ textAlign:'center', marginBottom:8 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:14, fontWeight:800, color:'#555' }}>
+              {(g.elapsedTime / 1000).toFixed(1)}s
+            </span>
+          </div>
+
+          {/* Game field */}
+          <div style={{
+            position:'relative', width:'100%', height:420,
+            background:'white', borderRadius:20,
+            border:'2px solid #E8E8E8',
+            overflow:'hidden',
+            userSelect:'none', WebkitUserSelect:'none',
+          }} key={g.levelIdx}>
+            {/* Left side attention reminder */}
+            <div style={{
+              position:'absolute', left:4, top:'50%', transform:'translateY(-50%)',
+              fontSize:20, animation:'arrowBlink 2s ease-in-out infinite',
+              pointerEvents:'none', color:'#E8652E',
+            }}>⟵</div>
+
+            {g.items.map((item) => {
+              const isWrong = g.wrongTap === item.id;
+              return (
+                <div key={item.id}
+                  onClick={() => handleTap(item)}
+                  style={{
+                    position:'absolute', left:item.x+'%', top:item.y+'%',
+                    transform:'translate(-50%,-50%)',
+                    cursor: item.tapped ? 'default' : 'pointer',
+                    padding:8,
+                    animation: isWrong ? 'shake 0.3s' : item.tapped ? 'catchFade 0.3s forwards' : undefined,
+                    pointerEvents: item.tapped ? 'none' : 'auto',
+                  }}>
+                  <span style={{
+                    fontSize:36, lineHeight:1,
+                    display:'inline-block',
+                    background: isWrong ? '#FFEBEE' : 'transparent',
+                    borderRadius:8, padding:2,
+                  }}>{item.emoji}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* LEVEL END overlay */}
+          {g.phase === 'levelEnd' && (
+            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.3)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:10 }}>
+              <div style={{ background:'white', borderRadius:24, padding:'28px 36px', textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,0.2)', animation:'pop 0.3s' }}>
+                <div style={{ fontSize:48, marginBottom:4 }}>🎯</div>
+                <div style={{ fontSize:22, fontWeight:900, color:'#E8652E', marginBottom:4 }}>{level.label} クリア！</div>
+                <div style={{ fontFamily:'Outfit,sans-serif', fontSize:28, fontWeight:900, color:'#333' }}>{(g.elapsedTime / 1000).toFixed(1)}<span style={{ fontSize:14, color:'#9E9E9E' }}>秒</span></div>
+                {g.errors > 0 && <div style={{ fontSize:13, fontWeight:700, color:'#C62828', marginTop:4 }}>エラー {g.errors}かい</div>}
+                {g.levelIdx + 1 < LEVELS.length && (
+                  <div style={{ fontSize:13, fontWeight:700, color:'#666', marginTop:12 }}>つぎのレベルへ…</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const totalTime = g.levelResults.reduce((a, r) => a + r.time, 0);
+        const totalErr = g.levelResults.reduce((a, r) => a + r.errors, 0);
+        const emoji = totalErr <= 2 ? '🎉' : totalErr <= 5 ? '👍' : '😊';
+        const msg = totalErr <= 2 ? 'かんぺき！' : totalErr <= 5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#9E9E9E', marginBottom:4 }}>ごうけい</div>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {(totalTime / 1000).toFixed(1)}<span style={{ fontSize:18, color:'#9E9E9E' }}>秒</span>
+              </div>
+            </div>
+
+            {/* Per-level breakdown */}
+            <div style={{ background:'white', borderRadius:16, padding:'14px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:20, minWidth:280 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginBottom:8 }}>認知機能レポート</div>
+              {g.levelResults.map((r, i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:13 }}>
+                  <span style={{ fontWeight:700, color:'#555' }}>{r.level}</span>
+                  <span style={{ fontFamily:'Outfit', fontWeight:900 }}>
+                    <span style={{ color:'#333' }}>{(r.time / 1000).toFixed(1)}秒</span>
+                    {r.errors > 0 && <span style={{ color:'#C62828', marginLeft:8 }}>エラー{r.errors}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

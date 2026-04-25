@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>もぐらたたき | みなともPlay</title>
+<meta name="description" content="出てきたもぐらを素早くタップ - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== CONFIG ==========
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'ゆっくり・大きい穴', cols:3, rows:3, spawnInterval:1500, moleStay:2200, gameDuration:30, bombChance:0 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'ふつう速度・ニセモノ注意', cols:3, rows:3, spawnInterval:1100, moleStay:1800, gameDuration:30, bombChance:0.15 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'速い・小さい穴・ニセモノ多い', cols:4, rows:4, spawnInterval:800, moleStay:1200, gameDuration:30, bombChance:0.25 },
+};
+
+const MOLE_TYPES = [
+  { id:'mole', emoji:'🐹', points:10, label:'もぐら' },
+  { id:'gold', emoji:'⭐', points:25, label:'スター' },
+];
+const BOMB = { id:'bomb', emoji:'💣', points:-15, label:'バクダン' };
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle', // idle, playing, result
+    score: 0,
+    hits: 0,
+    misses: 0,
+    bombHits: 0,
+    totalSpawned: 0,
+    timeLeft: 0,
+    // Grid state: array of { type, appearTime, id } or null
+    grid: [],
+    combo: 0,
+    maxCombo: 0,
+    // Hit animations
+    effects: [], // { x, y, text, id }
+    effectId: 0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const spawnRef = React.useRef(null);
+  const gridSize = React.useRef({ cols:3, rows:3 });
+
+  React.useEffect(() => () => { clearInterval(timerRef.current); clearInterval(spawnRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    gridSize.current = { cols:cfg.cols, rows:cfg.rows };
+    const totalCells = cfg.cols * cfg.rows;
+    g.grid = Array(totalCells).fill(null);
+    g.score = 0; g.hits = 0; g.misses = 0; g.bombHits = 0;
+    g.totalSpawned = 0; g.combo = 0; g.maxCombo = 0;
+    g.timeLeft = cfg.gameDuration;
+    g.effects = []; g.effectId = 0;
+    g.phase = 'playing';
+    setShowConfetti(false); setScreen('game');
+    rerender();
+
+    // Timer countdown
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      g.timeLeft--;
+      rerender();
+      if (g.timeLeft <= 0) {
+        clearInterval(timerRef.current);
+        clearInterval(spawnRef.current);
+        finishGame();
+      }
+    }, 1000);
+
+    // Mole spawning
+    clearInterval(spawnRef.current);
+    spawnRef.current = setInterval(() => spawnMole(diff), cfg.spawnInterval);
+  };
+
+  const spawnMole = (diff) => {
+    const cfg = DIFF[diff || difficulty];
+    const totalCells = cfg.cols * cfg.rows;
+    // Find empty cells
+    const empty = [];
+    g.grid.forEach((cell, i) => { if (!cell) empty.push(i); });
+    if (empty.length === 0) return;
+
+    const idx = empty[Math.floor(Math.random() * empty.length)];
+    const isBomb = Math.random() < cfg.bombChance;
+    const isGold = !isBomb && Math.random() < 0.1;
+
+    const type = isBomb ? BOMB : isGold ? MOLE_TYPES[1] : MOLE_TYPES[0];
+    const spawnId = ++g.effectId;
+    g.grid[idx] = { ...type, spawnId, time: Date.now() };
+    g.totalSpawned++;
+    rerender();
+
+    // Auto-hide after moleStay
+    setTimeout(() => {
+      if (g.grid[idx] && g.grid[idx].spawnId === spawnId) {
+        if (g.grid[idx].id !== 'bomb') {
+          g.misses++;
+          g.combo = 0;
+        }
+        g.grid[idx] = null;
+        rerender();
+      }
+    }, cfg.moleStay);
+  };
+
+  const tapCell = (idx) => {
+    if (g.phase !== 'playing') return;
+    const cell = g.grid[idx];
+    if (!cell) return;
+
+    const points = cell.points;
+    g.grid[idx] = null;
+
+    if (cell.id === 'bomb') {
+      g.bombHits++;
+      g.combo = 0;
+      g.score = Math.max(0, g.score + points);
+      addEffect(idx, `${points}`, '#E53935');
+    } else {
+      g.hits++;
+      g.combo++;
+      if (g.combo > g.maxCombo) g.maxCombo = g.combo;
+      const bonus = g.combo >= 10 ? 10 : g.combo >= 5 ? 5 : g.combo >= 3 ? 2 : 0;
+      const total = points + bonus;
+      g.score += total;
+      addEffect(idx, `+${total}${g.combo >= 3 ? '🔥' : ''}`, cell.id === 'gold' ? '#F9A825' : '#2E7D32');
+    }
+    rerender();
+  };
+
+  const addEffect = (idx, text, color) => {
+    const cols = gridSize.current.cols;
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const id = ++g.effectId;
+    g.effects.push({ id, col, row, text, color });
+    setTimeout(() => {
+      g.effects = g.effects.filter(e => e.id !== id);
+      rerender();
+    }, 800);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result';
+    const moleSpawned = g.totalSpawned;
+    const hitRate = moleSpawned > 0 ? g.hits / (moleSpawned - g.bombHits) : 0;
+    if (hitRate >= 0.6) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, score: g.score, hits: g.hits, misses: g.misses, bombHits: g.bombHits, maxCombo: g.maxCombo, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+    rerender();
+  };
+
+  const goBack = () => { clearInterval(timerRef.current); clearInterval(spawnRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily: "'Zen Maru Gothic',sans-serif", cursor: 'pointer', transition: 'all 0.15s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+        @keyframes popUp{0%{transform:translateY(100%) scale(0.5);opacity:0}50%{transform:translateY(-10%) scale(1.1)}100%{transform:translateY(0) scale(1);opacity:1}}
+        @keyframes whack{0%{transform:scale(1)}30%{transform:scale(0.5) rotate(20deg)}100%{transform:scale(0) rotate(40deg);opacity:0}}
+        @keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-40px)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🎯 もぐらたたき</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+            {g.combo >= 3 && <span style={{ fontSize:10, fontWeight:700, color:'white', background:'#F9A825', padding:'3px 10px', borderRadius:50, animation:'pulse 0.5s infinite' }}>🔥{g.combo}</span>}
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🎯</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>もぐらたたき</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>出てきたもぐらを<br/>すばやくタップ！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 反応速度・注意力のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 穴からもぐらが飛び出します<br/>
+              ② すばやくタップしてやっつけよう！<br/>
+              ③ ⭐スターは高得点！<br/>
+              ④ 💣バクダンをタップすると減点！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📝 キャラクター</div>
+            <div style={{ display:'flex', gap:16, justifyContent:'center' }}>
+              <div style={{ textAlign:'center' }}><span style={{ fontSize:32 }}>🐹</span><div style={{ fontSize:10, fontWeight:700, color:'#43A047' }}>+10点</div></div>
+              <div style={{ textAlign:'center' }}><span style={{ fontSize:32 }}>⭐</span><div style={{ fontSize:10, fontWeight:700, color:'#F9A825' }}>+25点</div></div>
+              <div style={{ textAlign:'center' }}><span style={{ fontSize:32 }}>💣</span><div style={{ fontSize:10, fontWeight:700, color:'#E53935' }}>-15点</div></div>
+            </div>
+            <div style={{ textAlign:'center', marginTop:8, fontSize:11, color:'#9E9E9E' }}>🔥3連続ヒットでコンボボーナス！</div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.hits}匹・🔥{h.maxCombo}</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const { cols, rows } = gridSize.current;
+        const cellSize = cols <= 3 ? 100 : 75;
+
+        return (
+          <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+            {/* Status bar */}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 16px', background:'white', borderRadius:'0 0 14px 14px', marginBottom:8, boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:900, color:'#FF6B35' }}>{g.score}</div>
+                <div style={{ fontSize:8, color:'#9E9E9E' }}>スコア</div>
+              </div>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#2EC4B6' }}>🐹{g.hits}</div>
+                <div style={{ fontSize:8, color:'#9E9E9E' }}>ヒット</div>
+              </div>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:28, fontWeight:900, color:g.timeLeft <= 5 ? '#E53935' : '#7B1FA2', animation:g.timeLeft<=5?'pulse 0.5s infinite':undefined }}>{g.timeLeft}</div>
+                <div style={{ fontSize:8, color:'#9E9E9E' }}>秒</div>
+              </div>
+            </div>
+
+            {/* Timer bar */}
+            <div style={{ width:'100%', height:6, background:'#E8E8E8', borderRadius:3, marginBottom:10, overflow:'hidden' }}>
+              <div style={{ width:(g.timeLeft/cfg.gameDuration*100)+'%', height:'100%', background:g.timeLeft<=5?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:3, transition:'width 1s linear' }} />
+            </div>
+
+            {/* Game grid */}
+            <div style={{ position:'relative', background:'linear-gradient(180deg,#81C784 0%,#66BB6A 40%,#8D6E63 100%)', borderRadius:20, padding:12, boxShadow:'0 4px 20px rgba(0,0,0,0.1)' }}>
+              {/* Grass tufts */}
+              <div style={{ position:'absolute', top:-8, left:'20%', fontSize:16 }}>🌿</div>
+              <div style={{ position:'absolute', top:-6, right:'25%', fontSize:14 }}>🌱</div>
+              <div style={{ position:'absolute', bottom:-6, left:'40%', fontSize:12 }}>🌿</div>
+
+              <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols},1fr)`, gap:8, position:'relative' }}>
+                {g.grid.map((cell, i) => (
+                  <button key={i} onClick={() => tapCell(i)}
+                    style={{
+                      ...btnBase, width:cellSize, height:cellSize, borderRadius:'50%',
+                      background: 'radial-gradient(circle at 50% 60%, #5D4037 0%, #3E2723 100%)',
+                      border:'3px solid #4E342E',
+                      boxShadow:'inset 0 4px 8px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2)',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      position:'relative', overflow:'visible',
+                      animation: cell?.id === 'bomb' ? 'shake 0.3s infinite' : undefined,
+                    }}>
+                    {cell && (
+                      <span style={{
+                        fontSize: cols <= 3 ? 48 : 36,
+                        position:'absolute', top:'50%', left:'50%',
+                        transform:'translate(-50%,-50%)',
+                        animation:'popUp 0.25s ease-out',
+                        filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+                        zIndex:10,
+                      }}>
+                        {cell.emoji}
+                      </span>
+                    )}
+                  </button>
+                ))}
+
+                {/* Float-up effects */}
+                {g.effects.map(e => (
+                  <div key={e.id} style={{
+                    position:'absolute',
+                    left: (e.col * (cellSize + 8) + cellSize/2) + 'px',
+                    top: (e.row * (cellSize + 8)) + 'px',
+                    fontSize:16, fontWeight:900, color:e.color,
+                    animation:'floatUp 0.8s ease-out forwards',
+                    pointerEvents:'none', zIndex:20,
+                    textShadow:'0 1px 3px rgba(0,0,0,0.2)',
+                  }}>
+                    {e.text}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Combo display */}
+            {g.combo >= 3 && (
+              <div style={{ textAlign:'center', marginTop:10, animation:'pulse 0.5s infinite' }}>
+                <span style={{ fontSize:18, fontWeight:900, color:'#F9A825', background:'#FFF8E1', padding:'6px 20px', borderRadius:50 }}>
+                  🔥 {g.combo}コンボ！
+                </span>
+              </div>
+            )}
+
+            <div style={{ height:16 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const moleOnly = g.totalSpawned - g.bombHits;
+        const hitRate = moleOnly > 0 ? Math.round(g.hits / moleOnly * 100) : 0;
+        const stars = hitRate >= 80 ? '⭐⭐⭐' : hitRate >= 50 ? '⭐⭐' : '⭐';
+        const msg = hitRate >= 80 ? 'もぐら名人！' : hitRate >= 50 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード・{cfg.gameDuration}秒</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, width:'100%', maxWidth:360, marginBottom:20 }}>
+              {[
+                {v:g.score,l:'スコア',c:'#FF6B35'},
+                {v:g.hits+'匹',l:'ヒット',c:'#2EC4B6'},
+                {v:hitRate+'%',l:'ヒット率',c:'#7B1FA2'},
+              ].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[
+                {v:'🔥'+g.maxCombo,l:'最大コンボ'},
+                {v:g.misses,l:'にげられた'},
+                {v:g.bombHits,l:'💣タップ'},
+                {v:g.totalSpawned,l:'出現数'},
+              ].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:12, padding:'10px 6px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800 }}>{s.v}</div>
+                  <div style={{ fontSize:8, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 反応速度のコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                画面全体をぼんやり見て、動きに反応するのがコツです。1つの穴に集中しすぎず、広い範囲を見渡しましょう。💣が出たらぐっとガマン！
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

@@ -1,0 +1,363 @@
+import { useState, useRef, useEffect } from "react";
+
+// ========== 【リハビリ脳トレ】こうごにタップ ==========
+// Trail Making Test Part B - 数字とひらがなを交互にタップ
+
+const HIRAGANA = ['あ','い','う','え','お','か','き','く','け','こ'];
+
+function genRounds(count) {
+  const rounds = [];
+  for (let i = 0; i < count; i++) {
+    let pairs;
+    if (i < 3) pairs = 4;       // 1→あ→2→い→3→う→4→え (8 taps)
+    else if (i < 6) pairs = 5;  // 10 taps
+    else if (i < 9) pairs = 6;  // 12 taps
+    else pairs = 7;              // 14 taps
+
+    // Generate non-overlapping positions
+    const items = [];
+    let seed = i * 137 + 42;
+    for (let j = 0; j < pairs; j++) {
+      // Number
+      items.push({ kind:'num', value: j + 1, label: String(j + 1) });
+      // Hiragana
+      items.push({ kind:'hira', value: j + 1, label: HIRAGANA[j] });
+    }
+
+    // Place items with collision avoidance
+    const positions = [];
+    for (let j = 0; j < items.length; j++) {
+      let x, y, ok;
+      let tries = 0;
+      do {
+        seed = (seed * 9301 + 49297) % 233280;
+        x = 8 + (seed / 233280) * 78;
+        seed = (seed * 9301 + 49297) % 233280;
+        y = 8 + (seed / 233280) * 78;
+        ok = true;
+        for (const p of positions) {
+          if (Math.sqrt((x-p.x)**2 + (y-p.y)**2) < 18) { ok = false; break; }
+        }
+        tries++;
+      } while (!ok && tries < 80);
+      positions.push({ x, y });
+      items[j].x = x;
+      items[j].y = y;
+    }
+
+    rounds.push({ items, pairs });
+  }
+  return rounds;
+}
+
+export default function TMTB() {
+  const [screen, setScreen] = useState('start');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    rounds:[], currentR:0, score:0, cleared:0,
+    nextStep:0, // 0 = expect num 1, 1 = expect hira あ, 2 = expect num 2, ...
+    tapped: new Set(), // which item indices tapped
+    wrongIdx:null,
+    errors:0, totalErrors:0,
+    startTime:0, times:[],
+    trail:[], // {from, to} for drawing lines
+  }).current;
+
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.rounds = genRounds(10);
+    g.currentR = 0; g.score = 0; g.cleared = 0;
+    g.totalErrors = 0; g.times = [];
+    setScreen('play');
+    startRound(0);
+  };
+
+  const startRound = (idx) => {
+    g.currentR = idx;
+    g.nextStep = 0;
+    g.tapped = new Set();
+    g.wrongIdx = null;
+    g.errors = 0;
+    g.trail = [];
+    g.startTime = Date.now();
+    rerender();
+  };
+
+  const expectedItem = () => {
+    const round = g.rounds[g.currentR];
+    const stepNum = Math.floor(g.nextStep / 2) + 1; // 1,2,3,...
+    const wantHira = g.nextStep % 2 === 1;
+    return round.items.findIndex(it =>
+      wantHira ? (it.kind === 'hira' && it.value === stepNum)
+               : (it.kind === 'num' && it.value === stepNum)
+    );
+  };
+
+  const handleTap = (idx) => {
+    if (g.wrongIdx !== null) return;
+    if (g.tapped.has(idx)) return;
+
+    const expected = expectedItem();
+    if (idx === expected) {
+      // Correct!
+      if (g.nextStep > 0) {
+        // Find previous tapped item
+        const prevIdx = Array.from(g.tapped).pop();
+        if (prevIdx !== undefined) g.trail.push({ from: prevIdx, to: idx });
+      }
+      g.tapped.add(idx);
+      g.nextStep++;
+      rerender();
+
+      const round = g.rounds[g.currentR];
+      if (g.nextStep >= round.items.length) {
+        // Round complete
+        const elapsed = Date.now() - g.startTime;
+        g.times.push(elapsed);
+        g.cleared++;
+        const timeBonus = Math.max(0, Math.round((30000 - elapsed) / 1000));
+        g.score += 20 + timeBonus - g.errors * 2;
+        timerRef.current = setTimeout(nextRound, 800);
+      }
+    } else {
+      // Wrong
+      g.wrongIdx = idx;
+      g.errors++;
+      g.totalErrors++;
+      rerender();
+      timerRef.current = setTimeout(() => {
+        g.wrongIdx = null;
+        rerender();
+      }, 600);
+    }
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) {
+      setScreen('done'); rerender();
+    } else {
+      startRound(g.currentR + 1);
+    }
+  };
+
+  const round = g.currentR < g.rounds.length ? g.rounds[g.currentR] : null;
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  // Expected label for UI
+  const nextLabel = round ? (() => {
+    const stepNum = Math.floor(g.nextStep / 2) + 1;
+    return g.nextStep % 2 === 0 ? String(stepNum) : HIRAGANA[stepNum - 1];
+  })() : '';
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:translate(-50%,-50%) scale(0.8)}60%{transform:translate(-50%,-50%) scale(1.15)}100%{transform:translate(-50%,-50%) scale(1)}}
+        @keyframes shake{0%,100%{transform:translate(-50%,-50%)}25%{transform:translate(calc(-50% - 6px),-50%)}75%{transform:translate(calc(-50% + 6px),-50%)}}
+        @keyframes drawLine{from{stroke-dashoffset:200}to{stroke-dashoffset:0}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🔀 こうごにタップ</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>{g.currentR + 1} / {g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'50px 20px', textAlign:'center', minHeight:'70vh' }}>
+          {/* Demo */}
+          <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:8, flexWrap:'wrap', justifyContent:'center' }}>
+            {[
+              {l:'1',n:true},{l:'→',a:true},{l:'あ',n:false},{l:'→',a:true},
+              {l:'2',n:true},{l:'→',a:true},{l:'い',n:false},{l:'→',a:true},
+              {l:'3',n:true}
+            ].map((it, i) => (
+              it.a ? <span key={i} style={{ fontSize:18, color:'#9E9E9E', fontWeight:900 }}>→</span> :
+              <div key={i} style={{
+                width:44, height:44, borderRadius:'50%',
+                background: it.n ? '#1E88E5' : '#E8652E',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontFamily: it.n ? 'Outfit,sans-serif' : 'inherit',
+                fontSize:22, fontWeight:900, color:'white',
+              }}>{it.l}</div>
+            ))}
+          </div>
+          <div style={{ fontSize:14, color:'#E8652E', fontWeight:700, marginBottom:24 }}>すうじ→ひらがな→すうじ→ひらがな…</div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4, letterSpacing:'0.06em' }}>
+            こうごにタップ！
+          </div>
+          <div style={{ fontSize:14, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            ルールの切り替えに注意！
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:32 }}>
+            遂行機能・認知的柔軟性のトレーニング
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && round && (
+        <div style={{ padding:'12px 16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Progress */}
+          <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:8, overflow:'hidden' }}>
+            <div style={{ width:`${(g.currentR / g.rounds.length) * 100}%`, height:'100%', background:'#8BC34A', transition:'width 0.3s' }} />
+          </div>
+
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <div>
+              <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}</span>
+              <span style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginLeft:2 }}>pt</span>
+              {g.errors > 0 && <span style={{ fontSize:12, fontWeight:700, color:'#C62828', marginLeft:10 }}>エラー {g.errors}</span>}
+            </div>
+            <div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#555' }}>
+              {((Date.now() - g.startTime) / 1000).toFixed(1)}s
+            </div>
+          </div>
+
+          {/* Next indicator */}
+          <div style={{ textAlign:'center', marginBottom:8 }}>
+            <div style={{
+              display:'inline-flex', alignItems:'center', gap:8,
+              background:'white', padding:'8px 20px', borderRadius:50,
+              boxShadow:'0 2px 8px rgba(0,0,0,0.06)',
+            }}>
+              <span style={{ fontSize:13, fontWeight:700, color:'#9E9E9E' }}>つぎ</span>
+              <div style={{
+                width:40, height:40, borderRadius:'50%',
+                background: g.nextStep % 2 === 0 ? '#1E88E5' : '#E8652E',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontFamily: g.nextStep % 2 === 0 ? 'Outfit,sans-serif' : 'inherit',
+                fontSize:22, fontWeight:900, color:'white',
+              }}>{nextLabel}</div>
+            </div>
+          </div>
+
+          {/* Game field */}
+          <div style={{
+            position:'relative', width:'100%', height:380,
+            background:'white', borderRadius:24,
+            border:'2px solid #E8E8E8',
+            overflow:'hidden',
+            userSelect:'none', WebkitUserSelect:'none',
+          }} key={g.currentR}>
+            {/* Trail lines */}
+            <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none' }}>
+              {g.trail.map((t, i) => {
+                const from = round.items[t.from];
+                const to = round.items[t.to];
+                if (!from || !to) return null;
+                return (
+                  <line key={i}
+                    x1={from.x + '%'} y1={from.y + '%'}
+                    x2={to.x + '%'} y2={to.y + '%'}
+                    stroke="#8BC34A" strokeWidth="3" strokeLinecap="round"
+                    opacity="0.5"
+                  />
+                );
+              })}
+            </svg>
+
+            {/* Items */}
+            {round.items.map((item, idx) => {
+              const isTapped = g.tapped.has(idx);
+              const isWrong = g.wrongIdx === idx;
+              const isNum = item.kind === 'num';
+              const size = 48;
+
+              return (
+                <div key={idx}
+                  onClick={() => handleTap(idx)}
+                  style={{
+                    position:'absolute', left:item.x+'%', top:item.y+'%',
+                    transform:'translate(-50%,-50%)',
+                    cursor:isTapped ? 'default' : 'pointer',
+                    animation: isWrong ? 'shake 0.3s' : undefined,
+                  }}>
+                  <div style={{
+                    width:size, height:size, borderRadius:'50%',
+                    background: isTapped ? '#E8F5E9'
+                      : isWrong ? '#FFF5F5'
+                      : isNum ? '#1E88E5' : '#E8652E',
+                    border: `3px solid ${
+                      isTapped ? '#8BC34A'
+                      : isWrong ? '#EF5350'
+                      : isNum ? '#1976D2' : '#D4551E'
+                    }`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    boxShadow: isTapped ? 'none' : '0 3px 8px rgba(0,0,0,0.15)',
+                    opacity: isTapped ? 0.5 : 1,
+                  }}>
+                    <span style={{
+                      fontFamily: isNum ? 'Outfit,sans-serif' : 'inherit',
+                      fontSize:22, fontWeight:900,
+                      color: isTapped ? '#8BC34A' : 'white',
+                    }}>{item.label}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const total = g.rounds.length;
+        const avgTime = g.times.length > 0 ? (g.times.reduce((a,b)=>a+b,0) / g.times.length / 1000).toFixed(1) : 0;
+        const emoji = g.cleared === total && g.totalErrors <= 2 ? '🎉' : g.cleared >= total * 0.7 ? '👍' : '😊';
+        const msg = g.cleared === total && g.totalErrors <= 2 ? 'すばらしい！' : g.cleared >= total * 0.7 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize:16, fontWeight:700, color:'#555', marginBottom:16 }}>
+              {g.cleared}クリア / {total}ステージ
+            </div>
+
+            <div style={{ background:'white', borderRadius:16, padding:'14px 20px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:20, minWidth:260 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', marginBottom:8 }}>認知機能レポート</div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ fontSize:14, fontWeight:700, color:'#555' }}>へいきんタイム</span>
+                <span style={{ fontFamily:'Outfit', fontSize:16, fontWeight:900, color:'#E8652E' }}>{avgTime}秒</span>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between' }}>
+                <span style={{ fontSize:14, fontWeight:700, color:'#555' }}>ルール違反</span>
+                <span style={{ fontFamily:'Outfit', fontSize:16, fontWeight:900, color: g.totalErrors === 0 ? '#2E7D32' : '#C62828' }}>{g.totalErrors}かい</span>
+              </div>
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>VOICE TRAINING | みなともPlay</title>
+<meta name="description" content="声出しチャレンジ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="attention">
+<meta name="minatomo-category" content="">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== VOICE TRAINING - 声出しチャレンジ ==========
+// Voice volume training using Web Audio API + getUserMedia.
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'低め目標・長め時間', volumeTarget:0.3, holdTime:3, rounds:5, modes:['sustain','target'] },
+  normal: { label:'ふつう', emoji:'🌿', desc:'ふつう目標・全モード', volumeTarget:0.4, holdTime:4, rounds:6, modes:['sustain','target','inflate','steps'] },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'高め目標・長めキープ', volumeTarget:0.5, holdTime:5, rounds:7, modes:['sustain','target','inflate','steps'] },
+};
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [micAllowed, setMicAllowed] = React.useState(null); // null=unknown, true/false
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase:'idle',
+    rounds:[], currentR:0,
+    score:0, greatCount:0, goodCount:0, missCount:0,
+    results:[],
+    // Audio state
+    volume:0, maxVolume:0, avgVolume:0, volumeHistory:[],
+    // Mode state
+    gamePhase:'waiting', // waiting, recording, judging
+    timer:0, duration:0,
+    // Inflate
+    inflateSize:0,
+    // Steps
+    stepsCurrent:0, stepsTarget:0, stepsHeld:0,
+    // Target
+    targetReached:false, targetHeldTime:0,
+  }).current;
+
+  const audioCtxRef = React.useRef(null);
+  const analyserRef = React.useRef(null);
+  const streamRef = React.useRef(null);
+  const animFrameRef = React.useRef(null);
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+
+  React.useEffect(() => () => {
+    clearTimeout(timerRef.current);
+    clearInterval(intervalRef.current);
+    cancelAnimationFrame(animFrameRef.current);
+    stopMic();
+  }, []);
+
+  const startMic = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      streamRef.current = stream;
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.5;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      setMicAllowed(true);
+
+      // Start volume monitoring
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const monitor = () => {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        const avg = sum / dataArray.length / 255; // 0-1
+        g.volume = avg;
+        if (avg > g.maxVolume) g.maxVolume = avg;
+        g.volumeHistory.push(avg);
+        if (g.volumeHistory.length > 100) g.volumeHistory.shift();
+        rerender();
+        animFrameRef.current = requestAnimationFrame(monitor);
+      };
+      monitor();
+      return true;
+    } catch(e) {
+      setMicAllowed(false);
+      return false;
+    }
+  };
+
+  const stopMic = () => {
+    cancelAnimationFrame(animFrameRef.current);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close().catch(()=>{});
+      audioCtxRef.current = null;
+    }
+  };
+
+  const generateRound = (diff) => {
+    const cfg = DIFF[diff];
+    const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+    return { mode };
+  };
+
+  const startGame = async (diff) => {
+    setDifficulty(diff);
+    const ok = await startMic();
+    if (!ok) return;
+
+    const cfg = DIFF[diff];
+    const rounds = [];
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff));
+    g.rounds = rounds; g.currentR = 0;
+    g.score = 0; g.greatCount = 0; g.goodCount = 0; g.missCount = 0;
+    g.results = [];
+    setShowConfetti(false); setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    const d = diff || difficulty;
+    const cfg = DIFF[d];
+    g.currentR = idx;
+    const round = g.rounds[idx];
+    g.maxVolume = 0; g.volumeHistory = []; g.avgVolume = 0;
+    g.inflateSize = 0; g.targetReached = false; g.targetHeldTime = 0;
+    g.stepsCurrent = 0; g.stepsHeld = 0;
+    g.gamePhase = 'countdown';
+    g.timer = 3;
+    rerender();
+
+    let count = 3;
+    const countDown = () => {
+      g.timer = count;
+      rerender();
+      if (count > 0) {
+        count--;
+        timerRef.current = setTimeout(countDown, 700);
+      } else {
+        g.gamePhase = 'recording';
+        g.timer = 0;
+        g.duration = 0;
+        g.maxVolume = 0;
+        g.volumeHistory = [];
+        rerender();
+        startRecording(round, d);
+      }
+    };
+    timerRef.current = setTimeout(countDown, 300);
+  };
+
+  const startRecording = (round, diff) => {
+    const cfg = DIFF[diff || difficulty];
+
+    if (round.mode === 'sustain') {
+      // Measure how long they can sustain voice above threshold
+      const threshold = 0.08;
+      let elapsed = 0;
+      let voiceActive = false;
+      let voiceDuration = 0;
+      const maxTime = 10; // 10 second max
+
+      intervalRef.current = setInterval(() => {
+        elapsed += 0.1;
+        g.timer = elapsed;
+        if (g.volume > threshold) {
+          if (!voiceActive) voiceActive = true;
+          voiceDuration += 0.1;
+        } else if (voiceActive && voiceDuration > 0.5) {
+          // Voice stopped after being active
+          clearInterval(intervalRef.current);
+          judgeRound(round, { duration:voiceDuration, maxVol:g.maxVolume });
+          return;
+        }
+        g.duration = voiceDuration;
+        rerender();
+        if (elapsed >= maxTime) {
+          clearInterval(intervalRef.current);
+          judgeRound(round, { duration:voiceDuration, maxVol:g.maxVolume });
+        }
+      }, 100);
+    }
+
+    else if (round.mode === 'target') {
+      // Reach and hold target volume for N seconds
+      const target = cfg.volumeTarget;
+      let holdTime = 0;
+      const requiredHold = cfg.holdTime;
+      let elapsed = 0;
+      const maxTime = requiredHold + 5;
+
+      g.stepsTarget = requiredHold;
+
+      intervalRef.current = setInterval(() => {
+        elapsed += 0.1;
+        g.timer = elapsed;
+        if (g.volume >= target) {
+          holdTime += 0.1;
+          g.targetReached = true;
+          g.targetHeldTime = holdTime;
+        }
+        rerender();
+        if (holdTime >= requiredHold) {
+          clearInterval(intervalRef.current);
+          judgeRound(round, { holdTime, maxVol:g.maxVolume, target });
+        }
+        if (elapsed >= maxTime) {
+          clearInterval(intervalRef.current);
+          judgeRound(round, { holdTime, maxVol:g.maxVolume, target });
+        }
+      }, 100);
+    }
+
+    else if (round.mode === 'inflate') {
+      // Voice volume inflates a balloon
+      const target = 80; // target size
+      let elapsed = 0;
+      const maxTime = 8;
+
+      intervalRef.current = setInterval(() => {
+        elapsed += 0.1;
+        g.timer = elapsed;
+        // Inflate based on current volume
+        if (g.volume > 0.1) {
+          g.inflateSize = Math.min(g.inflateSize + g.volume * 3, 120);
+        } else {
+          g.inflateSize = Math.max(0, g.inflateSize - 0.5);
+        }
+        rerender();
+        if (g.inflateSize >= target) {
+          clearInterval(intervalRef.current);
+          judgeRound(round, { size:g.inflateSize, target, time:elapsed });
+        }
+        if (elapsed >= maxTime) {
+          clearInterval(intervalRef.current);
+          judgeRound(round, { size:g.inflateSize, target, time:elapsed });
+        }
+      }, 100);
+    }
+
+    else if (round.mode === 'steps') {
+      // 3 steps of increasing volume
+      const steps = [0.15, 0.3, 0.45];
+      let currentStep = 0;
+      let stepHeld = 0;
+      let elapsed = 0;
+      const maxTime = 12;
+      g.stepsTarget = steps.length;
+
+      intervalRef.current = setInterval(() => {
+        elapsed += 0.1;
+        g.timer = elapsed;
+        if (currentStep < steps.length) {
+          if (g.volume >= steps[currentStep]) {
+            stepHeld += 0.1;
+            if (stepHeld >= 1.5) {
+              currentStep++;
+              g.stepsCurrent = currentStep;
+              stepHeld = 0;
+            }
+          } else {
+            stepHeld = Math.max(0, stepHeld - 0.05);
+          }
+          g.stepsHeld = stepHeld;
+        }
+        rerender();
+        if (currentStep >= steps.length) {
+          clearInterval(intervalRef.current);
+          judgeRound(round, { stepsCompleted:currentStep, total:steps.length });
+        }
+        if (elapsed >= maxTime) {
+          clearInterval(intervalRef.current);
+          judgeRound(round, { stepsCompleted:currentStep, total:steps.length });
+        }
+      }, 100);
+    }
+  };
+
+  const judgeRound = (round, data) => {
+    g.gamePhase = 'judging';
+    clearInterval(intervalRef.current);
+    let result;
+
+    if (round.mode === 'sustain') {
+      if (data.duration >= 5) { result = 'great'; g.greatCount++; g.score += 25; }
+      else if (data.duration >= 3) { result = 'good'; g.goodCount++; g.score += 12; }
+      else { result = 'miss'; g.missCount++; g.score += 3; }
+    } else if (round.mode === 'target') {
+      const cfg = DIFF[difficulty];
+      if (data.holdTime >= cfg.holdTime) { result = 'great'; g.greatCount++; g.score += 25; }
+      else if (data.holdTime >= cfg.holdTime * 0.5) { result = 'good'; g.goodCount++; g.score += 12; }
+      else { result = 'miss'; g.missCount++; g.score += 3; }
+    } else if (round.mode === 'inflate') {
+      if (data.size >= data.target) { result = 'great'; g.greatCount++; g.score += 25; }
+      else if (data.size >= data.target * 0.6) { result = 'good'; g.goodCount++; g.score += 12; }
+      else { result = 'miss'; g.missCount++; g.score += 3; }
+    } else if (round.mode === 'steps') {
+      if (data.stepsCompleted >= data.total) { result = 'great'; g.greatCount++; g.score += 25; }
+      else if (data.stepsCompleted >= 2) { result = 'good'; g.goodCount++; g.score += 12; }
+      else { result = 'miss'; g.missCount++; g.score += 3; }
+    }
+
+    g.results.push({ mode:round.mode, result, ...data });
+    rerender();
+    timerRef.current = setTimeout(() => nextRound(), 2000);
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; g.gamePhase = 'idle';
+    stopMic();
+    rerender();
+    const pct = g.greatCount / g.rounds.length;
+    if (pct >= 0.3) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff:difficulty, great:g.greatCount, good:g.goodCount, miss:g.missCount, total:g.rounds.length, score:g.score, date:new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => {
+    clearTimeout(timerRef.current); clearInterval(intervalRef.current);
+    stopMic();
+    g.phase = 'idle'; g.gamePhase = 'idle'; setScreen('select'); rerender();
+  };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#E8652E','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  // Volume meter component
+  const VolumeMeter = ({ target, showTarget }) => {
+    const vol = Math.min(g.volume * 2.5, 1); // Scale up for visibility
+    const barColor = vol >= (target||0.4) ? '#66BB6A' : vol >= 0.2 ? '#FFB74D' : '#E0E0E0';
+    return (
+      <div style={{ width:'100%', maxWidth:300, margin:'0 auto' }}>
+        <div style={{ width:'100%', height:24, background:'#F0F0F0', borderRadius:12, overflow:'hidden', position:'relative' }}>
+          <div style={{ width:`${vol*100}%`, height:'100%', background:barColor, borderRadius:12, transition:'width 0.1s' }} />
+          {showTarget && target && (
+            <div style={{ position:'absolute', left:`${target*100}%`, top:0, bottom:0, width:3, background:'#E8652E', borderRadius:2 }}>
+              <span style={{ position:'absolute', top:-16, left:-8, fontSize:9, color:'#E8652E', fontWeight:700 }}>目標</span>
+            </div>
+          )}
+        </div>
+        <div style={{ display:'flex', justifyContent:'space-between', marginTop:4, fontSize:10, color:'#9E9E9E' }}>
+          <span>小さい</span>
+          <span>大きい</span>
+        </div>
+      </div>
+    );
+  };
+
+  const MODE_LABELS = {
+    sustain:'📢 ながく「あー」',
+    target:'🎯 目標の大きさで',
+    inflate:'🎈 声でふくらませ',
+    steps:'📶 だんだん大きく',
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+        @keyframes voicePulse{0%,100%{transform:scale(1);opacity:0.3}50%{transform:scale(1.3);opacity:0.1}}
+        @media (min-width: 768px) { #root { zoom: 1.25; } }
+        @media (min-width: 1200px) { #root { zoom: 1.8; } }
+        @media (min-width: 1920px) { #root { zoom: 2.4; } }
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>📢 声出しチャレンジ</span>
+        </div>
+        {screen === 'game' && g.gamePhase !== 'idle' && (
+          <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#888', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 3s ease-in-out infinite' }}>📢</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:6 }}>声出しチャレンジ</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.9, letterSpacing:'0.03em' }}>大きな声で！もっと大きく！<br/>声の大きさをトレーニング</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:28, background:'#F5F5F0', padding:'10px 18px', borderRadius:12 }}>🧠 声の大きさ・持続力のトレーニングです<br/>発声機能の維持・改善を目指します</div>
+
+          {/* Mic permission */}
+          {micAllowed !== true && (
+            <div style={{ width:'100%', maxWidth:480, marginBottom:20, background:micAllowed===false?'#FFF5F5':'#E3F2FD', borderRadius:16, padding:'18px 16px', border:`1px solid ${micAllowed===false?'#FFCDD2':'#BBDEFB'}`, textAlign:'center' }}>
+              {micAllowed === false ? (
+                <>
+                  <div style={{ fontSize:14, fontWeight:700, color:'#C62828', marginBottom:6 }}>🎤 マイクが使えません</div>
+                  <div style={{ fontSize:12, color:'#999', lineHeight:1.7, marginBottom:10 }}>ブラウザの設定からマイクの使用を許可してください</div>
+                  <button onClick={async () => { const ok = await startMic(); if(ok) stopMic(); }} style={{...btnBase, fontSize:14, fontWeight:700, padding:'12px 24px', borderRadius:50, background:'#E8652E', border:'none', color:'white'}}>
+                    🎤 もう一度許可する
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize:32, marginBottom:8 }}>🎤</div>
+                  <div style={{ fontSize:15, fontWeight:700, color:'#1565C0', marginBottom:6 }}>マイクの許可が必要です</div>
+                  <div style={{ fontSize:12, color:'#999', lineHeight:1.7, marginBottom:12 }}>このゲームはマイクで声の大きさを計測します。<br/>下のボタンを押して許可してください。</div>
+                  <button onClick={async () => { const ok = await startMic(); if(ok) stopMic(); }} style={{...btnBase, fontSize:16, fontWeight:700, padding:'14px 28px', borderRadius:50, background:'#1E88E5', border:'none', color:'white', letterSpacing:'0.06em'}}>
+                    🎤 マイクを許可する
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {micAllowed === true && (
+            <div style={{ width:'100%', maxWidth:480, marginBottom:20, background:'#F1F8E9', borderRadius:12, padding:'10px 16px', textAlign:'center' }}>
+              <span style={{ fontSize:14, fontWeight:700, color:'#2E7D32' }}>✅ マイク準備OK</span>
+            </div>
+          )}
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'20px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12, letterSpacing:'0.05em' }}>🎯 4つのモード</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {[
+                { icon:'📢', name:'ながく「あー」', desc:'できるだけ長く大きな声で「あー」と発声' },
+                { icon:'🎯', name:'目標の大きさで', desc:'目標ラインまで声を出してキープ' },
+                { icon:'🎈', name:'声でふくらませ', desc:'声の大きさで風船をふくらませよう' },
+                { icon:'📶', name:'だんだん大きく', desc:'3段階で声をだんだん大きくしていく' },
+              ].map((m,i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                  <span style={{ fontSize:22, flexShrink:0, marginTop:2 }}>{m.icon}</span>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:700, letterSpacing:'0.03em' }}>{m.name}</div>
+                    <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.6 }}>{m.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, letterSpacing:'0.05em' }}>💡 なぜ「大きな声」が大切？</div>
+            <div style={{ fontSize:13, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+              加齢や疾患によって声が小さくなることがあります。自分では普通に話しているつもりでも周囲に聞こえにくくなっていることも。「大きすぎるかな？」と思うくらいの声がちょうどいい大きさです。
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left', letterSpacing:'0.05em' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'2px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:480, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:'#F5F5F0' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:13,fontWeight:700}}>{hc.label}・🎉{h.great} 👍{h.good}</div><div style={{fontSize:11,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:18,fontWeight:800,color:'#E8652E'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase !== 'result' && (
+        <div style={{ padding:'0 16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Status */}
+          <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'8px 14px', background:'white', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+            {[{v:g.score,l:'スコア'},{v:`🎉${g.greatCount} 👍${g.goodCount}`,l:'判定'},{v:`${g.currentR+1}/${g.rounds.length}`,l:'ラウンド'}].map((s,i) => (
+              <div key={i} style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:'#555' }}>{s.v}</div>
+                <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Progress */}
+          <div style={{ display:'flex', gap:2, marginBottom:10 }}>
+            {g.rounds.map((_,i) => (
+              <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].result==='great'?'#8BC34A':g.results[i].result==='good'?'#FFB74D':'#EF9A9A'):i===g.currentR?'#FFB74D':'#E8E8E8' }} />
+            ))}
+          </div>
+
+          {/* Countdown */}
+          {g.gamePhase === 'countdown' && (
+            <div style={{ textAlign:'center', padding:'60px 20px', animation:'fadeUp 0.3s ease-out' }}>
+              <div style={{ fontSize:80, fontWeight:900, color:'#E8652E', fontFamily:'Outfit', animation:'pulse 0.6s infinite' }}>
+                {g.timer > 0 ? g.timer : '📢'}
+              </div>
+              <div style={{ fontSize:18, color:'#6B6B6B', marginTop:16, fontWeight:700 }}>
+                声を出す準備をしてね
+              </div>
+            </div>
+          )}
+
+          {/* Recording */}
+          {g.gamePhase === 'recording' && (() => {
+            const round = g.rounds[g.currentR];
+            return (
+              <div style={{ textAlign:'center', animation:'fadeUp 0.3s ease-out' }}>
+                <div style={{ marginBottom:8 }}>
+                  <span style={{ fontSize:14, fontWeight:900, color:'#E8652E', background:'#FFF3E0', padding:'5px 16px', borderRadius:50 }}>
+                    {MODE_LABELS[round.mode]}
+                  </span>
+                </div>
+
+                {/* Voice visualization - pulsing circle */}
+                <div style={{ position:'relative', display:'flex', justifyContent:'center', alignItems:'center', height:180, marginBottom:12 }}>
+                  {/* Pulse rings */}
+                  {g.volume > 0.05 && (
+                    <>
+                      <div style={{ position:'absolute', width:120+g.volume*200, height:120+g.volume*200, borderRadius:'50%', background:'rgba(232,101,46,0.08)', animation:'voicePulse 1s infinite' }} />
+                      <div style={{ position:'absolute', width:90+g.volume*150, height:90+g.volume*150, borderRadius:'50%', background:'rgba(232,101,46,0.12)' }} />
+                    </>
+                  )}
+                  {/* Center circle */}
+                  <div style={{
+                    width:80+g.volume*80, height:80+g.volume*80, borderRadius:'50%',
+                    background:`radial-gradient(circle, ${g.volume>0.3?'#66BB6A':g.volume>0.1?'#FFB74D':'#E0E0E0'}, ${g.volume>0.3?'#43A047':g.volume>0.1?'#E8652E':'#BDBDBD'})`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    transition:'all 0.1s',
+                    boxShadow: g.volume > 0.2 ? '0 0 30px rgba(232,101,46,0.3)' : 'none',
+                  }}>
+                    <span style={{ fontSize:36, color:'white' }}>
+                      {g.volume > 0.3 ? '📢' : g.volume > 0.1 ? '🗣️' : '🤫'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Volume meter */}
+                <VolumeMeter target={round.mode === 'target' ? cfg.volumeTarget : null} showTarget={round.mode === 'target' || round.mode === 'steps'} />
+
+                {/* Mode-specific UI */}
+                {round.mode === 'sustain' && (
+                  <div style={{ marginTop:16 }}>
+                    <div style={{ fontSize:22, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em' }}>
+                      「あーーー」
+                    </div>
+                    <div style={{ fontFamily:'Outfit', fontSize:32, fontWeight:900, color:'#555', marginTop:8 }}>
+                      {g.duration.toFixed(1)}<span style={{ fontSize:16 }}>秒</span>
+                    </div>
+                    <div style={{ fontSize:12, color:'#9E9E9E' }}>できるだけ長く！</div>
+                  </div>
+                )}
+
+                {round.mode === 'target' && (
+                  <div style={{ marginTop:16 }}>
+                    <div style={{ fontSize:16, fontWeight:700, color:g.targetReached?'#2E7D32':'#6B6B6B' }}>
+                      {g.targetReached ? '✅ 目標到達！キープして！' : '→ 目標ラインまで声を出そう'}
+                    </div>
+                    <div style={{ fontFamily:'Outfit', fontSize:28, fontWeight:900, color:'#555', marginTop:4 }}>
+                      {g.targetHeldTime.toFixed(1)} / {cfg.holdTime}<span style={{ fontSize:14 }}>秒</span>
+                    </div>
+                  </div>
+                )}
+
+                {round.mode === 'inflate' && (
+                  <div style={{ marginTop:12 }}>
+                    <div style={{ fontSize:16, fontWeight:700, color:'#6B6B6B', marginBottom:4 }}>声で風船をふくらませよう！</div>
+                    <div style={{ display:'flex', justifyContent:'center' }}>
+                      <div style={{ width:g.inflateSize*1.5+20, height:g.inflateSize*1.5+20, borderRadius:'50%', background:'linear-gradient(135deg,#FF7043,#E8652E)', transition:'all 0.15s', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                        <span style={{ fontSize:g.inflateSize*0.3+12, color:'white' }}>🎈</span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize:12, color:'#9E9E9E', marginTop:4 }}>{Math.round(g.inflateSize)}% / 80%</div>
+                  </div>
+                )}
+
+                {round.mode === 'steps' && (
+                  <div style={{ marginTop:12 }}>
+                    <div style={{ fontSize:16, fontWeight:700, color:'#6B6B6B', marginBottom:8 }}>3段階でだんだん大きく</div>
+                    <div style={{ display:'flex', justifyContent:'center', gap:12 }}>
+                      {['小', '中', '大'].map((label, i) => (
+                        <div key={i} style={{
+                          width:50+i*10, height:50+i*10, borderRadius:'50%',
+                          background: i < g.stepsCurrent ? '#66BB6A' : i === g.stepsCurrent ? '#FFB74D' : '#E8E8E8',
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          fontSize:14, fontWeight:900, color: i < g.stepsCurrent ? 'white' : '#999',
+                          transition:'all 0.3s',
+                        }}>
+                          {i < g.stepsCurrent ? '✓' : label}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Judging */}
+          {g.gamePhase === 'judging' && (() => {
+            const r = g.results[g.results.length - 1];
+            return (
+              <div style={{ textAlign:'center', padding:'40px 20px', animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ fontSize:48, marginBottom:12 }}>
+                  {r.result === 'great' ? '🎉' : r.result === 'good' ? '👍' : '🤔'}
+                </div>
+                <div style={{ fontSize:24, fontWeight:900, color:r.result==='great'?'#2E7D32':r.result==='good'?'#E8652E':'#999', letterSpacing:'0.06em' }}>
+                  {r.result === 'great' ? 'すばらしい！' : r.result === 'good' ? 'いい声！' : 'もっと大きく！'}
+                </div>
+              </div>
+            );
+          })()}
+
+          <div style={{ height:20 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const pct = total > 0 ? g.greatCount / total : 0;
+        const stars = pct >= 0.6 ? '⭐⭐⭐' : pct >= 0.3 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.6 ? '大きな声が出せました！' : pct >= 0.3 ? 'いい調子！' : 'もっと大きく！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', marginBottom:6, letterSpacing:'0.08em' }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:20 }}>
+              {[
+                {v:`🎉 ${g.greatCount}`,l:'すばらしい',c:'#2E7D32'},
+                {v:`👍 ${g.goodCount}`,l:'いい声',c:'#E8652E'},
+                {v:g.score+'pt',l:'スコア',c:'#555'},
+              ].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24, padding:'14px 16px', background:'#FAFAF8', border:'1px solid #E8E8E8', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6, letterSpacing:'0.05em' }}>💡 声のトレーニングのコツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+                「大きすぎるかな？」と思うくらいの声がちょうどいい大きさです。毎日少しずつ声を出す練習を続けることで、発声機能を維持・改善できます。お腹から声を出すイメージで、背筋をのばして発声するとより効果的です。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#E8652E', border:'none', padding:'16px 32px', borderRadius:60, letterSpacing:'0.06em'}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

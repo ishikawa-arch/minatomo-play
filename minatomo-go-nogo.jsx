@@ -1,0 +1,327 @@
+import { useState, useRef, useEffect } from "react";
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function makeTrials(mode, count, nogoRatio) {
+  const trials = [];
+  for (let i = 0; i < count; i++) {
+    const isNogo = Math.random() < nogoRatio;
+    if (mode === 'color') {
+      trials.push({ go:!isNogo, color:isNogo?'#E53935':'#43A047', shape:'circle' });
+    } else if (mode === 'shape') {
+      trials.push({ go:!isNogo, color:'#1E88E5', shape:isNogo?'cross':'circle' });
+    } else if (mode === 'emoji') {
+      const goPool = ['🐱','🐕','🐰','🐸','🐟'];
+      const noPool = ['🚗','🚌','🚲','✈️','🚃'];
+      trials.push({ go:!isNogo, emoji:(isNogo?noPool:goPool)[Math.floor(Math.random()*5)] });
+    } else {
+      const half = Math.floor(count / 2);
+      const rev = i >= half;
+      trials.push({ go:!isNogo, color:(rev?isNogo:!isNogo)?'#43A047':'#E53935', shape:'circle', reversed:rev });
+    }
+  }
+  return trials;
+}
+
+const MODES = {
+  color:{ label:'🎨 色で判断', rule:'🟢みどり → タップ！\n🔴あか → がまん！' },
+  shape:{ label:'⭕ 形で判断', rule:'○まる → タップ！\n✕ばつ → がまん！' },
+  emoji:{ label:'🐱 絵で判断', rule:'🐱どうぶつ → タップ！\n🚗のりもの → がまん！' },
+  reverse:{ label:'🔄 ルール反転', rule:'前半：🟢タップ 🔴がまん\n後半：ルールが逆に！' },
+};
+
+const DIFF = {
+  easy:  { label:'かんたん', emoji:'🌱', desc:'ゆっくり・色で判断', count:12, speed:2000, nogo:0.25, modes:['color'] },
+  normal:{ label:'ふつう', emoji:'🌿', desc:'ふつう・形と絵も', count:16, speed:1500, nogo:0.3, modes:['color','shape','emoji'] },
+  hard:  { label:'むずかしい', emoji:'🌳', desc:'速い・ルール反転', count:20, speed:1200, nogo:0.3, modes:['color','shape','emoji','reverse'] },
+};
+
+export default function GoNogo() {
+  const [screen, setScreen] = useState('menu');
+  const [difficulty, setDifficulty] = useState('normal');
+  const [, forceUpdate] = useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = useRef({
+    mode:'color', trials:[], idx:0, speed:1500,
+    phase:'blank', // blank, show, feedback
+    hits:0, misses:0, correct:0, falseAlarms:0,
+    rts:[], score:0, lastResult:null, tapped:false,
+    startTime:0, reverseSeen:false,
+    history:[],
+  }).current;
+
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const m = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+    g.mode = m;
+    g.trials = makeTrials(m, cfg.count, cfg.nogo);
+    g.speed = cfg.speed;
+    g.idx = 0;
+    g.hits = 0; g.misses = 0; g.correct = 0; g.falseAlarms = 0;
+    g.rts = []; g.score = 0; g.lastResult = null; g.tapped = false;
+    g.reverseSeen = false;
+    setScreen('rule');
+    rerender();
+  };
+
+  const beginPlay = () => {
+    g.phase = 'blank';
+    setScreen('play');
+    rerender();
+    timerRef.current = setTimeout(nextTrial, 600);
+  };
+
+  const nextTrial = () => {
+    if (g.idx >= g.trials.length) {
+      setScreen('result');
+      rerender();
+      return;
+    }
+    // Reverse check
+    const half = Math.floor(g.trials.length / 2);
+    if (g.mode === 'reverse' && g.idx === half && !g.reverseSeen) {
+      g.reverseSeen = true;
+      g.phase = 'reverse';
+      rerender();
+      return;
+    }
+    // Show stimulus
+    g.phase = 'show';
+    g.tapped = false;
+    g.lastResult = null;
+    g.startTime = Date.now();
+    rerender();
+    // Auto-timeout
+    timerRef.current = setTimeout(onTimeout, g.speed);
+  };
+
+  const onTimeout = () => {
+    if (g.tapped) return; // Already handled
+    const trial = g.trials[g.idx];
+    if (trial.go) {
+      g.misses++;
+      g.lastResult = 'miss';
+    } else {
+      g.correct++;
+      g.score += 5;
+      g.lastResult = 'correct-nogo';
+    }
+    g.phase = 'feedback';
+    g.idx++;
+    rerender();
+    timerRef.current = setTimeout(() => { g.phase = 'blank'; rerender(); timerRef.current = setTimeout(nextTrial, 400); }, 500);
+  };
+
+  const handleTap = () => {
+    if (g.phase !== 'show' || g.tapped) return;
+    clearTimeout(timerRef.current);
+    g.tapped = true;
+    const rt = Date.now() - g.startTime;
+    const trial = g.trials[g.idx];
+    if (trial.go) {
+      g.hits++;
+      g.rts.push(rt);
+      g.score += 10 + Math.max(0, Math.round((500 - rt) / 20));
+      g.lastResult = 'hit';
+    } else {
+      g.falseAlarms++;
+      g.lastResult = 'false-alarm';
+    }
+    g.phase = 'feedback';
+    g.idx++;
+    rerender();
+    timerRef.current = setTimeout(() => { g.phase = 'blank'; rerender(); timerRef.current = setTimeout(nextTrial, 400); }, 500);
+  };
+
+  const continueReverse = () => {
+    g.phase = 'blank';
+    rerender();
+    timerRef.current = setTimeout(nextTrial, 600);
+  };
+
+  const goMenu = () => { clearTimeout(timerRef.current); setScreen('menu'); rerender(); };
+
+  const cfg = DIFF[difficulty];
+  const trial = g.idx < g.trials.length ? g.trials[g.idx] : null;
+  const prevTrial = g.idx > 0 && g.idx <= g.trials.length ? g.trials[g.idx - 1] : null;
+  const totalGo = g.hits + g.misses;
+  const totalNogo = g.correct + g.falseAlarms;
+  const goPct = totalGo > 0 ? Math.round(g.hits / totalGo * 100) : 0;
+  const nogoPct = totalNogo > 0 ? Math.round(g.correct / totalNogo * 100) : 0;
+  const avgRT = g.rts.length > 0 ? Math.round(g.rts.reduce((a,b) => a+b, 0) / g.rts.length) : 0;
+
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const Stim = ({ t }) => {
+    if (!t) return null;
+    if (t.emoji) return <span style={{ fontSize:80 }}>{t.emoji}</span>;
+    if (t.shape === 'cross') return (
+      <div style={{ position:'relative', width:100, height:100 }}>
+        <div style={{ position:'absolute', width:20, height:85, background:t.color, borderRadius:6, left:'50%', top:'50%', transform:'translate(-50%,-50%) rotate(45deg)' }} />
+        <div style={{ position:'absolute', width:20, height:85, background:t.color, borderRadius:6, left:'50%', top:'50%', transform:'translate(-50%,-50%) rotate(-45deg)' }} />
+      </div>
+    );
+    return <div style={{ width:100, height:100, borderRadius:'50%', background:t.color }} />;
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'menu' && <button onClick={goMenu} style={{...bs, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🎯 反応スイッチ</span>
+        </div>
+      </div>
+
+      {/* MENU */}
+      {screen === 'menu' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 3s ease-in-out infinite' }}>🎯</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:6 }}>反応スイッチ</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.9 }}>押す？がまん？<br/>すばやく判断しよう！</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:28, background:'#F5F5F0', padding:'10px 18px', borderRadius:12 }}>🧠 抑制制御・反応速度のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'20px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', lineHeight:2.2 }}>① 画面に何かが現れます<br/>② 「押すもの」→ すばやくタップ！<br/>③ 「押さないもの」→ がまん！<br/>④ 反応の速さと正確さで判定</div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            {Object.entries(DIFF).map(([k,d]) => (
+              <button key={k} onClick={() => startGame(k)} style={{...bs, width:'100%', fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'2px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left', marginBottom:10}}>
+                <span style={{ fontSize:26 }}>{d.emoji}</span>
+                <div><div style={{ fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* RULE */}
+      {screen === 'rule' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', background:'#FFF3E0', padding:'6px 18px', borderRadius:50, marginBottom:16 }}>
+            {MODES[g.mode]?.label}
+          </span>
+          <div style={{ background:'white', borderRadius:18, padding:'28px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginBottom:20, maxWidth:400, width:'100%' }}>
+            <div style={{ fontSize:20, fontWeight:900, whiteSpace:'pre-line', lineHeight:2.2 }}>{MODES[g.mode]?.rule}</div>
+          </div>
+          <div style={{ fontSize:14, color:'#9E9E9E', marginBottom:20 }}>{g.trials.length}問</div>
+          <button onClick={beginPlay} style={{...bs, fontSize:20, fontWeight:700, padding:'18px 48px', borderRadius:60, background:'#E8652E', border:'none', color:'white'}}>スタート！</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && g.phase !== 'reverse' && (
+        <div style={{ padding:'0 16px', maxWidth:580, margin:'0 auto' }}>
+          <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderRadius:'0 0 12px 12px', marginBottom:6 }}>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#555' }}>{g.score}pt</div><div style={{ fontSize:9, color:'#9E9E9E' }}>スコア</div></div>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#555' }}>{g.idx}/{g.trials.length}</div><div style={{ fontSize:9, color:'#9E9E9E' }}>試行</div></div>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#C62828' }}>⚠️{g.falseAlarms}</div><div style={{ fontSize:9, color:'#9E9E9E' }}>お手つき</div></div>
+          </div>
+
+          <div style={{ width:'100%', height:4, background:'#E8E8E8', borderRadius:2, marginBottom:10, overflow:'hidden' }}>
+            <div style={{ width:`${g.trials.length>0?(g.idx/g.trials.length*100):0}%`, height:'100%', background:'#E8652E', transition:'width 0.3s' }} />
+          </div>
+
+          <div style={{ textAlign:'center', marginBottom:8 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'#9E9E9E', background:'#F5F5F0', padding:'3px 12px', borderRadius:50 }}>{MODES[g.mode]?.label}</span>
+          </div>
+
+          <button onMouseDown={handleTap} onTouchStart={(e)=>{e.preventDefault();handleTap();}}
+            style={{...bs, width:'100%', height:280, borderRadius:24,
+              background: g.phase==='feedback'?(g.lastResult==='hit'?'#F1F8E9':g.lastResult==='correct-nogo'?'#E3F2FD':g.lastResult==='false-alarm'?'#FFF5F5':'#FFF3E0'):'white',
+              border:'2px solid #E8E8E8', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8,
+              userSelect:'none', WebkitUserSelect:'none'}}>
+
+            {g.phase === 'show' && trial && <div style={{ animation:'pop 0.2s ease-out' }}><Stim t={trial} /></div>}
+            {g.phase === 'blank' && <span style={{ fontSize:40, color:'#E0E0E0' }}>＋</span>}
+            {g.phase === 'feedback' && (
+              <div style={{ animation:'fadeUp 0.2s ease-out', textAlign:'center' }}>
+                {g.lastResult === 'hit' && <div style={{ fontSize:28, fontWeight:900, color:'#2E7D32' }}>⭕ {g.rts.length>0&&<span style={{fontFamily:'Outfit'}}>{g.rts[g.rts.length-1]}ms</span>}</div>}
+                {g.lastResult === 'correct-nogo' && <div style={{ fontSize:28, fontWeight:900, color:'#1E88E5' }}>✋ がまん成功！</div>}
+                {g.lastResult === 'false-alarm' && <div style={{ fontSize:28, fontWeight:900, color:'#C62828' }}>❌ お手つき！</div>}
+                {g.lastResult === 'miss' && <div style={{ fontSize:28, fontWeight:900, color:'#999' }}>⏰ 遅い！</div>}
+              </div>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* REVERSE */}
+      {screen === 'play' && g.phase === 'reverse' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:48, marginBottom:12 }}>🔄</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#C62828', marginBottom:12 }}>ルール反転！</div>
+          <div style={{ background:'#FFF5F5', borderRadius:16, padding:'20px', marginBottom:20, border:'2px solid #FFCDD2', maxWidth:400, width:'100%' }}>
+            <div style={{ fontSize:20, fontWeight:900, lineHeight:2.2 }}>🔴あか → タップ！<br/>🟢みどり → がまん！</div>
+            <div style={{ fontSize:14, color:'#C62828', fontWeight:700, marginTop:8 }}>さっきと逆！</div>
+          </div>
+          <button onClick={continueReverse} style={{...bs, fontSize:18, fontWeight:700, padding:'16px 40px', borderRadius:60, background:'#C62828', border:'none', color:'white'}}>OK！続ける</button>
+        </div>
+      )}
+
+      {/* RESULT */}
+      {screen === 'result' && (() => {
+        const combined = Math.round(goPct * 0.4 + nogoPct * 0.6);
+        const stars = combined >= 80 ? '⭐⭐⭐' : combined >= 50 ? '⭐⭐' : '⭐';
+        const msg = combined >= 80 ? 'がまん名人！' : combined >= 50 ? 'いい調子！' : 'もっと練習！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', marginBottom:6, letterSpacing:'0.08em' }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}・{MODES[g.mode]?.label}</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14, width:'100%', maxWidth:320, marginBottom:16 }}>
+              {[{v:`${goPct}%`,l:'⭕ 反応成功率',c:'#2E7D32'},{v:`${nogoPct}%`,l:'✋ がまん成功率',c:'#1E88E5'}].map((x,i) => (
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:x.c }}>{x.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{x.l}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, width:'100%', maxWidth:320, marginBottom:20 }}>
+              {[{v:`${avgRT}ms`,l:'平均反応'},{v:`⚠️${g.falseAlarms}`,l:'お手つき'},{v:`${g.score}pt`,l:'スコア'}].map((x,i) => (
+                <div key={i} style={{ background:'white', borderRadius:12, padding:'10px 6px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#555' }}>{x.v}</div>
+                  <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{x.l}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24, padding:'14px 16px', background:'#FAFAF8', border:'1px solid #E8E8E8', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 コツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.9 }}>「押す」よりも「がまん」の方が難しいのが普通です。がまんできた＝脳の抑制機能が働いている証拠。速く反応しつつお手つきを減らすバランスが大切です。</div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...bs, fontSize:16, fontWeight:700, color:'white', background:'#E8652E', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goMenu} style={{...bs, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>おぼえておえて | みなともPlay</title>
+<meta name="description" content="伝言を正確に思い出す - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+// Message templates with extractable details
+const MESSAGES = [
+  {
+    text: (d) => `${d.name}が${d.time}に${d.place}で${d.event}があると言っていました。${d.item}を持ってきてほしいそうです。`,
+    details: [
+      { key:'name', q:'誰が言っていた？', pool:['田中さん','鈴木さん','佐藤さん','山田さん','中村さん','小林さん','加藤さん','吉田さん'] },
+      { key:'time', q:'何時？', pool:['9時','10時','11時','13時','14時','15時','16時','3時半'] },
+      { key:'place', q:'どこで？', pool:['公民館','体育館','会議室','教室','ホール','図書館','病院','公園'] },
+      { key:'event', q:'何がある？', pool:['会議','体操教室','お茶会','誕生日会','勉強会','説明会','歓迎会','練習'] },
+      { key:'item', q:'何を持っていく？', pool:['お弁当','スリッパ','筆記用具','タオル','水筒','カメラ','お菓子','資料'] },
+    ],
+  },
+  {
+    text: (d) => `きょうの${d.time}に${d.name}が${d.place}に来ます。${d.purpose}の用事で、${d.duration}くらいかかるそうです。`,
+    details: [
+      { key:'name', q:'誰が来る？', pool:['山本さん','松本さん','井上さん','木村さん','林さん','渡辺さん','伊藤さん','高橋さん'] },
+      { key:'time', q:'何時に来る？', pool:['10時','11時','13時','14時','15時','午前中','午後','夕方'] },
+      { key:'place', q:'どこに来る？', pool:['自宅','事務所','お店','病院','学校','駅','役所','銀行'] },
+      { key:'purpose', q:'何の用事？', pool:['書類の受け渡し','打ち合わせ','修理','見積もり','あいさつ','届けもの','点検','相談'] },
+      { key:'duration', q:'どれくらいかかる？', pool:['30分','1時間','2時間','15分','半日','1時間半','45分','20分'] },
+    ],
+  },
+  {
+    text: (d) => `${d.place}の${d.name}から電話がありました。${d.day}の${d.time}に予約を${d.action}してほしいとのことです。`,
+    details: [
+      { key:'place', q:'どこから電話？', pool:['病院','歯医者','美容院','市役所','銀行','薬局','整骨院','眼科'] },
+      { key:'name', q:'担当者の名前は？', pool:['石川さん','田村さん','中島さん','藤田さん','坂本さん','森さん','岡田さん','前田さん'] },
+      { key:'day', q:'いつ？', pool:['あした','あさって','来週の月曜','来週の水曜','今週の金曜','来月3日','15日','20日'] },
+      { key:'time', q:'何時？', pool:['9時','9時半','10時','11時','13時','14時','15時','16時'] },
+      { key:'action', q:'予約をどうする？', pool:['変更','キャンセル','確認','追加','取り直し','前倒し','延期','入れ直し'] },
+    ],
+  },
+  {
+    text: (d) => `${d.event}のお知らせです。${d.day}の${d.time}から${d.place}で行います。${d.item}を忘れずにお持ちください。`,
+    details: [
+      { key:'event', q:'何のお知らせ？', pool:['防災訓練','健康診断','町内会','お花見','運動会','清掃活動','夏祭り','もちつき大会'] },
+      { key:'day', q:'いつ？', pool:['今週の土曜','来週の日曜','来月1日','10月15日','3月20日','次の祝日','再来週','今月末'] },
+      { key:'time', q:'何時から？', pool:['朝8時','9時','10時','午前10時半','午後1時','午後2時','朝9時半','午前中'] },
+      { key:'place', q:'どこで？', pool:['公民館','小学校','公園','神社','町内会館','グラウンド','体育館','市民センター'] },
+      { key:'item', q:'何を持っていく？', pool:['軍手','帽子','長靴','ゴミ袋','飲み物','お弁当','レジャーシート','雨具'] },
+    ],
+  },
+  {
+    text: (d) => `${d.name}に${d.item}を${d.count}届けてください。${d.place}の${d.location}に置いてあります。`,
+    details: [
+      { key:'name', q:'誰に届ける？', pool:['佐々木さん','高橋さん','三浦さん','池田さん','橋本さん','阿部さん','石井さん','山口さん'] },
+      { key:'item', q:'何を届ける？', pool:['書類','荷物','お弁当','お薬','本','カギ','お花','手紙'] },
+      { key:'count', q:'いくつ？', pool:['1つ','2つ','3つ','5個','1箱','2袋','3冊','1束'] },
+      { key:'place', q:'どこにある？', pool:['玄関','台所','事務所','2階','ロッカー','棚の上','冷蔵庫','受付'] },
+      { key:'location', q:'詳しい場所は？', pool:['右側','左の棚','奥の方','手前','上から2番目','入口の横','テーブルの上','窓際'] },
+    ],
+  },
+];
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'3つの質問・ゆっくり', qCount:3, viewTime:15, rounds:4 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'4つの質問', qCount:4, viewTime:12, rounds:4 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'5つの質問・短い時間', qCount:5, viewTime:10, rounds:4 },
+};
+
+function generateRound(diff) {
+  const cfg = DIFF[diff];
+  const template = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+  // Pick random values for each detail
+  const values = {};
+  const questions = [];
+  const selectedDetails = shuffle([...template.details]).slice(0, cfg.qCount);
+  
+  // Fill ALL details (for message text), not just selected ones
+  template.details.forEach(d => {
+    values[d.key] = d.pool[Math.floor(Math.random() * d.pool.length)];
+  });
+
+  // Build questions from selected details
+  selectedDetails.forEach(d => {
+    const correct = values[d.key];
+    const wrongs = shuffle(d.pool.filter(v => v !== correct)).slice(0, 3);
+    questions.push({
+      question: d.q,
+      answer: correct,
+      opts: shuffle([correct, ...wrongs]),
+    });
+  });
+
+  const message = template.text(values);
+  return { message, questions, values };
+}
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    rounds: [],
+    currentR: 0,
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    perfectRounds: 0,
+    selected: null,
+    feedback: null,
+    roundCorrect: 0,
+    results: [],
+    viewTimeLeft: 0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => { clearInterval(timerRef.current); clearTimeout(timerRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff));
+    g.rounds = rounds;
+    g.currentR = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.perfectRounds = 0;
+    g.results = [];
+    setShowConfetti(false);
+    setScreen('game');
+    startRound(0, diff);
+  };
+
+  const startRound = (idx, diff) => {
+    const cfg = DIFF[diff || difficulty];
+    g.currentR = idx;
+    g.currentQ = 0;
+    g.selected = null;
+    g.feedback = null;
+    g.roundCorrect = 0;
+    g.viewTimeLeft = cfg.viewTime;
+    g.phase = 'viewing';
+    rerender();
+
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      g.viewTimeLeft--;
+      rerender();
+      if (g.viewTimeLeft <= 0) {
+        clearInterval(timerRef.current);
+        g.phase = 'questioning';
+        rerender();
+      }
+    }, 1000);
+  };
+
+  const skipToQuestions = () => {
+    clearInterval(timerRef.current);
+    g.phase = 'questioning';
+    rerender();
+  };
+
+  const handleAnswer = (opt) => {
+    if (g.selected !== null) return;
+    const round = g.rounds[g.currentR];
+    const q = round.questions[g.currentQ];
+    g.selected = opt;
+    const isCorrect = opt === q.answer;
+
+    if (isCorrect) {
+      g.score += 10;
+      g.correct++;
+      g.roundCorrect++;
+      g.feedback = 'correct';
+    } else {
+      g.feedback = 'wrong';
+    }
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.selected = null;
+      g.feedback = null;
+      g.currentQ++;
+      if (g.currentQ >= round.questions.length) {
+        const perfect = g.roundCorrect === round.questions.length;
+        if (perfect) { g.perfectRounds++; g.score += 15; }
+        g.results.push({
+          round,
+          roundCorrect: g.roundCorrect,
+          roundTotal: round.questions.length,
+          perfect,
+        });
+        g.phase = 'round-end';
+      }
+      rerender();
+    }, isCorrect ? 600 : 1500);
+  };
+
+  const nextRound = () => {
+    if (g.currentR + 1 >= g.rounds.length) finishGame();
+    else startRound(g.currentR + 1, difficulty);
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.perfectRounds / g.rounds.length;
+    if (pct >= 0.5) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.perfectRounds, total: g.rounds.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearInterval(timerRef.current); clearTimeout(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🧠 おぼえておえて</span>
+        </div>
+        {screen === 'game' && g.phase !== 'idle' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🧠</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>おぼえておえて</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>伝言やお知らせの内容を<br/>正確に覚えよう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 言語記憶・伝達力のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 伝言メッセージが表示されます<br/>
+              ② 誰が・いつ・どこで・何を、など覚える<br/>
+              ③ メッセージが消えた後、質問に答える<br/>
+              ④ 正確に覚えていたら正解！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'14px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>💡 日常のこんな場面で役立ちます</div>
+            <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.8, textAlign:'left' }}>
+              電話の伝言を聞いて家族に伝える、病院の予約を覚える、回覧板の内容を把握する…<br/>
+              日常生活で「覚えて伝える」力を鍛えましょう！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}パーフェクト</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 12px 12px', marginBottom:8 }}>
+              {[{v:g.score,l:'スコア',c:'#FF6B35'},{v:g.correct+'/'+g.results.reduce((s,r)=>s+r.roundTotal,0)+(g.phase==='questioning'?'+'+g.currentQ:0),l:'正解',c:'#2EC4B6'},{v:(g.currentR+1)+'/'+g.rounds.length,l:'ラウンド',c:'#7B1FA2'}].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Progress */}
+          {g.phase !== 'idle' && (
+            <div style={{ display:'flex', gap:3, marginBottom:8 }}>
+              {g.rounds.map((_,i) => (
+                <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i < g.results.length ? (g.results[i].perfect ? '#66BB6A' : '#EF5350') : i === g.currentR ? '#FFB74D' : '#E8E8E8' }} />
+              ))}
+            </div>
+          )}
+
+          {/* VIEWING */}
+          {g.phase === 'viewing' && (() => {
+            const round = g.rounds[g.currentR];
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#FF6B35' }}>📩 しっかり覚えてね</span>
+                  <span style={{ fontFamily:'Outfit', fontSize:20, fontWeight:800, color:g.viewTimeLeft<=3?'#E53935':'#FF6B35', animation:g.viewTimeLeft<=3?'pulse 0.5s infinite':undefined }}>{g.viewTimeLeft}秒</span>
+                </div>
+                <div style={{ width:'100%', height:5, background:'#E8E8E8', borderRadius:3, marginBottom:12, overflow:'hidden' }}>
+                  <div style={{ width:(g.viewTimeLeft/cfg.viewTime*100)+'%', height:'100%', background:g.viewTimeLeft<=3?'#E53935':'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius:3, transition:'width 1s linear' }} />
+                </div>
+
+                <div style={{ background:'white', borderRadius:16, padding:'20px', boxShadow:'0 4px 20px rgba(0,0,0,0.08)', border:'2px solid #E3F2FD' }}>
+                  <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+                    <span style={{ fontSize:28, flexShrink:0 }}>💬</span>
+                    <div style={{ fontSize:16, color:'#2D2D2D', lineHeight:2, fontWeight:500 }}>
+                      {round.message}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ textAlign:'center', marginTop:10, fontSize:11, color:'#9E9E9E' }}>
+                  この後、内容について{round.questions.length}問の質問があります
+                </div>
+
+                <button onClick={skipToQuestions} style={{...btnBase, marginTop:10, width:'100%', fontSize:14, fontWeight:700, padding:'12px', borderRadius:50, border:'2px solid #E0E0E0', background:'white', color:'#6B6B6B'}}>
+                  覚えた！質問へ →
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* QUESTIONING */}
+          {g.phase === 'questioning' && (() => {
+            const round = g.rounds[g.currentR];
+            const q = round.questions[g.currentQ];
+            if (!q) return null;
+            const answered = g.selected !== null;
+
+            return (
+              <div style={{ animation:'fadeUp 0.3s ease-out' }} key={`${g.currentR}-${g.currentQ}`}>
+                {/* Question progress */}
+                <div style={{ display:'flex', gap:4, marginBottom:10, justifyContent:'center' }}>
+                  {round.questions.map((_, i) => (
+                    <div key={i} style={{ width:28, height:6, borderRadius:3, background: i < g.currentQ ? '#66BB6A' : i === g.currentQ ? '#FF6B35' : '#E0E0E0' }} />
+                  ))}
+                </div>
+
+                <div style={{ textAlign:'center', marginBottom:8 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:'#7B1FA2', background:'#F3E5F5', padding:'5px 14px', borderRadius:50 }}>
+                    質問 {g.currentQ + 1} / {round.questions.length}
+                  </span>
+                </div>
+
+                <div style={{ background:'white', borderRadius:18, padding:'24px 18px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', marginBottom:14, textAlign:'center' }}>
+                  <div style={{ fontSize:22, fontWeight:900, color:'#2D2D2D' }}>{q.question}</div>
+                </div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                  {q.opts.map((opt, i) => {
+                    const isSelected = g.selected === opt;
+                    const isCorrect = opt === q.answer;
+                    return (
+                      <button key={i} onClick={() => handleAnswer(opt)} disabled={answered}
+                        style={{
+                          ...btnBase, fontSize:18, fontWeight:700, padding:'18px 12px', borderRadius:14, textAlign:'center',
+                          border:`3px solid ${answered&&isCorrect?'#66BB6A':answered&&isSelected&&!isCorrect?'#EF5350':'#E8E8E8'}`,
+                          background:answered&&isCorrect?'#E8F5E9':answered&&isSelected&&!isCorrect?'#FFEBEE':'white',
+                          opacity:answered&&!isCorrect&&!isSelected?0.3:1,
+                          color:answered&&isCorrect?'#2E7D32':answered&&isSelected&&!isCorrect?'#C62828':'#2D2D2D',
+                        }}>
+                        {opt} {answered && isCorrect ? '✅' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {g.feedback === 'wrong' && (
+                  <div style={{ textAlign:'center', marginTop:10, fontSize:16, fontWeight:700, color:'#C62828', animation:'fadeUp 0.2s ease-out' }}>
+                    ❌ 正解は「{q.answer}」
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ROUND END */}
+          {g.phase === 'round-end' && (() => {
+            const result = g.results[g.results.length - 1];
+            const round = result.round;
+
+            return (
+              <div style={{ animation:'fadeUp 0.4s ease-out' }}>
+                <div style={{ textAlign:'center', marginBottom:14 }}>
+                  <div style={{ fontSize:42, marginBottom:6 }}>{result.perfect ? '🎉' : '🤔'}</div>
+                  <div style={{ fontSize:20, fontWeight:900, color:result.perfect?'#2E7D32':'#E65100' }}>
+                    {result.perfect ? 'パーフェクト！' : `${result.roundCorrect}/${result.roundTotal}問 正解`}
+                  </div>
+                </div>
+
+                {/* Show original message */}
+                <div style={{ background:'#E3F2FD', borderRadius:14, padding:'14px 16px', marginBottom:10, border:'1px solid #BBDEFB' }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'#1565C0', marginBottom:6 }}>💬 元のメッセージ</div>
+                  <div style={{ fontSize:13, color:'#2D2D2D', lineHeight:1.8 }}>{round.message}</div>
+                </div>
+
+                <button onClick={nextRound} style={{...btnBase, width:'100%', fontSize:15, fontWeight:700, padding:'14px', borderRadius:50, background:result.perfect?'#66BB6A':'#FF6B35', border:'none', color:'white'}}>
+                  {g.currentR+1 >= g.rounds.length ? '結果を見る →' : '次の伝言へ →'}
+                </button>
+              </div>
+            );
+          })()}
+
+          <div style={{ height:16 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.rounds.length;
+        const totalQ = g.results.reduce((s,r) => s + r.roundTotal, 0);
+        const pct = totalQ > 0 ? g.correct / totalQ : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? '伝言マスター！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4 }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24 }}>
+              {[{v:`${g.perfectRounds}/${total}`,l:'パーフェクト'},{v:`${g.correct}/${totalQ}`,l:'正解数'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Review */}
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 結果の振り返り</div>
+              {g.results.map((r, i) => (
+                <div key={i} style={{ background:r.perfect?'#F1F8E9':'#FFF3E0', borderRadius:12, padding:'10px 14px', marginBottom:6, borderLeft:`4px solid ${r.perfect?'#66BB6A':'#FF6B35'}`, textAlign:'left' }}>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:4 }}>
+                    {r.perfect ? '✅' : '❌'} ラウンド{i+1} — {r.roundCorrect}/{r.roundTotal}問正解
+                  </div>
+                  <div style={{ fontSize:11, color:'#6B6B6B', lineHeight:1.6 }}>
+                    {r.round.message.slice(0, 40)}…
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 覚えるコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>
+                「誰が・いつ・どこで・何を・どうする」の5W1Hに整理しながら読むと覚えやすくなります。頭の中で場面をイメージするのも効果的です。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

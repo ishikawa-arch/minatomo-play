@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>ことわづくり | みなともPlay</title>
+<meta name="description" content="ことわざ・慣用句・反対語 - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+// ことわざ - tricky wrong answers
+const PROVERBS = [
+  { first:'七転び', answer:'八起き', wrongs:['七起き','九起き','八転び'] },
+  { first:'石の上にも', answer:'三年', wrongs:['三日','三月','十年'] },
+  { first:'花より', answer:'だんご', wrongs:['さくら','はな見','月見'] },
+  { first:'猿も木から', answer:'落ちる', wrongs:['登る','降りる','滑る'] },
+  { first:'急がば', answer:'まわれ', wrongs:['走れ','止まれ','急げ'] },
+  { first:'塵も積もれば', answer:'山となる', wrongs:['丘となる','土となる','石となる'] },
+  { first:'百聞は', answer:'一見にしかず', wrongs:['百見にしかず','一聞にしかず','十見にしかず'] },
+  { first:'継続は', answer:'力なり', wrongs:['宝なり','徳なり','金なり'] },
+  { first:'笑う門には', answer:'福来る', wrongs:['福来ず','運来る','神来る'] },
+  { first:'早起きは', answer:'三文の得', wrongs:['三文の損','一文の得','百文の得'] },
+  { first:'転ばぬ先の', answer:'つえ', wrongs:['くつ','石','道'] },
+  { first:'三つ子の魂', answer:'百まで', wrongs:['千まで','一生','十まで'] },
+  { first:'灯台もと', answer:'暗し', wrongs:['明るし','広し','近し'] },
+  { first:'良薬は', answer:'口に苦し', wrongs:['口に甘し','体に良し','目に見えず'] },
+  { first:'論より', answer:'証拠', wrongs:['行動','実力','理屈'] },
+  { first:'雨降って', answer:'地固まる', wrongs:['地緩む','川流れる','虹出る'] },
+  { first:'一寸先は', answer:'闇', wrongs:['光','霧','道'] },
+  { first:'弘法にも', answer:'筆の誤り', wrongs:['墨の誤り','紙の誤り','字の誤り'] },
+  { first:'能ある鷹は', answer:'爪を隠す', wrongs:['羽を隠す','声を隠す','巣を隠す'] },
+  { first:'棚から', answer:'ぼたもち', wrongs:['おはぎ','おもち','まんじゅう'] },
+  { first:'二階から', answer:'目薬', wrongs:['水薬','塗り薬','粉薬'] },
+  { first:'馬の耳に', answer:'念仏', wrongs:['読経','説教','お経'] },
+  { first:'鬼に', answer:'金棒', wrongs:['鉄棒','木棒','銀棒'] },
+  { first:'井の中の蛙', answer:'大海を知らず', wrongs:['空を知らず','山を知らず','川を知らず'] },
+];
+
+// 慣用句 - body part idioms
+const IDIOMS = [
+  { phrase:'目が＿＿', answer:'回る', wrongs:['揺れる','走る','泳ぐ'], meaning:'忙しい' },
+  { phrase:'手を＿＿', answer:'焼く', wrongs:['炙る','煮る','炒める'], meaning:'困る' },
+  { phrase:'腰が＿＿', answer:'重い', wrongs:['固い','鈍い','強い'], meaning:'なかなか動かない' },
+  { phrase:'頭が＿＿', answer:'固い', wrongs:['重い','鈍い','硬い'], meaning:'考えが柔軟でない' },
+  { phrase:'耳が＿＿', answer:'痛い', wrongs:['辛い','苦い','熱い'], meaning:'聞きたくない' },
+  { phrase:'口が＿＿', answer:'軽い', wrongs:['早い','薄い','甘い'], meaning:'秘密を守れない' },
+  { phrase:'足を＿＿', answer:'引っ張る', wrongs:['引きずる','踏む','掴む'], meaning:'邪魔をする' },
+  { phrase:'顔が＿＿', answer:'広い', wrongs:['大きい','明るい','長い'], meaning:'知り合いが多い' },
+  { phrase:'首を＿＿して待つ', answer:'長く', wrongs:['伸ばして','回して','傾けて'], meaning:'楽しみに待つ' },
+  { phrase:'腕を＿＿', answer:'磨く', wrongs:['鍛える','伸ばす','振るう'], meaning:'技術を上げる' },
+  { phrase:'目を＿＿くする', answer:'丸', wrongs:['大き','白','細'], meaning:'驚く' },
+  { phrase:'鼻が＿＿', answer:'高い', wrongs:['大きい','長い','広い'], meaning:'得意になる' },
+  { phrase:'肩を＿＿べる', answer:'並', wrongs:['重ね','組み合わせ','合わせ'], meaning:'対等になる' },
+  { phrase:'胸を＿＿おろす', answer:'なで', wrongs:['押し','引き','叩き'], meaning:'安心する' },
+  { phrase:'舌を＿＿', answer:'巻く', wrongs:['打つ','回す','振る'], meaning:'大変驚く' },
+  { phrase:'骨を＿＿', answer:'折る', wrongs:['砕く','削る','割る'], meaning:'苦労する' },
+];
+
+// 穴埋め - harder
+const BLANKS = [
+  { sentence:'お正月には＿＿＿を食べます', answer:'おもち', wrongs:['おせち','ケーキ','チョコ'] },
+  { sentence:'手を＿＿＿してからご飯を食べましょう', answer:'洗って', wrongs:['拭いて','振って','叩いて'] },
+  { sentence:'春になると＿＿＿が咲きます', answer:'桜', wrongs:['梅','菊','藤'] },
+  { sentence:'＿＿＿を見て道を渡りましょう', answer:'信号', wrongs:['標識','地図','看板'] },
+  { sentence:'風邪をひいたら＿＿＿で休みましょう', answer:'布団', wrongs:['椅子','ソファ','廊下'] },
+  { sentence:'ご飯のあとは＿＿＿を磨きましょう', answer:'歯', wrongs:['爪','顔','髪'] },
+  { sentence:'雨の日は＿＿＿を持っていきましょう', answer:'傘', wrongs:['帽子','靴','鍵'] },
+  { sentence:'七夕に＿＿＿に願いを書きます', answer:'短冊', wrongs:['手紙','日記','はがき'] },
+  { sentence:'節分には＿＿＿をまきます', answer:'豆', wrongs:['米','塩','砂'] },
+  { sentence:'お盆には＿＿＿が帰ってくると言います', answer:'ご先祖', wrongs:['友人','子供','隣人'] },
+  { sentence:'年越しには＿＿＿を食べます', answer:'そば', wrongs:['うどん','ラーメン','パスタ'] },
+  { sentence:'暑い日には＿＿＿をたくさん飲みましょう', answer:'水分', wrongs:['空気','食事','薬'] },
+  { sentence:'＿＿＿が降ると洗濯物が乾きません', answer:'雨', wrongs:['雪','霜','露'] },
+  { sentence:'秋には＿＿＿が赤く色づきます', answer:'紅葉', wrongs:['桜','梅','藤'] },
+];
+
+// 反対語 - harder pairs
+const OPPOSITES = [
+  { word:'大きい', answer:'小さい', wrongs:['少ない','短い','細い'] },
+  { word:'暑い', answer:'寒い', wrongs:['冷たい','涼しい','ぬるい'] },
+  { word:'明るい', answer:'暗い', wrongs:['眩しい','薄暗い','曇り'] },
+  { word:'高い', answer:'低い', wrongs:['安い','浅い','短い'] },
+  { word:'速い', answer:'遅い', wrongs:['鈍い','緩い','長い'] },
+  { word:'広い', answer:'狭い', wrongs:['短い','薄い','浅い'] },
+  { word:'新しい', answer:'古い', wrongs:['幼い','昔','旧い'] },
+  { word:'長い', answer:'短い', wrongs:['狭い','細い','薄い'] },
+  { word:'深い', answer:'浅い', wrongs:['低い','薄い','軽い'] },
+  { word:'太い', answer:'細い', wrongs:['薄い','軽い','狭い'] },
+  { word:'固い', answer:'柔らかい', wrongs:['緩い','脆い','弱い'] },
+  { word:'甘い', answer:'苦い', wrongs:['辛い','酸っぱい','渋い'] },
+  { word:'豊か', answer:'貧しい', wrongs:['乏しい','寂しい','虚しい'] },
+  { word:'得意', answer:'苦手', wrongs:['不得意','下手','嫌い'] },
+  { word:'丁寧', answer:'雑', wrongs:['粗い','荒い','乱暴'] },
+  { word:'勤勉', answer:'怠惰', wrongs:['怠慢','不真面目','不勉強'] },
+];
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'穴埋め・反対語（基本）', rounds:12, modes:['blank','opposite'], timeLimit:0 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'ことわざ・慣用句も登場', rounds:14, modes:['proverb','blank','opposite','idiom'], timeLimit:0 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'全モード・超紛らわしい・4秒', rounds:16, modes:['proverb','blank','opposite','idiom'], timeLimit:4 },
+};
+
+function generateQ(diff, usedSets) {
+  const cfg = DIFF[diff];
+  const mode = cfg.modes[Math.floor(Math.random() * cfg.modes.length)];
+
+  if (mode === 'proverb') {
+    const pool = PROVERBS.filter(p => !usedSets.proverb.has(p.first));
+    if (pool.length === 0) usedSets.proverb.clear();
+    const src = pool.length > 0 ? pool : PROVERBS;
+    const p = src[Math.floor(Math.random() * src.length)];
+    usedSets.proverb.add(p.first);
+    return { mode:'proverb', question:`「${p.first}＿＿＿」`, answer:p.answer, opts:shuffle([p.answer,...p.wrongs]) };
+  }
+  if (mode === 'idiom') {
+    const pool = IDIOMS.filter(p => !usedSets.idiom.has(p.phrase));
+    if (pool.length === 0) usedSets.idiom.clear();
+    const src = pool.length > 0 ? pool : IDIOMS;
+    const p = src[Math.floor(Math.random() * src.length)];
+    usedSets.idiom.add(p.phrase);
+    return { mode:'idiom', question:`「${p.phrase}」`, answer:p.answer, opts:shuffle([p.answer,...p.wrongs]), meaning:p.meaning };
+  }
+  if (mode === 'blank') {
+    const pool = BLANKS.filter(b => !usedSets.blank.has(b.sentence));
+    if (pool.length === 0) usedSets.blank.clear();
+    const src = pool.length > 0 ? pool : BLANKS;
+    const b = src[Math.floor(Math.random() * src.length)];
+    usedSets.blank.add(b.sentence);
+    return { mode:'blank', question:b.sentence, answer:b.answer, opts:shuffle([b.answer,...b.wrongs]) };
+  }
+  if (mode === 'opposite') {
+    const pool = OPPOSITES.filter(o => !usedSets.opposite.has(o.word));
+    if (pool.length === 0) usedSets.opposite.clear();
+    const src = pool.length > 0 ? pool : OPPOSITES;
+    const o = src[Math.floor(Math.random() * src.length)];
+    usedSets.opposite.add(o.word);
+    return { mode:'opposite', question:`「${o.word}」の反対は？`, answer:o.answer, opts:shuffle([o.answer,...o.wrongs]) };
+  }
+  return generateQ(diff, usedSets);
+}
+
+const MODE_LABELS = {
+  proverb: { icon:'📜', name:'ことわざ', color:'#7B1FA2', bg:'#F3E5F5' },
+  idiom: { icon:'🗣️', name:'慣用句', color:'#E65100', bg:'#FFF3E0' },
+  blank: { icon:'✏️', name:'穴埋め', color:'#1E88E5', bg:'#E3F2FD' },
+  opposite: { icon:'↔️', name:'反対語', color:'#E53935', bg:'#FFEBEE' },
+};
+
+// ========== MAIN ==========
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle',
+    questions: [],
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    selected: null,
+    feedback: null,
+    results: [],
+    timeLeft: 0,
+  }).current;
+
+  const timerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+  React.useEffect(() => () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); }, []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const questions = [];
+    const usedSets = { proverb: new Set(), idiom: new Set(), blank: new Set(), opposite: new Set() };
+    for (let i = 0; i < cfg.rounds; i++) questions.push(generateQ(diff, usedSets));
+    g.questions = questions;
+    g.currentQ = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.selected = null;
+    g.feedback = null;
+    g.results = [];
+    g.phase = 'playing';
+    setShowConfetti(false);
+    setScreen('game');
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const startTimer = (sec) => {
+    g.timeLeft = sec;
+    clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      g.timeLeft--;
+      rerender();
+      if (g.timeLeft <= 0) {
+        clearInterval(intervalRef.current);
+        if (g.selected === null && g.feedback === null) {
+          g.feedback = 'timeout';
+          g.results.push({ q: g.questions[g.currentQ], correct: false });
+          rerender();
+          timerRef.current = setTimeout(() => nextQ(), 1500);
+        }
+      }
+    }, 1000);
+  };
+
+  const handleAnswer = (opt) => {
+    if (g.selected !== null || g.feedback) return;
+    clearInterval(intervalRef.current);
+    const q = g.questions[g.currentQ];
+    g.selected = opt;
+    const isCorrect = opt === q.answer;
+    if (isCorrect) { g.score += 10; g.correct++; g.feedback = 'correct'; }
+    else { g.feedback = 'wrong'; }
+    g.results.push({ q, selected: opt, correct: isCorrect });
+    rerender();
+    timerRef.current = setTimeout(() => nextQ(), isCorrect ? 600 : 1800);
+  };
+
+  const nextQ = () => {
+    if (g.currentQ + 1 >= g.questions.length) { finishGame(); return; }
+    g.currentQ++; g.selected = null; g.feedback = null;
+    const cfg = DIFF[difficulty];
+    if (cfg.timeLimit) startTimer(cfg.timeLimit);
+    rerender();
+  };
+
+  const finishGame = () => {
+    clearInterval(intervalRef.current);
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.7) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.questions.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); clearInterval(intervalRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily: "'Zen Maru Gothic',sans-serif", cursor: 'pointer', transition: 'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 999, overflow: 'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({ length: 50 }, (_, i) => (
+        <div key={i} style={{ position: 'absolute', top: -10, left: Math.random() * 100 + '%', width: 6 + Math.random() * 8, height: 6 + Math.random() * 8, background: ['#FF6B35', '#2EC4B6', '#F9A825', '#AB47BC', '#66BB6A', '#FF8F5E'][i % 6], borderRadius: Math.random() > 0.5 ? '50%' : 2, animation: `cf ${2 + Math.random() * 2}s linear ${Math.random() * 1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ fontFamily: "'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background: '#FAFAF7', minHeight: '100vh', color: '#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background: 'white', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{ ...btnBase, fontSize: 20, background: 'none', border: 'none', color: '#6B6B6B', padding: '4px 8px', borderRadius: 8 }}>←</button>}
+          <span style={{ fontSize: 16, fontWeight: 900, color: '#FF6B35' }}>📝 ことわづくり</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'white', background: '#2EC4B6', padding: '3px 10px', borderRadius: 50 }}>{g.currentQ + 1}/{g.questions.length}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'white', background: '#FF6B35', padding: '3px 10px', borderRadius: 50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', textAlign: 'center' }}>
+          <div style={{ fontSize: 64, marginBottom: 16, animation: 'bounce 2s infinite' }}>📝</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#FF6B35', marginBottom: 6 }}>ことわづくり</div>
+          <div style={{ fontSize: 14, color: '#6B6B6B', marginBottom: 8, lineHeight: 1.7 }}>ことわざ・慣用句・反対語<br />ことばの力をきたえよう！</div>
+          <div style={{ fontSize: 12, color: '#9E9E9E', marginBottom: 28, background: '#FFF3E0', padding: '8px 16px', borderRadius: 12 }}>🧠 語彙力・言語理解のトレーニングです</div>
+
+          <div style={{ width: '100%', maxWidth: 420, marginBottom: 24, background: 'white', borderRadius: 16, padding: '18px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#6B6B6B', marginBottom: 12, textAlign: 'left' }}>📝 こんな問題が出ます</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {Object.entries(MODE_LABELS).map(([k, m]) => (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: m.bg, borderRadius: 10 }}>
+                  <span style={{ fontSize: 18 }}>{m.icon}</span>
+                  <div style={{ textAlign: 'left' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: m.color }}>{m.name}</span>
+                    <div style={{ fontSize: 10, color: '#6B6B6B' }}>
+                      {k === 'proverb' ? '「七転び＿＿」→八起き' : k === 'idiom' ? '「目が＿＿」→回る（忙しい）' : k === 'blank' ? '春になると＿＿が咲く→桜' : '「大きい」の反対→小さい'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width: '100%', maxWidth: 420 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#6B6B6B', marginBottom: 10, textAlign: 'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {Object.entries(DIFF).map(([k, d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{ ...btnBase, fontSize: 15, fontWeight: 700, padding: '18px 20px', borderRadius: 16, border: '3px solid #E8E8E8', background: 'white', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left' }}>
+                  <span style={{ fontSize: 26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize: 15, fontWeight: 700 }}>{d.label}</div><div style={{ fontSize: 11, color: '#6B6B6B', marginTop: 2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width: '100%', maxWidth: 420, marginTop: 28, textAlign: 'left' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#6B6B6B', marginBottom: 10 }}>📊 プレイ履歴</div>
+              {history.slice(0, 5).map((h, i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background: 'white', borderRadius: 16, padding: '12px 14px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, background: h.diff === 'easy' ? '#E8F5E9' : h.diff === 'normal' ? '#FFF3E0' : '#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{ fontSize: 12, fontWeight: 700 }}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{ fontSize: 10, color: '#9E9E9E' }}>{d.getMonth() + 1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2, '0')}</div></div>
+                    </div>
+                    <div style={{ fontFamily: 'Outfit', fontSize: 16, fontWeight: 800, color: '#FF6B35' }}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && (() => {
+        const q = g.questions[g.currentQ];
+        if (!q) return null;
+        const ml = MODE_LABELS[q.mode];
+        const answered = g.selected !== null || g.feedback !== null;
+
+        return (
+          <div style={{ padding: '0 16px', maxWidth: 500, margin: '0 auto' }}>
+            {/* Status */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 16, padding: '8px 14px', background: 'white', borderBottom: '1px solid #F0F0F0', borderRadius: '0 0 12px 12px', marginBottom: 8 }}>
+              {[
+                { v: g.score, l: 'スコア', c: '#FF6B35' },
+                { v: g.correct + '/' + (g.currentQ + (answered ? 1 : 0)), l: '正解', c: '#2EC4B6' },
+                { v: (g.currentQ + 1) + '/' + g.questions.length, l: '問題', c: '#7B1FA2' },
+                ...(cfg.timeLimit && !answered ? [{ v: g.timeLeft + '秒', l: '残り', c: g.timeLeft <= 2 ? '#E53935' : '#6B6B6B' }] : []),
+              ].map((s, i) => (
+                <div key={i} style={{ textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Outfit', fontSize: 18, fontWeight: 800, color: s.c, animation: s.l === '残り' && g.timeLeft <= 2 ? 'pulse 0.3s infinite' : undefined }}>{s.v}</div>
+                  <div style={{ fontSize: 10, color: '#9E9E9E' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
+              {g.questions.map((_, i) => (
+                <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < g.results.length ? (g.results[i].correct ? '#66BB6A' : '#EF5350') : i === g.currentQ ? '#FFB74D' : '#E8E8E8' }} />
+              ))}
+            </div>
+
+            {/* Timer bar */}
+            {cfg.timeLimit > 0 && !answered && (
+              <div style={{ width: '100%', height: 4, background: '#E8E8E8', borderRadius: 2, marginBottom: 8, overflow: 'hidden' }}>
+                <div style={{ width: (g.timeLeft / cfg.timeLimit * 100) + '%', height: '100%', background: g.timeLeft <= 2 ? '#E53935' : 'linear-gradient(90deg,#FF6B35,#FF8F5E)', borderRadius: 2, transition: 'width 1s linear' }} />
+              </div>
+            )}
+
+            <div style={{ animation: 'fadeUp 0.25s ease-out' }} key={g.currentQ}>
+              {/* Mode badge */}
+              <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: ml.color, background: ml.bg, padding: '4px 14px', borderRadius: 50 }}>
+                  {ml.icon} {ml.name}
+                </span>
+              </div>
+
+              {/* Question */}
+              <div style={{ background: 'white', borderRadius: 18, padding: '24px 18px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: 14, textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#2D2D2D', lineHeight: 1.6 }}>{q.question}</div>
+              </div>
+
+              {/* Options */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+                {q.opts.map((opt, i) => {
+                  const isSelected = g.selected === opt;
+                  const isCorrect = opt === q.answer;
+                  return (
+                    <button key={i} onClick={() => handleAnswer(opt)} disabled={answered}
+                      style={{
+                        ...btnBase, fontSize: 18, fontWeight: 700, padding: '18px 10px', borderRadius: 14, textAlign: 'center',
+                        border: `3px solid ${answered && isCorrect ? '#66BB6A' : answered && isSelected && !isCorrect ? '#EF5350' : '#E8E8E8'}`,
+                        background: answered && isCorrect ? '#E8F5E9' : answered && isSelected && !isCorrect ? '#FFEBEE' : 'white',
+                        opacity: answered && !isCorrect && !isSelected ? 0.3 : 1,
+                        color: answered && isCorrect ? '#2E7D32' : answered && isSelected && !isCorrect ? '#C62828' : '#2D2D2D',
+                      }}>
+                      {opt} {answered && isCorrect ? '✅' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Feedback */}
+              {g.feedback === 'correct' && q.mode === 'idiom' && (
+                <div style={{ textAlign: 'center', marginTop: 10, fontSize: 12, color: '#6B6B6B', animation: 'fadeUp 0.2s ease-out' }}>
+                  💡 意味：{q.meaning}
+                </div>
+              )}
+              {g.feedback === 'wrong' && (
+                <div style={{ textAlign: 'center', marginTop: 10, animation: 'fadeUp 0.2s ease-out' }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#C62828' }}>❌ 正解は「{q.answer}」</div>
+                  {q.mode === 'idiom' && <div style={{ fontSize: 11, color: '#6B6B6B', marginTop: 4 }}>💡 意味：{q.meaning}</div>}
+                </div>
+              )}
+              {g.feedback === 'timeout' && (
+                <div style={{ textAlign: 'center', marginTop: 10, animation: 'fadeUp 0.2s ease-out' }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#E65100' }}>⏰ 時間切れ！正解は「{q.answer}」</div>
+                  {q.mode === 'idiom' && <div style={{ fontSize: 11, color: '#6B6B6B', marginTop: 4 }}>💡 意味：{q.meaning}</div>}
+                </div>
+              )}
+            </div>
+            <div style={{ height: 20 }} />
+          </div>
+        );
+      })()}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.questions.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'ことば名人！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        const modeStats = {};
+        g.results.forEach(r => { const m = r.q.mode; if (!modeStats[m]) modeStats[m] = { t: 0, c: 0 }; modeStats[m].t++; if (r.correct) modeStats[m].c++; });
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '30px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 16, animation: 'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#FF6B35', marginBottom: 4 }}>{msg}</div>
+            <div style={{ fontSize: 14, color: '#6B6B6B', marginBottom: 24 }}>{cfg.label}モード</div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, width: '100%', maxWidth: 360, marginBottom: 24 }}>
+              {[{ v: `${g.correct}/${total}`, l: '正解数' }, { v: Math.round(pct * 100) + '%', l: '正答率' }, { v: g.score, l: 'スコア' }].map((s, i) =>
+                <div key={i} style={{ background: 'white', borderRadius: 16, padding: '14px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Outfit', fontSize: 24, fontWeight: 800, color: '#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize: 10, color: '#9E9E9E', marginTop: 4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 24, width: '100%', maxWidth: 360 }}>
+              {Object.entries(modeStats).map(([m, s]) => {
+                const ml = MODE_LABELS[m];
+                return (
+                  <div key={m} style={{ background: 'white', borderRadius: 12, padding: '10px 14px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', textAlign: 'center', minWidth: 70 }}>
+                    <div style={{ fontSize: 14 }}>{ml?.icon}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: ml?.color }}>{ml?.name}</div>
+                    <div style={{ fontFamily: 'Outfit', fontSize: 16, fontWeight: 800, marginTop: 2 }}>{s.c}/{s.t}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Review wrong answers */}
+            {g.results.filter(r => !r.correct).length > 0 && (
+              <div style={{ width: '100%', maxWidth: 420, marginBottom: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#6B6B6B', marginBottom: 8, textAlign: 'left' }}>📋 まちがえた問題</div>
+                {g.results.filter(r => !r.correct).map((r, i) => {
+                  const ml = MODE_LABELS[r.q.mode];
+                  return (
+                    <div key={i} style={{ background: '#FFF3E0', borderRadius: 12, padding: '10px 14px', marginBottom: 4, borderLeft: `4px solid ${ml?.color}`, textAlign: 'left' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>
+                        {ml?.icon} {r.q.question}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#2E7D32', marginTop: 2 }}>→ 正解：{r.q.answer}{r.q.meaning ? ` （${r.q.meaning}）` : ''}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ width: '100%', maxWidth: 420, marginBottom: 24, padding: '14px 16px', background: '#F5F5F5', borderRadius: 12, textAlign: 'left' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', marginBottom: 6 }}>💡 ことばのコツ</div>
+              <div style={{ fontSize: 11, color: '#9E9E9E', lineHeight: 1.8 }}>
+                ことわざや慣用句は声に出して使ってみましょう。意味を一緒に覚えると記憶に残りやすくなります。反対語は「暑い↔寒い」のようにペアで覚えるのが効果的です。
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 300 }}>
+              <button onClick={() => startGame(difficulty)} style={{ ...btnBase, fontSize: 16, fontWeight: 700, color: 'white', background: '#FF6B35', border: 'none', padding: '16px 32px', borderRadius: 60 }}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{ ...btnBase, fontSize: 14, fontWeight: 700, color: '#6B6B6B', background: 'white', border: '2px solid #E0E0E0', padding: '14px 32px', borderRadius: 60 }}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

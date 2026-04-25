@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>フラッシュ記憶 | みなともPlay</title>
+<meta name="description" content="一瞬見えたものを記憶する - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== DATA ==========
+const ITEM_SETS = [
+  ['🍎','🍊','🍋','🍇','🍓','🍑','🍌','🥝','🍒','🫐','🥭','🍍'],
+  ['🐶','🐱','🐰','🐸','🐷','🐮','🐔','🐧','🐻','🦊','🐨','🐯'],
+  ['⭐','❤️','🌙','☀️','⚡','🔔','🎵','💎','🍀','🌈','🔥','💧'],
+  ['🚗','🚂','✈️','🚢','🚲','🏍️','🚁','🚀','🛵','⛵','🚌','🚕'],
+];
+
+const COLORS = ['#E53935','#1E88E5','#43A047','#FB8C00','#7B1FA2','#00ACC1','#F4511E','#C0CA33','#EC407A','#5C6BC0','#26A69A','#8D6E63'];
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'3〜4個・2秒表示', minItems:3, maxItems:4, flashTime:2000, rounds:8 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'4〜5個・1.5秒表示', minItems:4, maxItems:5, flashTime:1500, rounds:10 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'5〜7個・1秒表示', minItems:5, maxItems:7, flashTime:1000, rounds:10 },
+};
+
+const MODES = [
+  { id:'position', label:'どこにあった？', icon:'📍', desc:'アイテムの位置を思い出す', color:'#FF6B35' },
+  { id:'what', label:'何があった？', icon:'❓', desc:'表示されたアイテムを選ぶ', color:'#7B1FA2' },
+  { id:'count', label:'いくつあった？', icon:'🔢', desc:'アイテムの数を当てる', color:'#2E7D32' },
+];
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+function generatePositionQ(diff) {
+  const cfg = DIFF[diff];
+  const count = cfg.minItems + Math.floor(Math.random() * (cfg.maxItems - cfg.minItems + 1));
+  const gridSize = diff === 'hard' ? 16 : 9; // 3x3 or 4x4
+  const cols = diff === 'hard' ? 4 : 3;
+  const positions = shuffle(Array.from({length:gridSize},(_,i)=>i)).slice(0, count);
+  const itemSet = shuffle(ITEM_SETS[Math.floor(Math.random() * ITEM_SETS.length)]);
+  const items = positions.map((pos, i) => ({ pos, emoji: itemSet[i % itemSet.length] }));
+  return { mode:'position', items, gridSize, cols, count, flashTime: cfg.flashTime };
+}
+
+function generateWhatQ(diff) {
+  const cfg = DIFF[diff];
+  const count = cfg.minItems + Math.floor(Math.random() * (cfg.maxItems - cfg.minItems + 1));
+  const itemSet = shuffle(ITEM_SETS[Math.floor(Math.random() * ITEM_SETS.length)]);
+  const shown = itemSet.slice(0, count);
+  const notShown = itemSet.slice(count, count + 3);
+  // Options: all shown + some not shown, shuffled
+  const optCount = Math.min(count + 2, 8);
+  const decoys = notShown.slice(0, optCount - count);
+  const options = shuffle([...shown, ...decoys]);
+  return { mode:'what', shown, options, count, flashTime: cfg.flashTime };
+}
+
+function generateCountQ(diff) {
+  const cfg = DIFF[diff];
+  const count = cfg.minItems + Math.floor(Math.random() * (cfg.maxItems - cfg.minItems + 1));
+  const gridSize = diff === 'hard' ? 16 : 9;
+  const cols = diff === 'hard' ? 4 : 3;
+  const positions = shuffle(Array.from({length:gridSize},(_,i)=>i)).slice(0, count);
+  const emoji = ITEM_SETS[Math.floor(Math.random() * ITEM_SETS.length)][0];
+  const items = positions.map(pos => ({ pos, emoji }));
+  // Options: nearby numbers
+  const opts = shuffle([count, count-1, count+1, count+2 > 9 ? count-2 : count+2].filter(n => n >= 1));
+  return { mode:'count', items, gridSize, cols, count, options: [...new Set(opts)].slice(0,4), emoji, flashTime: cfg.flashTime };
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    phase: 'idle', // idle, ready, flash, blank, answer, feedback, result
+    questions: [],
+    currentQ: 0,
+    score: 0,
+    correct: 0,
+    selected: null,       // for what/count modes
+    selectedCells: [],    // for position mode
+    feedback: null,
+    results: [],
+  }).current;
+
+  const timerRef = React.useRef(null);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const questions = [];
+    for (let i = 0; i < cfg.rounds; i++) {
+      const r = Math.random();
+      if (r < 0.4) questions.push(generatePositionQ(diff));
+      else if (r < 0.7) questions.push(generateWhatQ(diff));
+      else questions.push(generateCountQ(diff));
+    }
+    g.questions = questions;
+    g.currentQ = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.results = [];
+    setShowConfetti(false);
+    setScreen('game');
+    startRound(0);
+  };
+
+  const startRound = (idx) => {
+    g.currentQ = idx;
+    g.selected = null;
+    g.selectedCells = [];
+    g.feedback = null;
+    g.phase = 'ready';
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.phase = 'flash';
+      rerender();
+
+      timerRef.current = setTimeout(() => {
+        g.phase = 'blank';
+        rerender();
+
+        timerRef.current = setTimeout(() => {
+          g.phase = 'answer';
+          rerender();
+        }, 500);
+      }, g.questions[idx].flashTime);
+    }, 1200);
+  };
+
+  const handlePositionTap = (cellIdx) => {
+    if (g.phase !== 'answer' || g.feedback) return;
+    const q = g.questions[g.currentQ];
+    if (q.mode !== 'position') return;
+
+    const cells = [...g.selectedCells];
+    const existing = cells.indexOf(cellIdx);
+    if (existing >= 0) {
+      cells.splice(existing, 1);
+    } else {
+      if (cells.length >= q.count) return; // can't select more
+      cells.push(cellIdx);
+    }
+    g.selectedCells = cells;
+    rerender();
+  };
+
+  const submitPosition = () => {
+    if (g.feedback) return;
+    const q = g.questions[g.currentQ];
+    const correctPositions = q.items.map(it => it.pos);
+    const selected = g.selectedCells;
+    const hits = selected.filter(s => correctPositions.includes(s)).length;
+    const isCorrect = hits === correctPositions.length && selected.length === correctPositions.length;
+
+    if (isCorrect) { g.score += 15; g.correct++; }
+    else { g.score += hits * 3; }
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    g.results.push({ q, correct: isCorrect, detail: `${hits}/${correctPositions.length}` });
+    rerender();
+
+    timerRef.current = setTimeout(() => nextRound(), 2000);
+  };
+
+  const handleWhatSelect = (emoji) => {
+    if (g.phase !== 'answer' || g.feedback) return;
+    const q = g.questions[g.currentQ];
+    if (q.mode !== 'what') return;
+
+    const cells = [...(g.selectedCells || [])];
+    const existing = cells.indexOf(emoji);
+    if (existing >= 0) {
+      cells.splice(existing, 1);
+    } else {
+      cells.push(emoji);
+    }
+    g.selectedCells = cells;
+    rerender();
+  };
+
+  const submitWhat = () => {
+    if (g.feedback) return;
+    const q = g.questions[g.currentQ];
+    const hits = g.selectedCells.filter(e => q.shown.includes(e)).length;
+    const wrong = g.selectedCells.filter(e => !q.shown.includes(e)).length;
+    const isCorrect = hits === q.shown.length && wrong === 0;
+
+    if (isCorrect) { g.score += 15; g.correct++; }
+    else { g.score += Math.max(0, (hits - wrong) * 3); }
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    g.results.push({ q, correct: isCorrect, detail: `${hits}/${q.shown.length}` });
+    rerender();
+
+    timerRef.current = setTimeout(() => nextRound(), 2000);
+  };
+
+  const handleCountSelect = (num) => {
+    if (g.phase !== 'answer' || g.feedback) return;
+    const q = g.questions[g.currentQ];
+    g.selected = num;
+    const isCorrect = num === q.count;
+
+    if (isCorrect) { g.score += 10; g.correct++; }
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    g.results.push({ q, correct: isCorrect, detail: `答え:${q.count} 選択:${num}` });
+    rerender();
+
+    timerRef.current = setTimeout(() => nextRound(), 1800);
+  };
+
+  const nextRound = () => {
+    if (g.currentQ + 1 >= g.questions.length) { finishGame(); }
+    else { startRound(g.currentQ + 1); }
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.questions.length;
+    if (pct >= 0.8) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.questions.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { clearTimeout(timerRef.current); g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  // ===== RENDER GRID =====
+  const renderGrid = (q, showItems, selectable, showCorrect) => {
+    const cols = q.cols;
+    return (
+      <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols},1fr)`, gap:8, maxWidth:cols===3?260:320, margin:'0 auto' }}>
+        {Array.from({length:q.gridSize}).map((_,i) => {
+          const item = q.items.find(it => it.pos === i);
+          const isSelected = g.selectedCells.includes(i);
+          const isCorrectPos = showCorrect && item;
+          const isMissed = showCorrect && item && !isSelected;
+          const isWrong = showCorrect && !item && isSelected;
+
+          return (
+            <div key={i}
+              onClick={() => selectable && handlePositionTap(i)}
+              style={{
+                aspectRatio:'1', borderRadius:14,
+                background: isCorrectPos && isSelected ? '#E8F5E9'
+                  : isMissed ? '#FFF3E0'
+                  : isWrong ? '#FFEBEE'
+                  : isSelected ? '#E3F2FD'
+                  : showItems && item ? '#FFF3E0'
+                  : '#F5F5F5',
+                border: `3px solid ${
+                  isCorrectPos && isSelected ? '#66BB6A'
+                  : isMissed ? '#FF6B35'
+                  : isWrong ? '#EF5350'
+                  : isSelected ? '#1E88E5'
+                  : showItems && item ? '#FFE0B2'
+                  : '#E0E0E0'
+                }`,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize: cols === 3 ? 32 : 26,
+                cursor: selectable ? 'pointer' : 'default',
+                transition:'all 0.15s',
+              }}>
+              {showItems && item ? item.emoji : ''}
+              {showCorrect && item && !isSelected ? <span style={{fontSize:cols===3?24:20,opacity:0.5}}>{item.emoji}</span> : ''}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes flashPulse{0%{box-shadow:0 0 0 0 rgba(255,107,53,0.4)}70%{box-shadow:0 0 0 20px rgba(255,107,53,0)}100%{box-shadow:0 0 0 0 rgba(255,107,53,0)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>⚡ フラッシュ記憶</span>
+        </div>
+        {screen === 'game' && g.phase !== 'ready' && g.phase !== 'idle' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentQ+1}/{g.questions.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>⚡</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>フラッシュ記憶</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>一瞬だけ見えたものを<br/>覚えて答えよう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 瞬間記憶・感覚記憶のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:12, textAlign:'left' }}>📝 3つのモードがミックスで出題</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {MODES.map(m => (
+                <div key={m.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:m.id==='position'?'#FFF3E0':m.id==='what'?'#F3E5F5':'#E8F5E9', borderRadius:12 }}>
+                  <span style={{ fontSize:22 }}>{m.icon}</span>
+                  <div style={{ textAlign:'left' }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:m.color }}>{m.label}</span>
+                    <div style={{ fontSize:11, color:'#6B6B6B' }}>{m.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto' }}>
+          {/* Status */}
+          {g.phase !== 'ready' && g.phase !== 'idle' && (
+            <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+              {[{v:g.score,l:'スコア',c:'#FF6B35'},{v:g.correct+'/'+(g.currentQ+(g.feedback?1:0)),l:'正解数',c:'#2EC4B6'},{v:(g.currentQ+1)+'/'+g.questions.length,l:'問題',c:'#7B1FA2'}].map((s,i) => (
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Progress */}
+          {g.phase !== 'ready' && g.phase !== 'idle' && (
+            <div style={{ display:'flex', gap:3, marginBottom:12 }}>
+              {g.questions.map((_,i) => (
+                <div key={i} style={{ flex:1, height:5, borderRadius:3, background: i < g.results.length ? (g.results[i].correct ? '#66BB6A' : '#EF5350') : i === g.currentQ ? '#FFB74D' : '#E8E8E8' }} />
+              ))}
+            </div>
+          )}
+
+          {/* READY */}
+          {g.phase === 'ready' && (
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'60vh', animation:'fadeUp 0.3s ease-out' }}>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:48, fontWeight:800, color:'#FF6B35', animation:'flashPulse 1s infinite' }}>👀</div>
+                <div style={{ fontSize:16, fontWeight:700, color:'#6B6B6B', marginTop:12 }}>よく見てください…</div>
+              </div>
+            </div>
+          )}
+
+          {/* FLASH - show items */}
+          {g.phase === 'flash' && (() => {
+            const q = g.questions[g.currentQ];
+            return (
+              <div style={{ animation:'fadeUp 0.2s ease-out' }}>
+                <div style={{ textAlign:'center', marginBottom:12 }}>
+                  <span style={{ fontSize:14, fontWeight:700, color:'#FF6B35', background:'#FFF3E0', padding:'6px 16px', borderRadius:50 }}>
+                    ⚡ 覚えてください！
+                  </span>
+                </div>
+                {(q.mode === 'position' || q.mode === 'count') && renderGrid(q, true, false, false)}
+                {q.mode === 'what' && (
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:12, justifyContent:'center', padding:20, background:'white', borderRadius:20, boxShadow:'0 4px 24px rgba(0,0,0,0.08)' }}>
+                    {q.shown.map((emoji, i) => (
+                      <div key={i} style={{ fontSize:48, animation:`fadeUp 0.3s ease-out ${i*0.1}s both` }}>{emoji}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* BLANK */}
+          {g.phase === 'blank' && (
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'40vh' }}>
+              <div style={{ fontSize:48, animation:'fadeUp 0.2s ease-out' }}>🤔</div>
+            </div>
+          )}
+
+          {/* ANSWER */}
+          {g.phase === 'answer' && (() => {
+            const q = g.questions[g.currentQ];
+            const modeInfo = MODES.find(m => m.id === q.mode);
+
+            return (
+              <div style={{ animation:'fadeUp 0.3s ease-out' }}>
+                <div style={{ textAlign:'center', marginBottom:12 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:modeInfo?.color, background:q.mode==='position'?'#FFF3E0':q.mode==='what'?'#F3E5F5':'#E8F5E9', padding:'6px 14px', borderRadius:50 }}>
+                    {modeInfo?.icon} {modeInfo?.label}
+                  </span>
+                </div>
+
+                {/* POSITION MODE */}
+                {q.mode === 'position' && (
+                  <div>
+                    <div style={{ fontSize:13, color:'#6B6B6B', textAlign:'center', marginBottom:10 }}>
+                      {g.feedback ? '' : `${q.count}個のアイテムがあった場所をタップ（${g.selectedCells.length}/${q.count}選択中）`}
+                    </div>
+                    {renderGrid(q, false, !g.feedback, !!g.feedback)}
+                    {!g.feedback && g.selectedCells.length > 0 && (
+                      <button onClick={submitPosition} style={{...btnBase, marginTop:14, width:'100%', fontSize:15, fontWeight:700, padding:'14px', borderRadius:50, border:'none', background:'linear-gradient(135deg,#FF6B35,#FF8F5E)', color:'white'}}>
+                        決定！（{g.selectedCells.length}個選択）
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* WHAT MODE */}
+                {q.mode === 'what' && (
+                  <div>
+                    <div style={{ fontSize:13, color:'#6B6B6B', textAlign:'center', marginBottom:10 }}>
+                      {g.feedback ? '' : `表示されたものをすべて選んでください（${g.selectedCells.length}個選択中）`}
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, maxWidth:320, margin:'0 auto' }}>
+                      {q.options.map((emoji, i) => {
+                        const isSelected = (g.selectedCells || []).includes(emoji);
+                        const isCorrect = g.feedback && q.shown.includes(emoji);
+                        const isWrong = g.feedback && isSelected && !q.shown.includes(emoji);
+                        const isMissed = g.feedback && !isSelected && q.shown.includes(emoji);
+
+                        return (
+                          <button key={i} onClick={() => handleWhatSelect(emoji)} disabled={!!g.feedback}
+                            style={{
+                              ...btnBase, aspectRatio:'1', borderRadius:14, fontSize:36,
+                              display:'flex', alignItems:'center', justifyContent:'center',
+                              border: `3px solid ${isCorrect&&isSelected?'#66BB6A':isWrong?'#EF5350':isMissed?'#FF6B35':isSelected?'#1E88E5':'#E0E0E0'}`,
+                              background: isCorrect&&isSelected?'#E8F5E9':isWrong?'#FFEBEE':isMissed?'#FFF3E0':isSelected?'#E3F2FD':'white',
+                              opacity: g.feedback && !isCorrect && !isWrong && !isMissed ? 0.4 : 1,
+                            }}>
+                            {emoji}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {!g.feedback && g.selectedCells.length > 0 && (
+                      <button onClick={submitWhat} style={{...btnBase, marginTop:14, width:'100%', fontSize:15, fontWeight:700, padding:'14px', borderRadius:50, border:'none', background:'linear-gradient(135deg,#7B1FA2,#AB47BC)', color:'white'}}>
+                        決定！（{g.selectedCells.length}個選択）
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* COUNT MODE */}
+                {q.mode === 'count' && (
+                  <div>
+                    <div style={{ fontSize:14, color:'#6B6B6B', textAlign:'center', marginBottom:14 }}>
+                      {q.emoji} はいくつありましたか？
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, maxWidth:280, margin:'0 auto' }}>
+                      {q.options.map((num, i) => {
+                        const isSelected = g.selected === num;
+                        const isCorrect = g.feedback && num === q.count;
+                        const isWrong = g.feedback && isSelected && num !== q.count;
+
+                        return (
+                          <button key={i} onClick={() => handleCountSelect(num)} disabled={!!g.feedback}
+                            style={{
+                              ...btnBase, aspectRatio:'1', borderRadius:16, fontSize:28, fontFamily:'Outfit', fontWeight:800,
+                              display:'flex', alignItems:'center', justifyContent:'center',
+                              border: `3px solid ${isCorrect?'#66BB6A':isWrong?'#EF5350':'#E8E8E8'}`,
+                              background: isCorrect?'#E8F5E9':isWrong?'#FFEBEE':'white',
+                              color: isCorrect?'#2E7D32':isWrong?'#C62828':'#2D2D2D',
+                              opacity: g.feedback && !isCorrect && !isWrong ? 0.4 : 1,
+                            }}>
+                            {num}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Feedback */}
+                {g.feedback && (
+                  <div style={{ textAlign:'center', marginTop:14, fontSize:16, fontWeight:900, color:g.feedback==='correct'?'#2E7D32':'#C62828', animation:'fadeUp 0.3s ease-out' }}>
+                    {g.feedback === 'correct' ? '✅ 正解！' : '❌ おしい！'}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <div style={{ height:24 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.questions.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.55 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'すばらしい瞬発力！' : pct >= 0.55 ? 'よくできました！' : 'もう一度挑戦！';
+
+        const modeStats = ['position','what','count'].map(m => {
+          const qs = g.results.filter(r => r.q.mode === m);
+          return { mode:m, total:qs.length, correct:qs.filter(r => r.correct).length };
+        }).filter(s => s.total > 0);
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[{v:`${g.correct}/${total}`,l:'正解数'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Mode breakdown */}
+            <div style={{ display:'flex', gap:8, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.35s both' }}>
+              {modeStats.map((s, i) => {
+                const info = MODES.find(m => m.id === s.mode);
+                return (
+                  <div key={i} style={{ flex:1, background:'white', borderRadius:14, padding:'12px 8px', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                    <div style={{ fontSize:20, marginBottom:4 }}>{info?.icon}</div>
+                    <div style={{ fontSize:10, fontWeight:700, color:info?.color }}>{info?.label}</div>
+                    <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, marginTop:4 }}>{s.correct}/{s.total}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

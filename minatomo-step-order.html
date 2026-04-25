@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>手順ならべ | みなともPlay</title>
+<meta name="description" content="正しい手順に並べ替える - 無料リハビリゲーム みなともPlay">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ========== SEQUENCE DATA ==========
+const SEQUENCES = {
+  easy: [
+    { id:'instant-noodle', title:'カップ麺を作る', icon:'🍜', steps:['カップ麺のフタを開ける','かやくを入れる','お湯を線まで注ぐ','フタをして3分待つ','フタを開けて食べる'] },
+    { id:'letter', title:'手紙を出す', icon:'✉️', steps:['紙に手紙を書く','書いた手紙を封筒に入れる','封筒をのりで閉じる','閉じた封筒に切手を貼る','ポストに投函する'] },
+    { id:'rice', title:'ごはんを炊く', icon:'🍚', steps:['お米をカップで計る','計ったお米を水で研ぐ','研いだお米と水を炊飯器に入れる','炊飯器のスイッチを押す','炊き上がったごはんをしゃもじでほぐす'] },
+    { id:'egg-boil', title:'ゆでたまごを作る', icon:'🥚', steps:['鍋に水を入れる','水の中に卵を入れる','鍋を火にかけて沸騰させる','沸騰してから10分ゆでる','火を止めて冷水で冷やす'] },
+    { id:'nail', title:'壁に釘を打つ', icon:'🔨', steps:['壁に印をつける','印の位置に釘の先を当てる','金づちで釘を打ち込む','釘がしっかり刺さったか確認する','釘に絵をかける'] },
+    { id:'wash-dish', title:'お皿を洗う', icon:'🍽️', steps:['食べ残しをゴミ箱に捨てる','スポンジに洗剤をつける','お皿をスポンジでこすり洗いする','水ですすいで泡を流す','水切りカゴに立てて乾かす'] },
+    { id:'candle', title:'ろうそくに火をつける', icon:'🕯️', steps:['ろうそくを燭台に立てる','マッチ箱からマッチを1本取る','マッチを箱の横で擦って火をつける','マッチの火をろうそくの芯に近づける','芯に火がついたらマッチの火を吹き消す'] },
+    { id:'photo-print', title:'写真を印刷する', icon:'📷', steps:['カメラで写真を撮る','撮った写真をパソコンに取り込む','印刷したい写真を選ぶ','プリンターの電源を入れる','「印刷」ボタンを押して印刷する'] },
+    { id:'coffee-drip', title:'ドリップコーヒーを入れる', icon:'☕', steps:['ドリッパーにフィルターをセットする','フィルターにコーヒー粉を入れる','お湯を沸かす','沸いたお湯を粉の上からゆっくり注ぐ','カップに落ちたコーヒーを飲む'] },
+    { id:'bandage', title:'けがに絆創膏を貼る', icon:'🩹', steps:['傷口を水で洗い流す','清潔なタオルで水気を拭く','絆創膏の包装を開ける','ガーゼ部分を傷口に当てる','両端のテープを肌に貼りつける'] },
+    { id:'flower-vase', title:'花を花瓶に生ける', icon:'💐', steps:['花瓶に水を入れる','花の茎の下を斜めに切る','不要な葉を取り除く','切った花を花瓶の水に挿す','バランスよく整えて飾る'] },
+    { id:'shoes-polish', title:'靴を磨く', icon:'👞', steps:['靴のひもを外す','ブラシで靴の汚れを払い落とす','布にクリームを少量取る','クリームを靴全体に塗り広げる','別の布で磨いてツヤを出す'] },
+    { id:'origami', title:'折り紙でつるを折る', icon:'🦢', steps:['折り紙を1枚用意する','三角に半分に折る','さらに半分に折って小さな三角にする','開いてひし形に折りたたむ','翼を広げてつるの形に仕上げる'] },
+    { id:'umbrella-dry', title:'濡れた傘をしまう', icon:'☂️', steps:['傘についた水滴をはらう','傘を開いて乾かす','乾いたら傘を閉じる','バンドで傘をまとめる','傘立てに入れる'] },
+    { id:'onigiri', title:'おにぎりを作る', icon:'🍙', steps:['炊き上がったごはんをボウルに入れる','手に水と塩をつける','ごはんを手のひらにのせる','具を真ん中に入れて握る','海苔を巻いて完成'] },
+    { id:'teeth-brush', title:'歯を磨く', icon:'🪥', steps:['歯ブラシに歯磨き粉をつける','口に入れて歯をこする','奥歯・前歯・裏側をまんべんなく磨く','コップの水で口をすすぐ','歯ブラシを水で洗ってコップに立てる'] },
+  ],
+  normal: [
+    { id:'cook-egg', title:'目玉焼きを作る', icon:'🍳', steps:['フライパンをコンロに置く','火をつけてフライパンを温める','温まったフライパンに油をひく','卵を割ってフライパンに落とす','フタをして弱火で蒸し焼きにする','焼けた目玉焼きをお皿に移す'] },
+    { id:'tea', title:'お茶を淹れる', icon:'🍵', steps:['やかんに水を入れて火にかける','お湯が沸くまで待つ','急須に茶葉を入れる','沸いたお湯を急須に注ぐ','1分蒸らしてから湯のみに注ぐ','湯のみを持って飲む'] },
+    { id:'plant-seed', title:'種をまく', icon:'🌱', steps:['プランターに土を入れる','土に指で穴をあける','穴に種を1粒入れる','上から土をかぶせる','じょうろで水をたっぷりかける','日の当たる場所に置く'] },
+    { id:'mail-parcel', title:'荷物を送る', icon:'📦', steps:['送るものを段ボールに入れる','隙間に緩衝材を詰める','段ボールのフタをガムテープで閉じる','伝票に届け先の住所を書く','書いた伝票を箱に貼る','郵便局の窓口に持って行く'] },
+    { id:'toast', title:'トーストにバターを塗る', icon:'🍞', steps:['食パンをトースターに入れる','タイマーをセットして焼く','焼けたトーストを取り出す','バターをナイフですくう','熱いトーストにバターを塗り広げる','お皿にのせて食べる'] },
+    { id:'clothes-iron', title:'シャツにアイロンをかける', icon:'👔', steps:['アイロンに水を入れる','コンセントを差してアイロンを温める','アイロン台にシャツを広げる','温まったアイロンでシワを伸ばす','アイロンのコンセントを抜く','シャツをハンガーにかける'] },
+    { id:'gift-wrap', title:'プレゼントを包む', icon:'🎁', steps:['包装紙を広げてプレゼントを真ん中に置く','紙の端を箱に沿って折り込む','反対側の紙もかぶせてテープで留める','上下の紙を三角に折りたたむ','リボンを十字にかけて結ぶ','カードを添えて完成'] },
+    { id:'fish-grill', title:'魚を焼く', icon:'🐟', steps:['魚の表面に塩をまんべんなく振る','10分置いて出てきた水分を拭き取る','グリルに火をつけて予熱する','温まったグリルに魚を皮目から入れる','片面が焼けたら裏返す','全体に火が通ったら皿に盛る'] },
+    { id:'sewing-button', title:'ボタンを付ける', icon:'🧵', steps:['針に糸を通す','糸の先を結んで玉を作る','布の裏から針を出す','ボタンの穴に針を通す','4〜5回繰り返して縫いつける','糸を玉結びして切る'] },
+    { id:'bike-ride', title:'自転車に乗って出かける', icon:'🚲', steps:['自転車のカギを外す','タイヤの空気が入っているか確認する','サドルの高さを合わせる','ヘルメットをかぶる','ペダルに足をかけてこぎ出す','目的地に着いたらカギをかける'] },
+    { id:'laundry', title:'洗濯をする', icon:'👕', steps:['汚れた服を洗濯ネットに入れる','洗濯機に入れて洗剤を投入する','コースを選んでスタートボタンを押す','終了のブザーが鳴ったら取り出す','ハンガーにかけて干す','乾いたらたたんでしまう'] },
+    { id:'soup', title:'野菜スープを作る', icon:'🥕', steps:['にんじんとたまねぎの皮をむく','皮をむいた野菜を小さく切る','鍋にバターを入れて火にかける','バターが溶けたら切った野菜を炒める','しんなりしたら水を加えて煮る','塩こしょうで味を調えてよそう'] },
+    { id:'wall-calendar', title:'壁にカレンダーを掛ける', icon:'📅', steps:['壁の掛けたい位置を決めて印をつける','印の場所にドリルで穴を開ける','穴にプラスチックのアンカーを入れる','アンカーにネジをドライバーでねじ込む','カレンダーの穴をネジに引っ掛ける','まっすぐか確認して調整する'] },
+    { id:'pancake', title:'ホットケーキを焼く', icon:'🥞', steps:['ボウルにホットケーキミックスを入れる','牛乳と卵を加えて混ぜ合わせる','フライパンを弱火で温める','生地をおたまですくってフライパンに流す','表面にプツプツ穴ができたら裏返す','両面焼けたら皿に盛ってシロップをかける'] },
+    { id:'medicine', title:'目薬をさす', icon:'💧', steps:['手を石けんで洗って清潔にする','目薬のキャップを外す','上を向いて下まぶたを軽く引く','目薬の先を目の上に構える','1滴落として目を閉じる','あふれた液をティッシュで拭く'] },
+    { id:'vacuum', title:'掃除機をかける', icon:'🧹', steps:['床のおもちゃや小物を片づける','掃除機のコンセントを差す','スイッチを入れる','部屋の奥から手前に向かって吸う','終わったらスイッチを切る','コードを巻き取って片づける'] },
+  ],
+  hard: [
+    { id:'curry', title:'カレーライスを作る', icon:'🍛', steps:['にんじん・じゃがいもの皮をむく','皮をむいた野菜を一口大に切る','鍋に油を熱して肉を炒める','肉に火が通ったら切った野菜を加える','野菜がしんなりしたら水を入れる','沸騰したらアクをすくい取る','弱火にして20分煮込む','火を止めてカレールーを割り入れる','再び火をつけてとろみがつくまで混ぜる'] },
+    { id:'bike-repair', title:'自転車のパンク修理', icon:'🚲', steps:['タイヤのバルブからキャップを外す','タイヤレバーでタイヤを外す','中のチューブを引き出す','チューブに空気を入れて水につけ穴を探す','穴の周りをヤスリでこする','こすった部分にゴムのりを塗る','のりが乾いたらパッチを貼って押さえる','チューブをタイヤに戻して空気を入れる'] },
+    { id:'miso-soup', title:'味噌汁を作る', icon:'🥣', steps:['鍋に水を入れて火にかける','沸騰したら出汁パックを入れる','出汁が出たらパックを取り出す','豆腐をさいの目に切る','切った豆腐を鍋に入れる','わかめを加えてひと煮立ちさせる','火を止めて味噌をこし入れる','おわんによそって刻みねぎをのせる'] },
+    { id:'painting', title:'壁にペンキを塗る', icon:'🎨', steps:['家具を部屋の中央に移動させる','床や窓枠をマスキングテープで養生する','ペンキ缶を開けて棒でよく混ぜる','混ぜたペンキをローラートレイに注ぐ','ローラーにペンキを含ませる','壁にローラーを転がしてペンキを塗る','塗り残しがないか確認して重ね塗りする','完全に乾いたらマスキングテープを剥がす'] },
+    { id:'tempura', title:'天ぷらを揚げる', icon:'🍤', steps:['エビの殻をむいて背わたを取る','下処理したエビに軽く塩をふる','ボウルに小麦粉・卵・冷水を入れて衣を作る','鍋に油を入れて170度に熱する','エビに衣をつけて油に静かに入れる','きつね色になったら油から引き上げる','油を切ってから天つゆを添えて盛りつける','残った油は冷めてからこして保存する'] },
+    { id:'shelf', title:'本棚を組み立てる', icon:'📚', steps:['箱から部品をすべて取り出す','説明書を見て部品が揃っているか確認する','側面の板にダボを差し込む','棚板をダボの上にはめ込む','反対側の側面板をかぶせて合わせる','ネジをドライバーで締めて固定する','天板を乗せてネジで留める','背板を釘で打ちつけて完成'] },
+    { id:'stew', title:'シチューを作る', icon:'🍲', steps:['鶏肉を一口大に切って塩こしょうする','にんじんとじゃがいもの皮をむいて切る','鍋にバターを溶かして鶏肉を焼く','鶏肉の色が変わったら野菜を加えて炒める','炒めた具材に小麦粉をまぶして混ぜる','牛乳と水を加えてかき混ぜる','弱火で20分煮込んで野菜が柔らかくなるまで待つ','塩こしょうで最後に味を調えて盛りつける'] },
+    { id:'paper-plane', title:'紙飛行機を作って飛ばす', icon:'✈️', steps:['A4の紙を1枚用意する','紙を縦半分に折って折り目をつける','開いて上の両角を中心線に合わせて折る','さらに両端を中心線に合わせて細く折る','全体を半分に折り合わせる','両側の翼を斜めに折り出す','翼の角度を左右対称に整える','腕を振って前方に投げる'] },
+    { id:'gyoza', title:'餃子を作る', icon:'🥟', steps:['キャベツを細かくみじん切りにする','刻んだキャベツに塩を振って水気を絞る','ボウルにひき肉・キャベツ・調味料を入れて混ぜる','餃子の皮の端に水をつける','皮の中央にタネをのせて半分に閉じる','フライパンに油をひいて餃子を並べる','水を入れてフタをし蒸し焼きにする','水気がなくなり底がカリッとしたら皿に盛る'] },
+    { id:'tire-change', title:'車のタイヤ交換', icon:'🚗', steps:['車を平らな場所に停めてサイドブレーキをかける','ホイールカバーを外してナットを少しゆるめる','ジャッキで車体を持ち上げる','ナットを全部外してタイヤを引き抜く','新しいタイヤをはめてナットを手で仮締めする','ジャッキを下ろして車体を地面に戻す','レンチでナットを対角線の順に本締めする','ホイールカバーを取り付けてジャッキを片づける'] },
+    { id:'udon', title:'手打ちうどんを作る', icon:'🍜', steps:['小麦粉と塩水をボウルに入れて混ぜる','まとまった生地を30分寝かせる','寝かせた生地を台の上で薄く伸ばす','伸ばした生地を三つ折りにする','包丁で好みの太さに切る','大きな鍋にたっぷりのお湯を沸かす','切った麺を沸騰した湯に入れて10分ゆでる','ゆであがった麺を冷水でしめて器に盛る'] },
+    { id:'photo-frame', title:'額縁に写真を入れて飾る', icon:'🖼️', steps:['額縁の裏のツメを起こしてフタを外す','中のガラス板と台紙を取り出す','飾りたい写真をフレームのサイズに合わせて切る','台紙の上に切った写真を置く','ガラス板をかぶせて額縁にはめる','裏のツメを戻してフタを固定する','壁のフックに額縁をかける','まっすぐに整えて完成'] },
+  ],
+};
+
+const DIFF = {
+  easy:   { label:'かんたん', emoji:'🌱', desc:'5ステップ・6問', rounds:6 },
+  normal: { label:'ふつう', emoji:'🌿', desc:'6〜7ステップ・6問', rounds:6 },
+  hard:   { label:'むずかしい', emoji:'🌳', desc:'8〜9ステップ・4問', rounds:4 },
+};
+
+function shuffle(a) { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+function App() {
+  const [screen, setScreen] = React.useState('select');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  // Drag state
+  const [dragIdx, setDragIdx] = React.useState(null);
+  const [dragOverIdx, setDragOverIdx] = React.useState(null);
+  const [dragY, setDragY] = React.useState(0);
+  const containerRef = React.useRef(null);
+  const rootRef = React.useRef(null);
+  const touchStartY = React.useRef(0);
+  const dragState = React.useRef({ dragging: false, idx: null, overIdx: null, y: 0 });
+
+  const g = React.useRef({
+    phase: 'idle',
+    sequences: [],
+    currentSeq: 0,
+    correctOrder: [],
+    playerOrder: [],
+    score: 0,
+    correct: 0,
+    submitted: false,
+    feedback: null,
+    results: [],
+  }).current;
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const pool = SEQUENCES[diff] || SEQUENCES.easy;
+    g.sequences = shuffle(pool).slice(0, cfg.rounds);
+    g.currentSeq = 0;
+    g.score = 0;
+    g.correct = 0;
+    g.results = [];
+    setShowConfetti(false);
+    setScreen('game');
+    setupRound(0);
+  };
+
+  const setupRound = (idx) => {
+    const seq = g.sequences[idx];
+    g.correctOrder = [...seq.steps];
+    g.playerOrder = shuffle([...seq.steps]);
+    g.submitted = false;
+    g.feedback = null;
+    g.phase = 'playing';
+    setDragIdx(null);
+    setDragOverIdx(null);
+    rerender();
+  };
+
+  // ===== DRAG HANDLERS =====
+  const getDropIndex = React.useCallback((clientY) => {
+    if (!containerRef.current) return null;
+    const items = containerRef.current.querySelectorAll('[data-step-idx]');
+    for (let i = 0; i < items.length; i++) {
+      const rect = items[i].getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (clientY < midY) return i;
+    }
+    return items.length;
+  }, []);
+
+  const finishDrag = React.useCallback(() => {
+    const ds = dragState.current;
+    if (!ds.dragging || ds.idx === null || ds.overIdx === null) {
+      ds.dragging = false; ds.idx = null; ds.overIdx = null;
+      setDragIdx(null); setDragOverIdx(null);
+      return;
+    }
+    const arr = [...g.playerOrder];
+    const [item] = arr.splice(ds.idx, 1);
+    const insertAt = ds.overIdx > ds.idx ? ds.overIdx - 1 : ds.overIdx;
+    arr.splice(insertAt, 0, item);
+    g.playerOrder = arr;
+    ds.dragging = false; ds.idx = null; ds.overIdx = null;
+    setDragIdx(null); setDragOverIdx(null);
+    rerender();
+  }, []);
+
+  const startDrag = React.useCallback((idx, clientY) => {
+    if (g.submitted) return;
+    dragState.current = { dragging: true, idx, overIdx: idx, y: clientY };
+    setDragIdx(idx);
+    setDragY(clientY);
+  }, []);
+
+  // Register non-passive touch listeners on document
+  React.useEffect(() => {
+    const onTouchMove = (e) => {
+      const ds = dragState.current;
+      if (!ds.dragging) return;
+      e.preventDefault(); // This works because listener is non-passive
+      e.stopPropagation();
+      const touch = e.touches[0];
+      ds.y = touch.clientY;
+      setDragY(touch.clientY);
+      const overIdx = getDropIndex(touch.clientY);
+      if (overIdx !== null) { ds.overIdx = overIdx; setDragOverIdx(overIdx); }
+    };
+    const onTouchEnd = () => { finishDrag(); };
+    const onMouseMove = (e) => {
+      const ds = dragState.current;
+      if (!ds.dragging) return;
+      e.preventDefault();
+      ds.y = e.clientY;
+      setDragY(e.clientY);
+      const overIdx = getDropIndex(e.clientY);
+      if (overIdx !== null) { ds.overIdx = overIdx; setDragOverIdx(overIdx); }
+    };
+    const onMouseUp = () => { finishDrag(); };
+
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+    document.addEventListener('touchcancel', onTouchEnd);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('touchcancel', onTouchEnd);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [getDropIndex, finishDrag]);
+
+  const submitOrder = () => {
+    if (g.submitted) return;
+    g.submitted = true;
+    g.feedback = 'checking';
+    rerender();
+
+    setTimeout(() => {
+      const isCorrect = g.playerOrder.every((s, i) => s === g.correctOrder[i]);
+      const correctPositions = g.playerOrder.filter((s, i) => s === g.correctOrder[i]).length;
+      const total = g.correctOrder.length;
+
+      if (isCorrect) {
+        g.score += total * 10;
+        g.correct++;
+        g.feedback = 'correct';
+      } else {
+        g.score += Math.round(correctPositions * 3);
+        g.feedback = 'wrong';
+      }
+      g.results.push({ seq: g.sequences[g.currentSeq], playerOrder: [...g.playerOrder], correctPositions, total, isCorrect });
+      rerender();
+    }, 600);
+  };
+
+  const nextRound = () => {
+    if (g.currentSeq + 1 >= g.sequences.length) { finishGame(); }
+    else { g.currentSeq++; setupRound(g.currentSeq); }
+  };
+
+  const finishGame = () => {
+    g.phase = 'result'; rerender();
+    const pct = g.correct / g.sequences.length;
+    if (pct >= 0.8) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+    setHistory(prev => [{ diff: difficulty, correct: g.correct, total: g.sequences.length, score: g.score, date: new Date().toISOString() }, ...prev].slice(0, 20));
+    setScreen('result');
+  };
+
+  const goBack = () => { g.phase = 'idle'; setScreen('select'); rerender(); };
+
+  const cfg = DIFF[difficulty] || DIFF.normal;
+  const btnBase = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+  const currentSeqData = g.sequences[g.currentSeq];
+
+  const ConfettiEl = showConfetti ? (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      <style>{`@keyframes cf{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+      {Array.from({length:50},(_,i) => (
+        <div key={i} style={{ position:'absolute', top:-10, left:Math.random()*100+'%', width:6+Math.random()*8, height:6+Math.random()*8, background:['#FF6B35','#2EC4B6','#F9A825','#AB47BC','#66BB6A','#FF8F5E'][i%6], borderRadius:Math.random()>0.5?'50%':2, animation:`cf ${2+Math.random()*2}s linear ${Math.random()*1.5}s forwards` }} />
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div ref={rootRef} style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF7', minHeight:'100vh', color:'#2D2D2D' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'select' && <button onClick={goBack} style={{...btnBase, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px', borderRadius:8}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#FF6B35' }}>🧩 手順ならべ</span>
+        </div>
+        {screen === 'game' && (
+          <div style={{ display:'flex', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#2EC4B6', padding:'3px 10px', borderRadius:50 }}>{g.currentSeq+1}/{g.sequences.length}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#FF6B35', padding:'3px 10px', borderRadius:50 }}>{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SELECT ===== */}
+      {screen === 'select' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 2s infinite' }}>🧩</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:6 }}>手順ならべ</div>
+          <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>バラバラの手順を<br/>正しい順番に並べ替えよう！</div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>🧠 遂行機能（計画力・段取り力）のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:420, marginBottom:24, background:'white', borderRadius:16, padding:'18px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>🎯 遊び方</div>
+            <div style={{ fontSize:13, color:'#6B6B6B', lineHeight:2 }}>
+              ① 日常の動作手順がバラバラに表示されます<br/>
+              ② ドラッグして正しい順番に並べ替えてください<br/>
+              ③ 並べ終わったら「決定！」を押します<br/>
+              ④ 全ステップ正しい位置ならクリア！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:420 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📊 難易度を選んでスタート</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {Object.entries(DIFF).map(([k,d]) => (
+                <button key={k} onClick={() => startGame(k)} style={{...btnBase, fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'3px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left'}}>
+                  <span style={{ fontSize:26 }}>{d.emoji}</span>
+                  <div><div style={{ fontSize:15, fontWeight:700 }}>{d.label}</div><div style={{ fontSize:11, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:420, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:h.diff==='easy'?'#E8F5E9':h.diff==='normal'?'#FFF3E0':'#FCE4EC' }}>{hc.emoji}</div>
+                      <div><div style={{fontSize:12,fontWeight:700}}>{hc.label}・{h.correct}/{h.total}完全正解</div><div style={{fontSize:10,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:16,fontWeight:800,color:'#FF6B35'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== GAME ===== */}
+      {screen === 'game' && g.phase === 'playing' && currentSeqData && (
+        <div style={{ padding:'0 16px', maxWidth:500, margin:'0 auto', userSelect:'none', WebkitUserSelect:'none', touchAction: dragIdx !== null ? 'none' : 'auto', overscrollBehavior:'none' }}>
+          {/* Status */}
+          <div style={{ display:'flex', justifyContent:'center', gap:20, padding:'12px 16px', background:'white', borderBottom:'1px solid #F0F0F0', borderRadius:'0 0 16px 16px', marginBottom:8 }}>
+            {[
+              { v:g.score, l:'スコア', c:'#FF6B35' },
+              { v:g.correct+'/'+(g.currentSeq+(g.submitted?1:0)), l:'完全正解', c:'#2EC4B6' },
+              { v:(g.currentSeq+1)+'/'+g.sequences.length, l:'問題', c:'#7B1FA2' },
+            ].map((s,i) => (
+              <div key={i} style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:'Outfit', fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
+                <div style={{ fontSize:9, color:'#9E9E9E', marginTop:2 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Progress */}
+          <div style={{ display:'flex', gap:3, marginBottom:12 }}>
+            {g.sequences.map((_, i) => (
+              <div key={i} style={{ flex:1, height:5, borderRadius:3, background: i < g.results.length ? (g.results[i].isCorrect ? '#66BB6A' : '#EF5350') : i === g.currentSeq ? '#FFB74D' : '#E8E8E8' }} />
+            ))}
+          </div>
+
+          {/* Task title */}
+          <div style={{ background:'white', borderRadius:16, padding:'16px 20px', boxShadow:'0 2px 12px rgba(0,0,0,0.04)', marginBottom:12, textAlign:'center', animation:'fadeUp 0.4s ease-out' }} key={g.currentSeq}>
+            <div style={{ fontSize:36, marginBottom:8 }}>{currentSeqData.icon}</div>
+            <div style={{ fontSize:18, fontWeight:900, color:'#FF6B35' }}>「{currentSeqData.title}」</div>
+            <div style={{ fontSize:12, color:'#9E9E9E', marginTop:4 }}>
+              {g.submitted ? '' : '☝️ ドラッグして正しい順番に並べ替えてください'}
+            </div>
+          </div>
+
+          {/* Draggable steps */}
+          <div ref={containerRef} style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:16, position:'relative' }}>
+            {g.playerOrder.map((step, i) => {
+              const correctIdx = g.correctOrder.indexOf(step);
+              const isCorrectPos = g.submitted && correctIdx === i;
+              const isWrongPos = g.submitted && correctIdx !== i;
+              const isDragging = dragIdx === i;
+              const isDropTarget = !g.submitted && dragOverIdx !== null && dragIdx !== null && (
+                (dragOverIdx <= i && dragIdx > i) || (dragOverIdx > i && dragIdx < i) || dragOverIdx === i
+              );
+
+              return (
+                <div key={step + '-' + g.currentSeq} data-step-idx={i}>
+                  {/* Drop indicator line */}
+                  {!g.submitted && dragOverIdx === i && dragIdx !== null && dragIdx !== i && (
+                    <div style={{ height:4, background:'#FF6B35', borderRadius:2, marginBottom:4, animation:'fadeUp 0.15s ease-out' }} />
+                  )}
+
+                  <div
+                    onMouseDown={(e) => { e.preventDefault(); startDrag(i, e.clientY); }}
+                    onTouchStart={(e) => { e.preventDefault(); startDrag(i, e.touches[0].clientY); }}
+                    style={{
+                      display:'flex', alignItems:'center', gap:8,
+                      padding:'14px 14px', borderRadius:14,
+                      background: isCorrectPos ? '#E8F5E9' : isWrongPos ? '#FFEBEE' : isDragging ? '#FFF3E0' : 'white',
+                      border: `2px solid ${isCorrectPos ? '#66BB6A' : isWrongPos ? '#EF5350' : isDragging ? '#FF6B35' : '#E8E8E8'}`,
+                      opacity: isDragging ? 0.5 : 1,
+                      transform: isDragging ? 'scale(0.98)' : 'scale(1)',
+                      transition: isDragging ? 'none' : 'all 0.2s',
+                      cursor: g.submitted ? 'default' : 'grab',
+                      touchAction: 'none',
+                    }}>
+                    {/* Drag handle */}
+                    {!g.submitted && (
+                      <div style={{ fontSize:16, color:'#BDBDBD', flexShrink:0, cursor:'grab', padding:'0 4px' }}>☰</div>
+                    )}
+
+                    {/* Number */}
+                    <div style={{
+                      width:30, height:30, borderRadius:'50%', flexShrink:0,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontFamily:'Outfit', fontSize:18, fontWeight:800,
+                      background: isCorrectPos ? '#66BB6A' : isWrongPos ? '#EF5350' : '#FF6B35',
+                      color:'white',
+                    }}>{i + 1}</div>
+
+                    {/* Step text */}
+                    <div style={{ flex:1, fontSize:14, fontWeight:600, color: isCorrectPos ? '#2E7D32' : isWrongPos ? '#C62828' : '#2D2D2D' }}>
+                      {step}
+                    </div>
+
+                    {isWrongPos && <div style={{ fontSize:10, fontWeight:700, color:'#EF5350', flexShrink:0 }}>→{correctIdx+1}番目</div>}
+                    {isCorrectPos && <div style={{ fontSize:16, flexShrink:0 }}>✅</div>}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Drop indicator at end */}
+            {!g.submitted && dragOverIdx === g.playerOrder.length && dragIdx !== null && (
+              <div style={{ height:4, background:'#FF6B35', borderRadius:2, marginTop:2 }} />
+            )}
+          </div>
+
+          {/* Floating dragged item */}
+          {dragIdx !== null && !g.submitted && (
+            <div style={{
+              position:'fixed', left:20, right:20, maxWidth:468, margin:'0 auto',
+              top: dragY - 30, zIndex:100, pointerEvents:'none',
+              padding:'14px 14px', borderRadius:14,
+              background:'#FF6B35', color:'white', fontWeight:700, fontSize:14,
+              boxShadow:'0 8px 32px rgba(255,107,53,0.4)',
+              display:'flex', alignItems:'center', gap:8,
+              transform:'scale(1.03)', opacity:0.95,
+            }}>
+              <div style={{ width:30, height:30, borderRadius:'50%', background:'rgba(255,255,255,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit', fontWeight:800 }}>{dragIdx+1}</div>
+              {g.playerOrder[dragIdx]}
+            </div>
+          )}
+
+          {/* Submit button */}
+          {!g.submitted && (
+            <button onClick={submitOrder} style={{
+              ...btnBase, width:'100%', fontSize:16, fontWeight:700,
+              padding:'16px', borderRadius:50, border:'none',
+              background:'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+              color:'white', boxShadow:'0 4px 16px rgba(255,107,53,0.3)',
+            }}>この順番で決定！ ✨</button>
+          )}
+
+          {g.feedback === 'checking' && (
+            <div style={{ textAlign:'center', padding:16, fontSize:16, fontWeight:700, color:'#7B1FA2' }}>🔍 チェック中...</div>
+          )}
+          {g.feedback === 'correct' && (
+            <div style={{ textAlign:'center', padding:16, animation:'fadeUp 0.3s ease-out' }}>
+              <div style={{ fontSize:36, marginBottom:4 }}>🎉</div>
+              <div style={{ fontSize:18, fontWeight:900, color:'#2E7D32' }}>完璧な順番です！</div>
+              <button onClick={nextRound} style={{...btnBase, marginTop:12, fontSize:15, fontWeight:700, padding:'14px 32px', borderRadius:50, background:'#66BB6A', border:'none', color:'white'}}>
+                {g.currentSeq+1 >= g.sequences.length ? '結果を見る →' : '次の問題へ →'}
+              </button>
+            </div>
+          )}
+          {g.feedback === 'wrong' && (
+            <div style={{ textAlign:'center', padding:16, animation:'fadeUp 0.3s ease-out' }}>
+              <div style={{ fontSize:36, marginBottom:4 }}>🤔</div>
+              <div style={{ fontSize:16, fontWeight:900, color:'#E65100', marginBottom:4 }}>おしい！</div>
+              <div style={{ fontSize:13, color:'#6B6B6B' }}>{g.results[g.results.length-1]?.correctPositions}/{g.results[g.results.length-1]?.total} ステップが正しい位置でした</div>
+              <div style={{ marginTop:12, padding:'12px 16px', background:'#FFF3E0', borderRadius:12, textAlign:'left' }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'#E65100', marginBottom:8 }}>正しい順番：</div>
+                {g.correctOrder.map((s, i) => (
+                  <div key={i} style={{ fontSize:12, color:'#6B6B6B', padding:'4px 0', display:'flex', gap:8 }}>
+                    <span style={{ fontFamily:'Outfit', fontWeight:800, color:'#FF6B35', width:20, flexShrink:0 }}>{i+1}</span><span>{s}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={nextRound} style={{...btnBase, marginTop:12, fontSize:15, fontWeight:700, padding:'14px 32px', borderRadius:50, background:'#FF6B35', border:'none', color:'white'}}>
+                {g.currentSeq+1 >= g.sequences.length ? '結果を見る →' : '次の問題へ →'}
+              </button>
+            </div>
+          )}
+
+          <div style={{ height:24 }} />
+        </div>
+      )}
+
+      {/* ===== RESULT ===== */}
+      {screen === 'result' && (() => {
+        const total = g.sequences.length;
+        const pct = total > 0 ? g.correct / total : 0;
+        const stars = pct >= 0.85 ? '⭐⭐⭐' : pct >= 0.5 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.85 ? 'すばらしい段取り力！' : pct >= 0.5 ? 'よくできました！' : 'もう一度挑戦！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#FF6B35', marginBottom:4, animation:'fadeUp 0.6s ease-out 0.1s both' }}>{msg}</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:24, animation:'fadeUp 0.6s ease-out 0.2s both' }}>{cfg.label}モード</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:360, marginBottom:24, animation:'fadeUp 0.6s ease-out 0.3s both' }}>
+              {[{v:`${g.correct}/${total}`,l:'完全正解'},{v:Math.round(pct*100)+'%',l:'正答率'},{v:g.score,l:'スコア'}].map((s,i) =>
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.06)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:24, fontWeight:800, color:'#FF6B35' }}>{s.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{s.l}</div>
+                </div>
+              )}
+            </div>
+            <div style={{ width:'100%', maxWidth:420, marginBottom:28, animation:'fadeUp 0.6s ease-out 0.35s both' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left' }}>📋 結果の振り返り</div>
+              {g.results.map((r, i) => (
+                <div key={i} style={{ background:r.isCorrect?'#E8F5E9':'#FFF3E0', borderRadius:12, padding:'12px 14px', marginBottom:6, borderLeft:`4px solid ${r.isCorrect?'#66BB6A':'#FF6B35'}`, textAlign:'left', display:'flex', alignItems:'center', gap:10 }}>
+                  <span style={{ fontSize:24 }}>{r.seq.icon}</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:16, fontWeight:700 }}>{r.seq.title}</div>
+                    <div style={{ fontSize:11, color:r.isCorrect?'#2E7D32':'#E65100', marginTop:2 }}>{r.isCorrect ? '✅ 完全正解！' : `${r.correctPositions}/${r.total} 正しい位置`}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ width:'100%', maxWidth:420, marginBottom:24, padding:'14px 16px', background:'#F5F5F5', borderRadius:12, textAlign:'left', animation:'fadeUp 0.6s ease-out 0.4s both' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 手順を考えるコツ</div>
+              <div style={{ fontSize:11, color:'#9E9E9E', lineHeight:1.8 }}>まず「最初にやること」と「最後にやること」を決めると、間の順番が見えてきます。「これをやらないと次に進めない」という依存関係を考えましょう。</div>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300, animation:'fadeUp 0.6s ease-out 0.45s both' }}>
+              <button onClick={() => startGame(difficulty)} style={{...btnBase, fontSize:16, fontWeight:700, color:'white', background:'#FF6B35', border:'none', padding:'16px 32px', borderRadius:60}}>もう一度プレイ 🔄</button>
+              <button onClick={goBack} style={{...btnBase, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {ConfettiEl}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

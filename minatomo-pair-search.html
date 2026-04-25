@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>ペアさがし | みなともPlay</title>
+<meta name="description" content="関連する2つを結ぶ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="memory">
+<meta name="minatomo-category" content="">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== ペアさがし - 関連する2つを結ぶ ==========
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// Pair data - each pair has two related items
+const PAIR_SETS = {
+  dougu: {
+    label:'🔧 道具とつかう場所', pairs:[
+      ['ほうき','玄関'],['フライパン','台所'],['はさみ','工作'],['ものさし','勉強'],
+      ['くわ','畑'],['ドライバー','修理'],['バケツ','そうじ'],['まな板','料理'],
+      ['くし','髪'],['スコップ','砂場'],['針','裁縫'],['筆','習字'],
+    ]
+  },
+  doubutsu: {
+    label:'🐾 動物とすみか', pairs:[
+      ['犬','犬小屋'],['魚','水槽'],['馬','馬小屋'],['鳥','鳥かご'],
+      ['うさぎ','うさぎ小屋'],['ハムスター','ケージ'],['金魚','金魚鉢'],['にわとり','にわとり小屋'],
+      ['蜂','巣箱'],['カタツムリ','殻'],['カメ','甲羅'],['クモ','巣'],
+    ]
+  },
+  shigoto: {
+    label:'👨‍⚕️ 仕事とはたらく場所', pairs:[
+      ['医者','病院'],['先生','学校'],['消防士','消防署'],['警察官','交番'],
+      ['コック','レストラン'],['パイロット','空港'],['農家','畑'],['漁師','海'],
+      ['運転手','バス'],['薬剤師','薬局'],['店員','お店'],['大工','工事現場'],
+    ]
+  },
+  gyaku: {
+    label:'🔄 反対ことば', pairs:[
+      ['大きい','小さい'],['明るい','暗い'],['速い','遅い'],['高い','低い'],
+      ['長い','短い'],['重い','軽い'],['広い','狭い'],['多い','少ない'],
+      ['新しい','古い'],['強い','弱い'],['深い','浅い'],['太い','細い'],
+    ]
+  },
+  nakama: {
+    label:'🏷️ 仲間さがし', pairs:[
+      ['りんご','バナナ'],['犬','猫'],['赤','青'],['春','秋'],
+      ['ピアノ','ギター'],['電車','バス'],['鉛筆','ボールペン'],['サッカー','野球'],
+      ['富士山','エベレスト'],['太陽','月'],['椅子','テーブル'],['靴','サンダル'],
+    ]
+  },
+  kanji: {
+    label:'📝 漢字の読み', pairs:[
+      ['山','やま'],['川','かわ'],['花','はな'],['空','そら'],
+      ['海','うみ'],['森','もり'],['雨','あめ'],['雪','ゆき'],
+      ['星','ほし'],['風','かぜ'],['月','つき'],['火','ひ'],
+    ]
+  },
+};
+
+const DIFF = {
+  easy:  { label:'かんたん', emoji:'🌱', desc:'4ペア・ヒント付き', pairCount:4, rounds:4, showHint:true,
+           cats:['dougu','shigoto','gyaku'] },
+  normal:{ label:'ふつう', emoji:'🌿', desc:'5ペア・全カテゴリ', pairCount:5, rounds:5, showHint:false,
+           cats:['dougu','doubutsu','shigoto','gyaku','nakama'] },
+  hard:  { label:'むずかしい', emoji:'🌳', desc:'6ペア・ヒントなし', pairCount:6, rounds:6, showHint:false,
+           cats:['dougu','doubutsu','shigoto','gyaku','nakama','kanji'] },
+};
+
+function generateRound(diff, usedCats) {
+  const cfg = DIFF[diff];
+  // Pick a category
+  const available = cfg.cats.filter(c => !usedCats.has(c));
+  const catKey = available.length > 0
+    ? available[Math.floor(Math.random() * available.length)]
+    : cfg.cats[Math.floor(Math.random() * cfg.cats.length)];
+  usedCats.add(catKey);
+
+  const cat = PAIR_SETS[catKey];
+  const selectedPairs = shuffle(cat.pairs).slice(0, cfg.pairCount);
+
+  // Create items: each pair member gets an id linking to its partner
+  const items = [];
+  selectedPairs.forEach((pair, pairIdx) => {
+    items.push({ text:pair[0], pairId:pairIdx, side:'left' });
+    items.push({ text:pair[1], pairId:pairIdx, side:'right' });
+  });
+
+  return {
+    category: cat.label,
+    catKey,
+    items: shuffle(items),
+    pairs: selectedPairs,
+    pairCount: cfg.pairCount,
+  };
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('menu');
+  const [difficulty, setDifficulty] = React.useState('normal');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    rounds:[], currentR:0, score:0, results:[],
+    // Round state
+    items:[], selected:null, matched:new Set(), feedback:null,
+    startTime:0, pairsFound:0, wrongCount:0,
+    history:[],
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = (diff) => {
+    setDifficulty(diff);
+    const cfg = DIFF[diff];
+    const rounds = [];
+    const usedCats = new Set();
+    for (let i = 0; i < cfg.rounds; i++) rounds.push(generateRound(diff, usedCats));
+    g.rounds = rounds; g.currentR = 0; g.score = 0; g.results = [];
+    setScreen('game');
+    startRound(0);
+  };
+
+  const startRound = (idx) => {
+    g.currentR = idx;
+    const round = g.rounds[idx];
+    g.items = round.items;
+    g.selected = null;
+    g.matched = new Set();
+    g.feedback = null;
+    g.pairsFound = 0;
+    g.wrongCount = 0;
+    g.startTime = Date.now();
+    rerender();
+  };
+
+  const handleItemTap = (itemIdx) => {
+    if (g.feedback) return;
+    const item = g.items[itemIdx];
+    if (g.matched.has(item.pairId)) return; // Already matched
+
+    if (g.selected === null) {
+      // First selection
+      g.selected = itemIdx;
+      rerender();
+    } else if (g.selected === itemIdx) {
+      // Deselect
+      g.selected = null;
+      rerender();
+    } else {
+      // Second selection - check match
+      const first = g.items[g.selected];
+      const second = item;
+
+      if (first.pairId === second.pairId) {
+        // Match!
+        g.matched.add(first.pairId);
+        g.pairsFound++;
+        g.feedback = 'correct';
+        g.selected = null;
+        g.score += 15 - g.wrongCount * 2;
+        rerender();
+
+        timerRef.current = setTimeout(() => {
+          g.feedback = null;
+          rerender();
+          // Check if round complete
+          if (g.pairsFound >= g.rounds[g.currentR].pairCount) {
+            finishRound();
+          }
+        }, 600);
+      } else {
+        // Wrong
+        g.wrongCount++;
+        g.feedback = 'wrong';
+        const wrongIdx = itemIdx;
+        rerender();
+
+        timerRef.current = setTimeout(() => {
+          g.feedback = null;
+          g.selected = null;
+          rerender();
+        }, 700);
+      }
+    }
+  };
+
+  const finishRound = () => {
+    const elapsed = ((Date.now() - g.startTime) / 1000).toFixed(1);
+    const round = g.rounds[g.currentR];
+    const pct = g.pairsFound / round.pairCount;
+    let result;
+    if (g.wrongCount <= 1) { result = 'great'; g.score += 20; }
+    else if (g.wrongCount <= 3) { result = 'good'; g.score += 8; }
+    else { result = 'miss'; }
+
+    g.results.push({ category:round.category, result, wrong:g.wrongCount, time:elapsed, pairs:g.pairsFound });
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      if (g.currentR + 1 >= g.rounds.length) {
+        setScreen('result');
+        rerender();
+      } else {
+        startRound(g.currentR + 1);
+      }
+    }, 1000);
+  };
+
+  const goMenu = () => { clearTimeout(timerRef.current); setScreen('menu'); rerender(); };
+
+  const cfg = DIFF[difficulty];
+  const round = g.currentR < g.rounds.length ? g.rounds[g.currentR] : null;
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.2s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes matchPop{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:'white', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {screen !== 'menu' && <button onClick={goMenu} style={{...bs, fontSize:20, background:'none', border:'none', color:'#6B6B6B', padding:'4px 8px'}}>←</button>}
+          <span style={{ fontSize:16, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🧲 ペアさがし</span>
+        </div>
+        {screen === 'game' && (
+          <span style={{ fontSize:12, fontWeight:700, color:'white', background:'#888', padding:'3px 10px', borderRadius:50 }}>{g.currentR+1}/{g.rounds.length}</span>
+        )}
+      </div>
+
+      {/* MENU */}
+      {screen === 'menu' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:64, marginBottom:16, animation:'bounce 3s ease-in-out infinite' }}>🧲</div>
+          <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', letterSpacing:'0.1em', marginBottom:6 }}>ペアさがし</div>
+          <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:8, lineHeight:1.9, letterSpacing:'0.03em' }}>関連する2つを見つけて<br/>ペアにしよう！</div>
+          <div style={{ fontSize:13, color:'#9E9E9E', marginBottom:28, background:'#F5F5F0', padding:'10px 18px', borderRadius:12 }}>🧠 意味記憶・連想力・語彙力のトレーニングです</div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'20px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:12, letterSpacing:'0.05em' }}>🎯 遊び方</div>
+            <div style={{ fontSize:14, color:'#6B6B6B', lineHeight:2.2, letterSpacing:'0.03em' }}>
+              ① カードがバラバラに並んでいます<br/>
+              ② 関連する2つのカードをタップ<br/>
+              ③ ペアが合っていれば消えます<br/>
+              ④ 全ペア見つけたらクリア！
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left', letterSpacing:'0.05em' }}>🏷️ こんなカテゴリ</div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {Object.values(PAIR_SETS).map((cat, i) => (
+                <span key={i} style={{ fontSize:12, fontWeight:700, padding:'4px 10px', borderRadius:50, background:'#F5F5F0' }}>{cat.label}</span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'left' }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, letterSpacing:'0.05em' }}>💡 なぜ「ペアさがし」が大切？</div>
+            <div style={{ fontSize:13, color:'#9E9E9E', lineHeight:1.9, letterSpacing:'0.02em' }}>
+              「犬と犬小屋」「大きいと小さい」のように、ものごとの関係を考える力は日常生活に欠かせません。この連想力を鍛えることで、会話のスムーズさや物忘れの予防につながります。
+            </div>
+          </div>
+
+          <div style={{ width:'100%', maxWidth:480 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10, textAlign:'left', letterSpacing:'0.05em' }}>📊 難易度を選んでスタート</div>
+            {Object.entries(DIFF).map(([k,d]) => (
+              <button key={k} onClick={() => startGame(k)} style={{...bs, width:'100%', fontSize:15, fontWeight:700, padding:'18px 20px', borderRadius:16, border:'2px solid #E8E8E8', background:'white', display:'flex', alignItems:'center', gap:14, textAlign:'left', marginBottom:10}}>
+                <span style={{ fontSize:26 }}>{d.emoji}</span>
+                <div><div style={{ fontWeight:700 }}>{d.label}</div><div style={{ fontSize:12, color:'#6B6B6B', marginTop:2 }}>{d.desc}</div></div>
+              </button>
+            ))}
+          </div>
+
+          {g.history.length > 0 && (
+            <div style={{ width:'100%', maxWidth:480, marginTop:28, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:10 }}>📊 プレイ履歴</div>
+              {g.history.slice(0,5).map((h,i) => {
+                const hc = DIFF[h.diff]; const d = new Date(h.date);
+                return (
+                  <div key={i} style={{ background:'white', borderRadius:16, padding:'12px 14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, background:'#F5F5F0' }}>{hc?.emoji}</div>
+                      <div><div style={{fontSize:13,fontWeight:700}}>{hc?.label}</div><div style={{fontSize:11,color:'#9E9E9E'}}>{d.getMonth()+1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2,'0')}</div></div>
+                    </div>
+                    <div style={{fontFamily:'Outfit',fontSize:18,fontWeight:800,color:'#E8652E'}}>{h.score}pt</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* GAME */}
+      {screen === 'game' && round && (
+        <div style={{ padding:'0 16px', maxWidth:580, margin:'0 auto' }}>
+          {/* Status */}
+          <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 14px', background:'white', borderRadius:'0 0 12px 12px', marginBottom:6 }}>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#555' }}>{g.score}pt</div><div style={{ fontSize:9, color:'#9E9E9E' }}>スコア</div></div>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#555' }}>{g.pairsFound}/{round.pairCount}</div><div style={{ fontSize:9, color:'#9E9E9E' }}>ペア</div></div>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Outfit', fontSize:16, fontWeight:800, color:'#C62828' }}>✕{g.wrongCount}</div><div style={{ fontSize:9, color:'#9E9E9E' }}>ミス</div></div>
+          </div>
+
+          {/* Progress */}
+          <div style={{ display:'flex', gap:2, marginBottom:8 }}>
+            {g.rounds.map((_,i) => (
+              <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i<g.results.length?(g.results[i].result==='great'?'#8BC34A':g.results[i].result==='good'?'#FFB74D':'#EF9A9A'):i===g.currentR?'#FFB74D':'#E8E8E8' }} />
+            ))}
+          </div>
+
+          {/* Category */}
+          <div style={{ textAlign:'center', marginBottom:8 }}>
+            <span style={{ fontSize:14, fontWeight:900, color:'#E8652E', background:'#FFF3E0', padding:'5px 16px', borderRadius:50 }}>
+              {round.category}
+            </span>
+          </div>
+
+          {/* Hint for easy mode */}
+          {DIFF[difficulty].showHint && g.pairsFound === 0 && (
+            <div style={{ textAlign:'center', marginBottom:6, fontSize:12, color:'#9E9E9E' }}>
+              💡 関連する2つのカードをタップしてペアにしよう
+            </div>
+          )}
+
+          {/* Card grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8, animation:'fadeUp 0.3s ease-out' }} key={g.currentR}>
+            {g.items.map((item, i) => {
+              const isMatched = g.matched.has(item.pairId);
+              const isSelected = g.selected === i;
+              const isWrongPair = g.feedback === 'wrong' && (g.selected === i || (g.selected !== null && i !== g.selected && g.items[g.selected]?.pairId !== item.pairId));
+
+              if (isMatched) {
+                return (
+                  <div key={i} style={{
+                    padding:'16px 8px', borderRadius:14, textAlign:'center', minHeight:60,
+                    background:'#F1F8E9', border:'2px solid #C8E6C9',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    animation:'matchPop 0.4s ease-out',
+                    opacity:0.5,
+                  }}>
+                    <span style={{ fontSize:14, fontWeight:700, color:'#66BB6A' }}>✓</span>
+                  </div>
+                );
+              }
+
+              return (
+                <button key={i} onClick={() => handleItemTap(i)}
+                  style={{
+                    ...bs, padding:'16px 8px', borderRadius:14, textAlign:'center', minHeight:60,
+                    background: isSelected ? '#E8652E' : 'white',
+                    border: `2px solid ${isSelected ? '#E8652E' : '#E8E8E8'}`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    animation: g.feedback === 'wrong' && isSelected ? 'shake 0.3s' : undefined,
+                    boxShadow: isSelected ? '0 4px 16px rgba(232,101,46,0.2)' : '0 2px 8px rgba(0,0,0,0.04)',
+                  }}>
+                  <span style={{ fontSize:15, fontWeight:900, color:isSelected ? 'white' : '#333', letterSpacing:'0.03em' }}>
+                    {item.text}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Feedback */}
+          {g.feedback === 'correct' && (
+            <div style={{ textAlign:'center', marginTop:12, animation:'fadeUp 0.2s ease-out' }}>
+              <span style={{ fontSize:20, fontWeight:900, color:'#2E7D32' }}>⭕ ペア成立！</span>
+            </div>
+          )}
+          {g.feedback === 'wrong' && (
+            <div style={{ textAlign:'center', marginTop:12, animation:'shake 0.3s' }}>
+              <span style={{ fontSize:20, fontWeight:900, color:'#C62828' }}>❌ ちがうペアです</span>
+            </div>
+          )}
+
+          {/* Round complete */}
+          {g.pairsFound >= round.pairCount && (
+            <div style={{ textAlign:'center', marginTop:16, animation:'fadeUp 0.4s ease-out' }}>
+              <div style={{ fontSize:32, marginBottom:4 }}>
+                {g.wrongCount <= 1 ? '🎉' : g.wrongCount <= 3 ? '👍' : '🤔'}
+              </div>
+              <div style={{ fontSize:20, fontWeight:900, color:g.wrongCount<=1?'#2E7D32':g.wrongCount<=3?'#E8652E':'#999' }}>
+                {g.wrongCount <= 1 ? '完璧！' : g.wrongCount <= 3 ? 'いいね！' : 'もう少し！'}
+              </div>
+              <div style={{ fontSize:13, color:'#9E9E9E', marginTop:4 }}>
+                ミス{g.wrongCount}回 ・ {((Date.now()-g.startTime)/1000).toFixed(1)}秒
+              </div>
+            </div>
+          )}
+
+          {/* Matched pairs display */}
+          {g.matched.size > 0 && g.pairsFound < round.pairCount && (
+            <div style={{ marginTop:12, display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center' }}>
+              {round.pairs.filter((_,i) => g.matched.has(i)).map((pair, i) => (
+                <span key={i} style={{ fontSize:11, color:'#66BB6A', fontWeight:700, background:'#F1F8E9', padding:'3px 10px', borderRadius:50 }}>
+                  {pair[0]} ↔ {pair[1]}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div style={{ height:20 }} />
+        </div>
+      )}
+
+      {/* RESULT */}
+      {screen === 'result' && (() => {
+        const greats = g.results.filter(r => r.result === 'great').length;
+        const totalWrong = g.results.reduce((s,r) => s + r.wrong, 0);
+        const pct = greats / g.results.length;
+        const stars = pct >= 0.6 ? '⭐⭐⭐' : pct >= 0.3 ? '⭐⭐' : '⭐';
+        const msg = pct >= 0.6 ? '連想マスター！' : pct >= 0.3 ? 'いい調子！' : 'もっと練習！';
+
+        // Save history
+        if (!g._saved) {
+          g._saved = true;
+          g.history = [{ diff:difficulty, score:g.score, date:new Date().toISOString() }, ...g.history].slice(0,20);
+        }
+
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'30px 20px', textAlign:'center' }}>
+            <div style={{ fontSize:48, marginBottom:16, animation:'fadeUp 0.6s ease-out' }}>{stars}</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#E8652E', marginBottom:6, letterSpacing:'0.08em' }}>{msg}</div>
+            <div style={{ fontSize:15, color:'#6B6B6B', marginBottom:24 }}>{cfg.label}モード</div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, width:'100%', maxWidth:340, marginBottom:20 }}>
+              {[
+                {v:`🎉${greats}`,l:'完璧',c:'#2E7D32'},
+                {v:`✕${totalWrong}`,l:'総ミス',c:'#C62828'},
+                {v:`${g.score}pt`,l:'スコア',c:'#E8652E'},
+              ].map((x,i) => (
+                <div key={i} style={{ background:'white', borderRadius:16, padding:'14px 8px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', textAlign:'center' }}>
+                  <div style={{ fontFamily:'Outfit', fontSize:22, fontWeight:800, color:x.c }}>{x.v}</div>
+                  <div style={{ fontSize:10, color:'#9E9E9E', marginTop:4 }}>{x.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Round details */}
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📋 ラウンド別</div>
+              {g.results.map((r,i) => (
+                <div key={i} style={{ background:r.result==='great'?'#F1F8E9':r.result==='good'?'#FFF3E0':'#FAFAFA', borderRadius:12, padding:'8px 14px', marginBottom:4, borderLeft:`4px solid ${r.result==='great'?'#8BC34A':r.result==='good'?'#FFB74D':'#E0E0E0'}`, textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div style={{ fontSize:13, fontWeight:700 }}>{r.result==='great'?'🎉':r.result==='good'?'👍':'🤔'} {r.category}</div>
+                  <div style={{ fontSize:11, fontWeight:800, fontFamily:'Outfit', color:'#555' }}>✕{r.wrong} ⏱{r.time}s</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pairs learned */}
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24, background:'white', borderRadius:16, padding:'14px', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:8, textAlign:'left' }}>📖 今回のペア一覧</div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {g.rounds.map(r => r.pairs).flat().map((pair, i) => (
+                  <span key={i} style={{ fontSize:11, fontWeight:700, background:'#F5F5F0', padding:'4px 10px', borderRadius:50, color:'#555' }}>
+                    {pair[0]} ↔ {pair[1]}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ width:'100%', maxWidth:480, marginBottom:24, padding:'14px 16px', background:'#FAFAF8', border:'1px solid #E8E8E8', borderRadius:12, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#6B6B6B', marginBottom:6 }}>💡 コツ</div>
+              <div style={{ fontSize:12, color:'#9E9E9E', lineHeight:1.9 }}>
+                まず全体をざっと見て、知っているペアから先に見つけましょう。「道具→使う場所」「動物→すみか」のようにカテゴリを意識すると見つけやすくなります。
+              </div>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => { g._saved = false; startGame(difficulty); }} style={{...bs, fontSize:16, fontWeight:700, color:'white', background:'#E8652E', border:'none', padding:'16px 32px', borderRadius:60, letterSpacing:'0.06em'}}>もう一度プレイ 🔄</button>
+              <button onClick={() => { g._saved = false; goMenu(); }} style={{...bs, fontSize:14, fontWeight:700, color:'#6B6B6B', background:'white', border:'2px solid #E0E0E0', padding:'14px 32px', borderRadius:60}}>設定を変える</button>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

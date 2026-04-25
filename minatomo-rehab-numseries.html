@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scale=no">
+<title>すうじのつぎは？ | みなともPlay</title>
+<meta name="description" content="すうじのつぎは？ - 無料リハビリゲーム みなともPlay">
+<meta name="minatomo-domain" content="calculation">
+<meta name="minatomo-category" content="リハビリ脳トレ">
+<meta name="minatomo-source" content="jsx-build-20260425T100701">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #FAFAF7; }
+  #root { min-height: 100vh; }
+  .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; color: #6B6B6B; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">読み込み中...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+// ========== 【リハビリ脳トレ】すうじのつぎは？ ==========
+// Number Series / Sequence Reasoning - 流動性知能・推論
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// Generate a sequence based on a rule
+function genSequence(difficulty) {
+  const easy = [
+    () => { const s=1+Math.floor(Math.random()*5), d=1; return { seq:[s,s+d,s+d*2,s+d*3], next:s+d*4, rule:'+1' }; },
+    () => { const s=1+Math.floor(Math.random()*4), d=2; return { seq:[s,s+d,s+d*2,s+d*3], next:s+d*4, rule:'+2' }; },
+    () => { const s=10+Math.floor(Math.random()*5), d=-1; return { seq:[s,s+d,s+d*2,s+d*3], next:s+d*4, rule:'-1' }; },
+    () => { const s=2+Math.floor(Math.random()*3), d=2; return { seq:[s,s+d,s+d*2,s+d*3], next:s+d*4, rule:'+2' }; },
+  ];
+
+  const medium = [
+    () => { const s=1+Math.floor(Math.random()*3), d=3; return { seq:[s,s+d,s+d*2,s+d*3], next:s+d*4, rule:'+3' }; },
+    () => { const s=20+Math.floor(Math.random()*8), d=-2; return { seq:[s,s+d,s+d*2,s+d*3], next:s+d*4, rule:'-2' }; },
+    () => { const s=2, r=2; return { seq:[s,s*r,s*r*r,s*r*r*r], next:s*r*r*r*r, rule:'×2' }; },
+    () => {
+      // Alternating: +1, +2, +1, +2, ...
+      const s = 1+Math.floor(Math.random()*3);
+      const seq = [s, s+1, s+1+2, s+1+2+1];
+      return { seq, next: s+1+2+1+2, rule:'+1 / +2' };
+    },
+  ];
+
+  const hard = [
+    () => { const s=1+Math.floor(Math.random()*3), d=5; return { seq:[s,s+d,s+d*2,s+d*3], next:s+d*4, rule:'+5' }; },
+    () => {
+      // Fibonacci-like: each = sum of prev two
+      const a = 1+Math.floor(Math.random()*3), b = 1+Math.floor(Math.random()*3);
+      const c = a+b, d = b+c, e = c+d, f = d+e;
+      return { seq:[a,b,c,d], next:e, rule:'前2つをたす' };
+    },
+    () => {
+      // Alternating: +2, -1, +2, -1, ...
+      const s = 5+Math.floor(Math.random()*5);
+      const seq = [s, s+2, s+2-1, s+2-1+2];
+      return { seq, next: s+2-1+2-1, rule:'+2 / -1' };
+    },
+    () => {
+      // Square numbers
+      const start = 1 + Math.floor(Math.random()*3);
+      return { seq:[start**2, (start+1)**2, (start+2)**2, (start+3)**2], next:(start+4)**2, rule:'へいほう' };
+    },
+  ];
+
+  const pool = difficulty === 0 ? easy : difficulty === 1 ? medium : hard;
+  return pool[Math.floor(Math.random() * pool.length)]();
+}
+
+function genChoices(answer) {
+  const choices = new Set([answer]);
+  // Nearby distractors
+  const offsets = [-2, -1, 1, 2, 3, -3, 5, -5];
+  while (choices.size < 4) {
+    const off = offsets[Math.floor(Math.random() * offsets.length)];
+    const c = answer + off;
+    if (c > 0 && c !== answer) choices.add(c);
+  }
+  return shuffle([...choices]);
+}
+
+const LEVELS = [
+  { rounds:4, difficulty:0, label:'レベル1', tag:'やさしい' },
+  { rounds:5, difficulty:1, label:'レベル2', tag:'ふつう' },
+  { rounds:5, difficulty:2, label:'レベル3', tag:'むずかしい' },
+];
+
+function genLevelRounds(level) {
+  const rounds = [];
+  for (let i = 0; i < level.rounds; i++) {
+    const s = genSequence(level.difficulty);
+    rounds.push({
+      sequence: s.seq,
+      answer: s.next,
+      rule: s.rule,
+      choices: genChoices(s.next),
+    });
+  }
+  return rounds;
+}
+
+function App() {
+  const [screen, setScreen] = React.useState('start');
+  const [, forceUpdate] = React.useState(0);
+  const rerender = () => forceUpdate(x => x + 1);
+
+  const g = React.useRef({
+    levelIdx:0, roundIdx:0,
+    rounds:[],
+    feedback:null, selected:null,
+    correct:0, score:0,
+    levelResults:[],
+  }).current;
+
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const startGame = () => {
+    g.levelIdx = 0; g.levelResults = []; g.correct = 0; g.score = 0;
+    setScreen('play');
+    startLevel(0);
+  };
+
+  const startLevel = (lvlIdx) => {
+    g.levelIdx = lvlIdx;
+    g.rounds = genLevelRounds(LEVELS[lvlIdx]);
+    g.roundIdx = 0;
+    g.feedback = null; g.selected = null;
+    rerender();
+  };
+
+  const handleTap = (num) => {
+    if (g.feedback) return;
+    const round = g.rounds[g.roundIdx];
+    const isCorrect = num === round.answer;
+    g.selected = num;
+    g.feedback = isCorrect ? 'correct' : 'wrong';
+    if (isCorrect) {
+      g.correct++;
+      g.score += 15 + LEVELS[g.levelIdx].difficulty * 5;
+    }
+    rerender();
+
+    timerRef.current = setTimeout(() => {
+      g.feedback = null; g.selected = null;
+      if (g.roundIdx + 1 >= g.rounds.length) {
+        // Level end
+        g.levelResults.push({
+          label: LEVELS[g.levelIdx].label,
+          correct: g.rounds.filter((_, i) => i <= g.roundIdx).length, // placeholder
+        });
+        if (g.levelIdx + 1 >= LEVELS.length) {
+          setScreen('done'); rerender();
+        } else {
+          startLevel(g.levelIdx + 1);
+        }
+      } else {
+        g.roundIdx++;
+        rerender();
+      }
+    }, isCorrect ? 900 : 2000);
+  };
+
+  const level = LEVELS[g.levelIdx];
+  const round = g.rounds[g.roundIdx];
+  const bs = { fontFamily:"'Zen Maru Gothic',sans-serif", cursor:'pointer', transition:'all 0.15s' };
+
+  return (
+    <div style={{ fontFamily:"'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif", background:'#FAFAF8', minHeight:'100vh', color:'#333' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+        @keyframes numAppear{0%{transform:translateY(-10px);opacity:0}100%{transform:translateY(0);opacity:1}}
+        @keyframes questionPulse{0%,100%{border-color:#E8652E}50%{border-color:#FF9966}}
+        @media(min-width:768px){#root{zoom:1.25}}@media(min-width:1200px){#root{zoom:1.8}}@media(min-width:1920px){#root{zoom:2.4}}
+      `}</style>
+
+      <div style={{ background:'white', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 1px 4px rgba(0,0,0,0.03)' }}>
+        <span style={{ fontSize:18, fontWeight:900, color:'#E8652E', letterSpacing:'0.08em' }}>🔢 すうじのつぎは？</span>
+        {screen === 'play' && (
+          <span style={{ fontSize:14, fontWeight:800, color:'white', background:'#888', padding:'4px 12px', borderRadius:50 }}>
+            {level?.label}　{g.roundIdx + 1}/{level?.rounds}
+          </span>
+        )}
+      </div>
+
+      {/* START */}
+      {screen === 'start' && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'30px 20px', textAlign:'center', minHeight:'70vh' }}>
+          {/* Demo */}
+          <div style={{ background:'white', borderRadius:16, padding:'16px', marginBottom:14, boxShadow:'0 2px 8px rgba(0,0,0,0.05)' }}>
+            <div style={{ display:'flex', gap:8, alignItems:'center', justifyContent:'center' }}>
+              {[2,4,6,8].map((n, i) => (
+                <div key={i} style={{
+                  width:40, height:40, borderRadius:10,
+                  background:'#F5F5F0', border:'2px solid #E0E0E0',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                  <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#555' }}>{n}</span>
+                </div>
+              ))}
+              <span style={{ fontSize:18, color:'#BDBDBD', margin:'0 2px' }}>→</span>
+              <div style={{
+                width:44, height:44, borderRadius:10,
+                background:'#FFF3E0', border:'3px solid #E8652E',
+                display:'flex', alignItems:'center', justifyContent:'center',
+              }}>
+                <span style={{ fontSize:20, fontWeight:900, color:'#E8652E' }}>？</span>
+              </div>
+            </div>
+            <div style={{ fontSize:13, fontWeight:700, color:'#9E9E9E', marginTop:8 }}>
+              きまり：2ずつふえる → つぎは <span style={{ color:'#2E7D32', fontWeight:900, fontFamily:'Outfit' }}>10</span>
+            </div>
+          </div>
+
+          <div style={{ fontSize:24, fontWeight:900, color:'#333', marginBottom:4 }}>
+            きまりをみつけよう！
+          </div>
+          <div style={{ fontSize:13, color:'#E8652E', fontWeight:700, marginBottom:4 }}>
+            つぎにくる数字は？
+          </div>
+          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:24 }}>
+            推論・パターン認識・遂行機能
+          </div>
+
+          <button onClick={startGame} style={{
+            ...bs, fontSize:26, fontWeight:900, color:'white',
+            background:'#E8652E', border:'none',
+            padding:'22px 56px', borderRadius:60,
+            boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+          }}>はじめる</button>
+        </div>
+      )}
+
+      {/* PLAY */}
+      {screen === 'play' && level && round && (
+        <div style={{ padding:'12px 16px', maxWidth:520, margin:'0 auto' }}>
+
+          {/* Level progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:8 }}>
+            {LEVELS.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.levelIdx ? 20 : 14, height:6, borderRadius:3,
+                background: i < g.levelIdx ? '#8BC34A' : i === g.levelIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Round progress */}
+          <div style={{ display:'flex', gap:3, justifyContent:'center', marginBottom:10 }}>
+            {g.rounds.map((_, i) => (
+              <div key={i} style={{
+                width: i === g.roundIdx ? 10 : 6, height:6, borderRadius:3,
+                background: i < g.roundIdx ? '#8BC34A' : i === g.roundIdx ? '#E8652E' : '#E0E0E0',
+              }} />
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <span style={{ fontFamily:'Outfit,sans-serif', fontSize:20, fontWeight:900, color:'#E8652E' }}>{g.score}<span style={{ fontSize:12, color:'#9E9E9E' }}>pt</span></span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#555' }}>{level.tag}</span>
+          </div>
+
+          <div style={{ fontSize:18, fontWeight:900, color:'#333', textAlign:'center', marginBottom:12 }}>
+            きまりをみつけて、つぎは？
+          </div>
+
+          {/* Sequence display */}
+          <div style={{
+            background:'white', borderRadius:20, padding:'24px 16px',
+            boxShadow:'0 4px 16px rgba(0,0,0,0.06)',
+            marginBottom:14,
+          }} key={g.roundIdx + '-' + g.levelIdx}>
+            <div style={{ display:'flex', gap:8, justifyContent:'center', alignItems:'center', flexWrap:'wrap' }}>
+              {round.sequence.map((n, i) => (
+                <div key={i} style={{
+                  width:58, height:58, borderRadius:14,
+                  background:'#F5F5F0', border:'2px solid #E0E0E0',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  animation:`numAppear 0.3s ease-out ${i * 0.1}s both`,
+                }}>
+                  <span style={{ fontFamily:'Outfit,sans-serif', fontSize:28, fontWeight:900, color:'#555' }}>{n}</span>
+                </div>
+              ))}
+              <span style={{ fontSize:24, color:'#BDBDBD', margin:'0 2px' }}>→</span>
+              <div style={{
+                width:66, height:66, borderRadius:16,
+                background: g.feedback === 'correct' ? '#F1F8E9'
+                  : g.feedback === 'wrong' ? '#FFF5F5'
+                  : '#FFF3E0',
+                border: `3px solid ${
+                  g.feedback === 'correct' ? '#66BB6A'
+                  : g.feedback === 'wrong' ? '#EF5350'
+                  : '#E8652E'
+                }`,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                animation: !g.feedback ? 'questionPulse 1.5s ease-in-out infinite' : undefined,
+              }}>
+                <span style={{
+                  fontFamily:'Outfit,sans-serif', fontSize:30, fontWeight:900,
+                  color: g.feedback === 'correct' ? '#2E7D32' : g.feedback === 'wrong' ? '#C62828' : '#E8652E',
+                }}>
+                  {g.feedback ? round.answer : '？'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Feedback */}
+          {g.feedback && (
+            <div style={{ textAlign:'center', marginBottom:10, animation:'fadeUp 0.2s' }}>
+              <span style={{ fontSize:40 }}>{g.feedback === 'correct' ? '⭕' : '❌'}</span>
+              <div style={{ fontSize:14, fontWeight:700, color:'#555', marginTop:4 }}>
+                きまりは <span style={{ color:'#E8652E', fontWeight:900 }}>「{round.rule}」</span>
+              </div>
+            </div>
+          )}
+          {!g.feedback && <div style={{ height:60 }} />}
+
+          {/* Choices */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
+            {round.choices.map((n, i) => {
+              const isSelected = g.selected === n;
+              const isAnswer = n === round.answer;
+              const showCorrect = g.feedback && isAnswer;
+              const showWrong = g.feedback === 'wrong' && isSelected;
+              return (
+                <button key={i} onClick={() => handleTap(n)}
+                  disabled={!!g.feedback}
+                  style={{
+                    ...bs, height:72, borderRadius:16,
+                    background: showCorrect ? '#F1F8E9' : showWrong ? '#FFF5F5' : 'white',
+                    border: `4px solid ${showCorrect ? '#66BB6A' : showWrong ? '#EF5350' : '#E8E8E8'}`,
+                    fontFamily:'Outfit,sans-serif', fontSize:32, fontWeight:900,
+                    color: showCorrect ? '#2E7D32' : showWrong ? '#C62828' : '#333',
+                    animation: showWrong ? 'shake 0.3s' : showCorrect ? 'pop 0.3s' : undefined,
+                    opacity: g.feedback && !showCorrect && !showWrong ? 0.3 : 1,
+                    boxShadow:'0 3px 10px rgba(0,0,0,0.05)',
+                  }}>
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {screen === 'done' && (() => {
+        const totalRounds = LEVELS.reduce((a, l) => a + l.rounds, 0);
+        const pct = g.correct / totalRounds;
+        const emoji = pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '😊';
+        const msg = pct >= 0.8 ? 'すばらしい！' : pct >= 0.5 ? 'いいね！' : 'またやろう！';
+        return (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center', minHeight:'70vh' }}>
+            <div style={{ fontSize:64, marginBottom:8, animation:'pop 0.6s ease-out' }}>{emoji}</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#E8652E', marginBottom:14 }}>{msg}</div>
+
+            <div style={{ background:'white', borderRadius:24, padding:'18px 36px', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', marginBottom:10 }}>
+              <div style={{ fontFamily:'Outfit,sans-serif', fontSize:40, fontWeight:900, color:'#E8652E' }}>
+                {g.score}<span style={{ fontSize:18, color:'#9E9E9E' }}>てん</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize:16, fontWeight:700, color:'#555', marginBottom:20 }}>
+              {g.correct}もん せいかい / {totalRounds}もん
+            </div>
+
+            <button onClick={startGame} style={{
+              ...bs, fontSize:22, fontWeight:900, color:'white',
+              background:'#E8652E', border:'none',
+              padding:'20px 44px', borderRadius:60,
+              boxShadow:'0 6px 20px rgba(232,101,46,0.3)',
+            }}>もういちど</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
