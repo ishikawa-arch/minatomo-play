@@ -1,0 +1,27 @@
+{
+  "name": "minatomo-play-import",
+  "version": "1.0.0",
+  "description": "認知症・脳卒中後のリハビリ向け、自宅で続けるブラウザゲーム集。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ishikawa-arch/minatomo-play.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ishikawa-arch/minatomo-play/issues"
+  },
+  "homepage": "https://github.com/ishikawa-arch/minatomo-play#readme",
+  "devDependencies": {
+    "playwright": "^1.59.1"
+  }
+}
