@@ -13,6 +13,7 @@ Patterns:
   P9 計算系
   P10 音声入力必須
 """
+import datetime
 import json
 import shutil
 from pathlib import Path
@@ -349,8 +350,10 @@ def main():
                 game["metadata"].pop("review_reason", None)
 
     # write
+    catalog["last_updated"] = datetime.date.today().isoformat()
     CATALOG.write_text(json.dumps(catalog, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"wrote: {CATALOG} ({CATALOG.stat().st_size} bytes)")
+    print(f"last_updated: {catalog['last_updated']}")
     print()
     print("=== pattern counts ===")
     for k in sorted(pattern_counts.keys()):

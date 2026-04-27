@@ -12,6 +12,7 @@ Usage:
   python3 scripts/cleanup_deprecated_contraindications.py [--dry-run]
 """
 import argparse
+import datetime
 import json
 from pathlib import Path
 
@@ -71,11 +72,13 @@ def main():
         print("DRY RUN — 書き込みなし")
         return
 
+    catalog["last_updated"] = datetime.date.today().isoformat()
     CATALOG.write_text(
         json.dumps(catalog, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     print(f"wrote: {CATALOG} ({CATALOG.stat().st_size} bytes)")
+    print(f"last_updated: {catalog['last_updated']}")
 
 
 if __name__ == "__main__":
