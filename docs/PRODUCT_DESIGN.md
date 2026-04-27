@@ -437,3 +437,99 @@ F10「隠れアセスメント」が単なる機能ではなく、プロダク�
 4. **段階的実装**: 完璧を待たず、動くものを早く出す
 5. **β優先**: 社内で揉んでから公開
 6. **個人情報の厳密管理**: 医療領域として絶対に外せない
+
+---
+
+## 10. Day 1 実装ログ（2026-04-27）
+
+### 実装した機能（Day 1で完了）
+
+#### 基盤・インフラ
+- 新規リポジトリ `minatomo-play-app` 作成（Private、ishikawa-arch）
+- Vite 8 + React 19 + TypeScript + Tailwind CSS v4 + React Router v7 セットアップ
+- Supabase プロジェクト立ち上げ（Tokyo リージョン、Free plan）
+- 5テーブル + 12本の RLS ポリシー（純度高い設計）
+  - `users`, `assessments`, `prescriptions`, `game_sessions`, `consents`
+- Supabase 接続テスト（anon SELECT/INSERT 動作確認、RLS deny 動作確認）
+
+#### ナビゲーション・UI 骨格
+- 9画面のルーティング設計
+  - `/` (LandingPage), `/games`, `/home`, `/history`, `/profile`,
+    `/login`, `/consent/:step`, `/assessment`, `/games/:id`
+- 下部タブバー（4タブ: ホーム / ゲーム / 履歴 / マイページ）
+- 高齢者フレンドリー設計（`min-h-16`, `w-7 h-7`、active 時 strokeWidth 増 + 太字）
+- ヘッダー（Welloop ロゴ）+ メインコンテンツ + 条件付きタブバー
+
+#### ゲーム連携
+- `games-catalog.json` fetch（モジュールレベルキャッシュ）
+- ゲーム一覧（カード型、6ドメイン別タブ絞り込み）
+- ゲームプレイ画面（iframe 全画面、戻るボタン付き）
+- 存在しない ID のエラー処理（優しい文言）
+
+#### コンテンツ磨き込み
+- 112本ゲームに `description_user` フィールド追加
+  - Welloop 独自ニュートラルトーン（効能を語らず魅力を伝える）
+  - 「気付かないうちに」等の効能匂わせ語を多用しない
+- 112本 HTML からサブタイトル削除（「○○のトレーニング」を全削除）
+- 112本の meta description 個別化（`description_user` 流用、SEO 最適化）
+- 112本のサムネイル画像撮影（Playwright + ローカル http.server 経由）
+- ゲームカードに実画像表示（onError fallback 付き）
+
+#### 同意画面
+- `/consent/1` 〜 `/5` の5ステップ + `/consent/confirm` の最終確認画面
+- 文案確定（Welloop 哲学を反映）
+- ブラウザ戻るボタンで前ステップに戻れる URL 設計
+- 不正値ガード（`/consent/99` → `/consent/1` へリダイレクト）
+- `CONSENT_VERSION = '1.0'` 定数化（後の DB 記録時に使用）
+
+### Day 1 で確定した重要事項
+
+#### β版運用ポリシー（前述 §4 参照）
+技術面は最初から堅め、運用面は段階的整備。
+
+#### コピーライティングのトーン感覚（メモリ保存済み）
+利用者向けテキストは「効能を語らず魅力を伝える」ニュートラルなトーン。
+「気付かないうちに」「ふっと」「いつのまにか」等の効能匂わせ語を多用しない。
+「トレーニング」「リハビリ」「鍛える」も避ける。
+これが Welloop 哲学「対等性」（押し付けない、選ばせる）と一致。
+
+#### プライバシーポリシー前提（前述 §7 参照）
+- 事業者名: 株式会社 Welloop + グループ会社（シュポーン、おもちまん）
+- 個人情報保護責任者: 石川順平
+- 委託先記載: 素直に会社名を出す（Supabase、Google 等）
+
+### 触らない箇所（プロダクト全体ルール）
+
+ゲーム HTML の文言整理時、以下は触らない:
+- `word-builder` の「磨く」（出題データ）
+- 防災訓練の出題データ
+- ストループ効果（学術用語）
+
+### Day 1 の commit 数（2026-04-27 実測）
+
+- `minatomo-play`: **10 commits**
+- `minatomo-play-app`: **9 commits**
+- 計 **19 commits**
+
+### Day 2 以降の予定
+
+#### Week 1 残作業
+- Google 認証実装（Google Cloud Console + Supabase Auth + ログイン画面）
+- 同意画面とログインフローの連携（`consents` テーブルへの INSERT 処理）
+- Vercel ホスティング設定（`play.minatomo.net` ドメイン）
+
+#### Week 2-3
+- 評価ゲーム実装（5分の認知機能テスト）
+- AI 処方エンジン（Claude API + `games-catalog.json`）
+- 進歩レポート（基本版）
+- 隠れアセスメント（ゲームに評価が紛れ込む仕組み）
+
+#### Week 4
+- β版運用、Welloop 社内テスター展開、フィードバック収集
+
+### IMPROVEMENTS.md に記録された次フェーズ課題
+
+- `needs_clinical_review` 対象3本の臨床判断
+- ゲーム本体 HTML 文言整理の追加対応（「効果的です」等）
+- 隠れアセスメント詳細設計
+- サムネイル品質改善（112本中、動的ゲームの瞬間調整）
