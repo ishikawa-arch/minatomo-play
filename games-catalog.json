@@ -312,7 +312,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "カードの絵柄をめくって、同じものを見つけましょう。\n懐かしいような、新しいような。"
     },
     {
       "id": "minatomo-rehab-delayedrecall",
@@ -397,7 +398,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "覚えたあと、別のことをして、それからもう一度。\nちょっと意地悪な思い出しゲームです。"
     },
     {
       "id": "minatomo-shopping-list",
@@ -475,7 +477,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "おつかいリストを覚えて、お店の中をまわります。\n卵、人参、お醤油……忘れていませんか？"
     },
     {
       "id": "minatomo-map-memory",
@@ -556,7 +559,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "街の地図を覚えてから、道を答えてみましょう。\n右に曲がって、二つ目の角は……？"
     },
     {
       "id": "minatomo-message-recall",
@@ -642,7 +646,8 @@
       "applied_patterns": [
         "P2",
         "P8"
-      ]
+      ],
+      "description_user": "短いメッセージを読んで、内容を思い出すゲーム。\nちょっとしたお手紙を、頭に入れてみましょう。"
     },
     {
       "id": "minatomo-simple-memory",
@@ -719,7 +724,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "出てきた絵を、しっかり見て覚えましょう。\nシンプルだけど、けっこう手強いです。"
     },
     {
       "id": "minatomo-rehab-digitback",
@@ -804,7 +810,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "出てきた数字を、逆の順番で答えるゲーム。\n頭の中で並べ替える感覚、楽しんでみてください。"
     },
     {
       "id": "minatomo-rehab-wordpic",
@@ -889,7 +896,8 @@
       },
       "applied_patterns": [
         "P2"
-      ]
+      ],
+      "description_user": "ことばと絵を、ぴったり結びつけるゲーム。\n見たまま、思い浮かんだままに。"
     },
     {
       "id": "minatomo-simple-appearorder",
@@ -969,7 +977,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "出てきた順番を、そのまま答えてみましょう。\n一つずつ、ゆっくりで大丈夫です。"
     },
     {
       "id": "minatomo-phone-memory",
@@ -1051,7 +1060,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "電話番号を覚えて、伝言を届けるゲーム。\n途中でちょっと邪魔が入りますが、めげずに。"
     },
     {
       "id": "minatomo-simple-wherewasite",
@@ -1128,7 +1138,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "どこに何があったか、思い出してみましょう。\n頭の中の地図を、そっと開いて。"
     },
     {
       "id": "minatomo-where-was-it",
@@ -1208,7 +1219,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "マスの中に置かれた品物の場所を、当てるゲーム。\n目で見たままを、覚えていられますか？"
     },
     {
       "id": "minatomo-simple-whatadded",
@@ -1288,7 +1300,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "何が増えたか、見つけてみましょう。\n間違い探しの、ちょっとお優しい版です。"
     },
     {
       "id": "minatomo-simple-simon",
@@ -1368,7 +1381,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "光った順に、同じようにタップしましょう。\n一つずつ、しずかに増えていきます。"
     },
     {
       "id": "minatomo-rehab-corsi",
@@ -1450,7 +1464,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "光ったマスを、同じ順番でなぞるゲーム。\n目と指で、リズムをつないで。"
     },
     {
       "id": "minatomo-simple-simon2",
@@ -1530,7 +1545,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "サイモンの、ちょっと違うアレンジ版。\n光と音を、追いかけてみましょう。"
     },
     {
       "id": "minatomo-simple-simon3",
@@ -1610,7 +1626,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "サイモンのもう一つのバージョンです。\nリズムよく、いきましょう。"
     },
     {
       "id": "minatomo-rehab-prospective",
@@ -1701,7 +1718,8 @@
       "applied_patterns": [
         "P3",
         "P8"
-      ]
+      ],
+      "description_user": "計算をしながら、約束ごとも忘れずに。\n二つのことを同時に、できますか？"
     },
     {
       "id": "minatomo-flash-memory",
@@ -1786,7 +1804,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "一瞬だけ表示される配置を、覚えてみましょう。\nまばたきしないで、よく見て。"
     },
     {
       "id": "minatomo-pair-search",
@@ -1868,7 +1887,8 @@
       ],
       "characteristics": [
         "motor_precision_required"
-      ]
+      ],
+      "description_user": "つながりのある二つを、探して結ぶゲーム。\n犬と骨、お茶と急須、みたいに。"
     },
     {
       "id": "minatomo-simple-pairs",
@@ -1945,7 +1965,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "同じ絵を二つ、見つけてめくっていきましょう。\nゆっくりでも、慌てずでも。"
     },
     {
       "id": "minatomo-rhythm-memory",
@@ -2028,7 +2049,8 @@
       "applied_patterns": [
         "P5",
         "P8"
-      ]
+      ],
+      "description_user": "聞こえたリズムを、同じように叩き返すゲーム。\n耳と手で、合わせてみてください。"
     },
     {
       "id": "minatomo-prospective-memory",
@@ -2111,7 +2133,8 @@
       "applied_patterns": [
         "P3",
         "P8"
-      ]
+      ],
+      "description_user": "1日のスケジュールの中で、約束を実行するゲーム。\nうっかり忘れない練習、楽しく。"
     },
     {
       "id": "minatomo-digit-span",
@@ -2189,7 +2212,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "出てきた数字を、覚えて答えるゲーム。\n電話番号を覚えるみたいな感じです。"
     },
     {
       "id": "minatomo-story-memory",
@@ -2275,7 +2299,8 @@
       "applied_patterns": [
         "P2",
         "P8"
-      ]
+      ],
+      "description_user": "短いお話を読んで、内容に答えるゲーム。\n本を読んだあとの、おさらいのように。"
     },
     {
       "id": "minatomo-simple-memory-game",
@@ -2352,7 +2377,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "同じものを覚えて、合わせていくゲーム。\n懐かしくも新しい、定番の楽しさ。"
     },
     {
       "id": "minatomo-corsi-block",
@@ -2431,7 +2457,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "光ったブロックを、その順にタップ。\n目で追いかける、しずかな記憶ゲーム。"
     },
     {
       "id": "minatomo-face-name",
@@ -2517,7 +2544,8 @@
       "applied_patterns": [
         "P7",
         "P8"
-      ]
+      ],
+      "description_user": "お顔とお名前を、ぴったり覚えるゲーム。\nご近所さんとの会話のように。"
     },
     {
       "id": "minatomo-nback",
@@ -2595,7 +2623,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "数手前のことを思い出しながら、続けるゲーム。\n頭の中をくるくる回す感じ、不思議です。"
     },
     {
       "id": "minatomo-voice-challenge",
@@ -2695,7 +2724,8 @@
         "P2",
         "P5",
         "P10"
-      ]
+      ],
+      "description_user": "マイクに向かって、しっかり声を出すゲーム。\nおなかから、伸びやかに。"
     },
     {
       "id": "minatomo-simple-color",
@@ -2777,7 +2807,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "色を見て、合うものを選んでみましょう。\n目に入る、たしかな手がかりで。"
     },
     {
       "id": "minatomo-simple-colorchange",
@@ -2859,7 +2890,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "色がいつ変わったか、見つけてみましょう。\nじっと見ていると、変わる瞬間があります。"
     },
     {
       "id": "minatomo-simple-chasetap",
@@ -2937,7 +2969,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "動くものを目で追いかけて、タップしていくゲーム。\n鬼ごっこみたいな気持ちで、どうぞ。"
     },
     {
       "id": "minatomo-big-tap",
@@ -3021,7 +3054,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "大きく、思いきり動かすタップのゲーム。\n腕を伸ばして、画面いっぱいに。"
     },
     {
       "id": "minatomo-simple-falling",
@@ -3100,7 +3134,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "落ちてくるものを、タイミングよくタップ。\n目と指の、ちょっとした駆け引き。"
     },
     {
       "id": "minatomo-simple-colorconnect",
@@ -3188,7 +3223,8 @@
       ],
       "characteristics": [
         "motor_precision_required"
-      ]
+      ],
+      "description_user": "同じ色を線でつないでいくゲーム。\n迷路のような、お絵描きのような。"
     },
     {
       "id": "minatomo-counting",
@@ -3275,7 +3311,8 @@
       "applied_patterns": [
         "P4",
         "P9"
-      ]
+      ],
+      "description_user": "ちらばった絵文字、数えてみてください。\n途中で見失わないように、ゆっくりと。"
     },
     {
       "id": "minatomo-simple-disappear",
@@ -3355,7 +3392,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "あったものが、消えました。何だったか、思い出せますか？\n目の記憶を、頼ってみてください。"
     },
     {
       "id": "minatomo-rehab-emotion",
@@ -3449,7 +3487,8 @@
         "P2",
         "P3",
         "P7"
-      ]
+      ],
+      "description_user": "お顔の表情から、その人の気持ちを読みましょう。\n笑顔、ちょっと困った顔、いろいろあります。"
     },
     {
       "id": "minatomo-word-builder",
@@ -3533,7 +3572,8 @@
       },
       "applied_patterns": [
         "P2"
-      ]
+      ],
+      "description_user": "ことわざを完成させたり、並べ替えたり。\n聞いたことあるような、ないような？"
     },
     {
       "id": "minatomo-hint-guess",
@@ -3617,7 +3657,8 @@
       },
       "applied_patterns": [
         "P2"
-      ]
+      ],
+      "description_user": "ヒントを少しずつ見て、答えを当てるゲーム。\n早く気づくほど、すっきり気持ちいい。"
     },
     {
       "id": "minatomo-rehab-cancellation",
@@ -3702,7 +3743,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "決まった印を、画面の中から全部見つけるゲーム。\n見落としがないように、ぐるりと。"
     },
     {
       "id": "minatomo-rehab-change",
@@ -3793,7 +3835,8 @@
       "applied_patterns": [
         "P4",
         "P8"
-      ]
+      ],
+      "description_user": "前と後で、どこが変わったかを当てるゲーム。\n画面ぜんたいを、ぐっと見比べて。"
     },
     {
       "id": "minatomo-simple-spotdiff",
@@ -3869,7 +3912,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "二つの絵を見比べて、違うところを探しましょう。\nじっくり、のんびり、お楽しみください。"
     },
     {
       "id": "minatomo-simple-shell",
@@ -3945,7 +3989,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "コップの下のボール、目で追いかけられますか？\nシャッフルされても、どこにあるか。"
     },
     {
       "id": "minatomo-simple-count",
@@ -4028,7 +4073,8 @@
       "applied_patterns": [
         "P4",
         "P9"
-      ]
+      ],
+      "description_user": "数えるだけ、それだけです。\n落ち着いて、一つずつ。"
     },
     {
       "id": "minatomo-simple-odd",
@@ -4108,7 +4154,8 @@
       },
       "applied_patterns": [
         "P2"
-      ]
+      ],
+      "description_user": "並んだ中で、一つだけ違うものを見つけて。\nなんとなく感じる「違和感」が手がかり。"
     },
     {
       "id": "minatomo-simple-tapspeed",
@@ -4185,7 +4232,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "ひたすらタップ、どこまで早くできるかな？\n気持ちのいい、リズム遊び。"
     },
     {
       "id": "minatomo-simple-justone",
@@ -4265,7 +4313,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "たくさんある中から、一つだけ違うものを。\n見つけた瞬間、ちょっと嬉しい。"
     },
     {
       "id": "minatomo-simple-balloon",
@@ -4344,7 +4393,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "風船が割れる前に、タップしてつかまえて。\nぱちん、と弾けないように。"
     },
     {
       "id": "minatomo-spot-diff",
@@ -4423,7 +4473,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "二つの絵の、ちがうところを探すゲーム。\n雑誌の隅にある、あの遊びです。"
     },
     {
       "id": "minatomo-simple-reaction",
@@ -4500,7 +4551,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "合図が出たら、すぐにタップ！\nシンプルでも、奥が深いです。"
     },
     {
       "id": "minatomo-simple-greentap",
@@ -4578,7 +4630,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "緑色だけを、選んでタップしましょう。\n他の色は、そっと見送って。"
     },
     {
       "id": "minatomo-whack-mole",
@@ -4661,7 +4714,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "もぐらが顔を出したら、すかさずタップ。\n爆弾は、よけてくださいね。"
     },
     {
       "id": "minatomo-simple-mole",
@@ -4739,7 +4793,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "もぐらたたき、シンプル版です。\n目と指で、もぐらをつかまえて。"
     },
     {
       "id": "minatomo-simple-shell2",
@@ -4814,7 +4869,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "シェルゲームの、もう少し難しいバージョン。\n目で追い続けるのが、コツです。"
     },
     {
       "id": "minatomo-simple-shell3",
@@ -4889,7 +4945,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "シェル、さらに手強くなった三作目。\nシャッフルが速くなります。"
     },
     {
       "id": "minatomo-simple-tap",
@@ -4970,7 +5027,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "ただタップするだけ、リズムを楽しんで。\nシンプルがいちばん。"
     },
     {
       "id": "minatomo-rhythm-tap",
@@ -5058,7 +5116,8 @@
       "applied_patterns": [
         "P1",
         "P5"
-      ]
+      ],
+      "description_user": "音に合わせて、リズムよくタップ。\nメトロノームと、うまく合わせられますか？"
     },
     {
       "id": "minatomo-change-detection",
@@ -5147,7 +5206,8 @@
       "applied_patterns": [
         "P4",
         "P8"
-      ]
+      ],
+      "description_user": "一瞬の変化を見逃さない、見比べゲーム。\n目を凝らしてみてください。"
     },
     {
       "id": "minatomo-letter-search",
@@ -5228,7 +5288,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "決まった文字を、グリッドから全部見つけて。\n新聞の中で、漢字を探すような感覚。"
     },
     {
       "id": "minatomo-listening-quiz",
@@ -5318,7 +5379,8 @@
       "applied_patterns": [
         "P2",
         "P5"
-      ]
+      ],
+      "description_user": "音声で読み上げられる文章を、聞いて答えるクイズ。\nラジオを聴くような気持ちで。"
     },
     {
       "id": "minatomo-color-match",
@@ -5405,7 +5467,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "色と名前、色と色をぴったり合わせるゲーム。\n並んだグラデーションが、なんだか綺麗。"
     },
     {
       "id": "minatomo-word-connect",
@@ -5489,7 +5552,8 @@
       },
       "applied_patterns": [
         "P2"
-      ]
+      ],
+      "description_user": "意味のつながることばを、選んでつなげましょう。\nなんとなく似ている、を見つけて。"
     },
     {
       "id": "minatomo-dual-task",
@@ -5578,7 +5642,8 @@
       "applied_patterns": [
         "P1",
         "P3"
-      ]
+      ],
+      "description_user": "二つのことを、同時にこなせるかチャレンジ。\n歩きながら考える、みたいな感じです。"
     },
     {
       "id": "minatomo-go-nogo",
@@ -5660,7 +5725,8 @@
       },
       "applied_patterns": [
         "P1"
-      ]
+      ],
+      "description_user": "出るものによって、押すか押さないか。\nうっかり押したくなる気持ちと、勝負。"
     },
     {
       "id": "minatomo-cooking-steps",
@@ -5753,7 +5819,8 @@
       ],
       "characteristics": [
         "motor_precision_required"
-      ]
+      ],
+      "description_user": "お料理の手順を、一緒に思い出してみましょう。\nお味噌汁、肉じゃが、お好きなものから。"
     },
     {
       "id": "minatomo-compare-ranking",
@@ -5833,7 +5900,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "大きい順、長い順、いろんな順番でランキング。\n「これってどっちが大きい？」をたくさん。"
     },
     {
       "id": "minatomo-rehab-tmtb",
@@ -5919,7 +5987,8 @@
       },
       "applied_patterns": [
         "P3"
-      ]
+      ],
+      "description_user": "数字とひらがなを、交互にタップ。\n頭をくるりと切り替える感覚です。"
     },
     {
       "id": "minatomo-simple-sort",
@@ -5999,7 +6068,8 @@
       },
       "applied_patterns": [
         "P2"
-      ]
+      ],
+      "description_user": "ばらばらのものを、種類ごとに分けましょう。\n片付けの楽しさ、あります。"
     },
     {
       "id": "minatomo-rehab-gonogo",
@@ -6089,7 +6159,8 @@
       "applied_patterns": [
         "P1",
         "P3"
-      ]
+      ],
+      "description_user": "押す、押さない、押す、押さない……合図に注意して。\n止まる練習も、立派な動き。"
     },
     {
       "id": "minatomo-rehab-category",
@@ -6176,7 +6247,8 @@
       },
       "applied_patterns": [
         "P2"
-      ]
+      ],
+      "description_user": "仲間どうしを、選んで集めましょう。\n果物、野菜、道具……いろんな分け方があります。"
     },
     {
       "id": "minatomo-simple-category",
@@ -6256,7 +6328,8 @@
       },
       "applied_patterns": [
         "P2"
-      ]
+      ],
+      "description_user": "似たもの同士で、グループを作ってみて。\n答えがいくつもあって、おもしろい。"
     },
     {
       "id": "minatomo-error-finder",
@@ -6341,7 +6414,8 @@
       },
       "applied_patterns": [
         "P2"
-      ]
+      ],
+      "description_user": "文章の中に紛れた、ちょっとした間違いを見つけて。\n校正のお仕事、体験版。"
     },
     {
       "id": "minatomo-rehab-flanker",
@@ -6438,7 +6512,8 @@
         "P1",
         "P3",
         "P4"
-      ]
+      ],
+      "description_user": "真ん中の矢印の向きだけを、答えるゲーム。\n周りに惑わされないで、まっすぐに。"
     },
     {
       "id": "minatomo-category-sort",
@@ -6522,7 +6597,8 @@
       },
       "applied_patterns": [
         "P2"
-      ]
+      ],
+      "description_user": "アイテムを、正しい入れ物に振り分けて。\n整理整頓、楽しんでください。"
     },
     {
       "id": "minatomo-step-rhythm",
@@ -6612,7 +6688,8 @@
       "applied_patterns": [
         "P1",
         "P5"
-      ]
+      ],
+      "description_user": "左右交互にステップを踏むように、タップ。\nリズムが取れると、心地いい。"
     },
     {
       "id": "minatomo-stroop",
@@ -6696,7 +6773,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "色の名前と、文字の色。どっちを答える？\n古典中の古典、楽しんでみてください。"
     },
     {
       "id": "minatomo-rehab-stroop",
@@ -6796,7 +6874,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "色と文字、どちらを答えたらいいでしょう？\nちょっと意地悪なゲームです。"
     },
     {
       "id": "minatomo-step-order",
@@ -6886,7 +6965,8 @@
       ],
       "characteristics": [
         "motor_precision_required"
-      ]
+      ],
+      "description_user": "日常の動作を、正しい順番に並べ替えて。\nご飯を炊く、お茶を淹れる、いろいろ。"
     },
     {
       "id": "minatomo-yesterday-quiz",
@@ -6961,7 +7041,8 @@
         "completion_status": "needs_clinical_review",
         "review_reason": "パターン分類が不明確"
       },
-      "applied_patterns": []
+      "applied_patterns": [],
+      "description_user": "昨日のこと、明日のこと、答えてみましょう。\n曜日や日付は、頭の体操に。"
     },
     {
       "id": "minatomo-date-quiz",
@@ -7035,7 +7116,8 @@
         "completion_status": "needs_clinical_review",
         "review_reason": "パターン分類が不明確"
       },
-      "applied_patterns": []
+      "applied_patterns": [],
+      "description_user": "今日は何月何日？すらりと出てきますか？\nカレンダーを見ない、ちょっとしたチャレンジ。"
     },
     {
       "id": "minatomo-rehab-clock",
@@ -7123,7 +7205,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "アナログ時計の針、何時を指しているでしょう？\n短い針と長い針、見分けて。"
     },
     {
       "id": "minatomo-schedule",
@@ -7211,7 +7294,8 @@
       "applied_patterns": [
         "P3",
         "P8"
-      ]
+      ],
+      "description_user": "1日の予定を覚えて、時間の質問に答えるゲーム。\n「あれ、何時から？」を、頭の中で。"
     },
     {
       "id": "minatomo-clock-quiz",
@@ -7296,7 +7380,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "時計の針、読めますか？シンプルで、奥深い。\n毎日見ているけど、いざとなると……？"
     },
     {
       "id": "minatomo-simple-mostcommon",
@@ -7372,7 +7457,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "並んだ中で、一番多いものはどれ？\n目で見て、ぱっと判断。"
     },
     {
       "id": "minatomo-simple-updown",
@@ -7450,7 +7536,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "上か下か、ささっと答えてみましょう。\n頭で考える前に、感じるくらいで。"
     },
     {
       "id": "minatomo-simple-bigger",
@@ -7528,7 +7615,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "どっちが大きい？すぐに答えてみましょう。\n見た目とちがうこと、たまにあります。"
     },
     {
       "id": "minatomo-shape-puzzle",
@@ -7610,7 +7698,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "形を組み合わせて、ぴたりとはめるパズル。\nあと一つで完成、その瞬間が好きです。"
     },
     {
       "id": "minatomo-fragment-id",
@@ -7692,7 +7781,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "少しずつ姿を現すもの、何だかわかりますか？\nヒントが増えると、ぱっとひらめく。"
     },
     {
       "id": "minatomo-rehab-path",
@@ -7780,7 +7870,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "地図を見ながら、指示通りに道を進みましょう。\n「次の角を右」、頭の中の冒険。"
     },
     {
       "id": "minatomo-trace",
@@ -7862,7 +7953,8 @@
       ],
       "characteristics": [
         "motor_precision_required"
-      ]
+      ],
+      "description_user": "画面の線をなぞって、形をきれいに描きます。\nゆっくりでも、はやくでも。"
     },
     {
       "id": "minatomo-simple-leftright",
@@ -7940,7 +8032,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "右ですか、左ですか？さあ、どっち。\n迷ったら、まずは深呼吸。"
     },
     {
       "id": "minatomo-simple-realone",
@@ -8018,7 +8111,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "本物を、にせものの中から見つけましょう。\n細かい違いに、気づけるか。"
     },
     {
       "id": "minatomo-rehab-rotation",
@@ -8101,7 +8195,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "頭の中で形をくるりと回してみてください。\n同じ形を見つけられますか？"
     },
     {
       "id": "minatomo-puzzle-rotation",
@@ -8181,7 +8276,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "ぐるりと回して、元の形に戻すパズル。\n頭の中で動かす感じ、慣れると癖になります。"
     },
     {
       "id": "minatomo-block-stack",
@@ -8269,7 +8365,8 @@
       ],
       "characteristics": [
         "motor_precision_required"
-      ]
+      ],
+      "description_user": "見本のブロック、同じ色順に積み上げて。\n順番、覚えていられますか？"
     },
     {
       "id": "minatomo-left-right",
@@ -8352,7 +8449,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "矢印や手の向き、左右をぱっと判断するゲーム。\n鏡像が出てくると、ちょっと混乱。"
     },
     {
       "id": "minatomo-simple-addition",
@@ -8430,7 +8528,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "シンプルなたしざん、ぽんぽんと。\n暗算でも、指を使っても。"
     },
     {
       "id": "minatomo-simple-howmany",
@@ -8508,7 +8607,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "ぱっと見て、いくつあるか答えてみて。\n細かく数えなくても、感覚で。"
     },
     {
       "id": "minatomo-wallet-calc",
@@ -8590,7 +8690,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "硬貨や紙幣を組み合わせて、金額を作るゲーム。\nお買い物の前の、頭の中の準備。"
     },
     {
       "id": "minatomo-change-calc",
@@ -8672,7 +8773,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "お財布のコインで、ぴったりおつりを作りましょう。\nお買い物気分で、どうぞ。"
     },
     {
       "id": "minatomo-simple-samecount",
@@ -8750,7 +8852,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "数が同じものを、見つけてみましょう。\n数字じゃなく、見た目の量で。"
     },
     {
       "id": "minatomo-number-compare",
@@ -8832,7 +8935,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "左と右、どちらが多い？瞬時に判断。\n考える前に、感じる速さで。"
     },
     {
       "id": "minatomo-simple-counttap",
@@ -8914,7 +9018,8 @@
       "applied_patterns": [
         "P1",
         "P9"
-      ]
+      ],
+      "description_user": "タップした数を、ちゃんと覚えていられるか。\n数えながら、ゆっくりでも。"
     },
     {
       "id": "minatomo-rehab-numseries",
@@ -8997,7 +9102,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "数の並び、次に来る数字は何でしょう？\n規則を見つける楽しさ、ぱっと。"
     },
     {
       "id": "minatomo-rehab-serialadd",
@@ -9082,7 +9188,8 @@
       "applied_patterns": [
         "P3",
         "P9"
-      ]
+      ],
+      "description_user": "次々に出る数字を、足し続けるゲーム。\nリレーのように、リズムよく。"
     },
     {
       "id": "minatomo-stack-calc",
@@ -9160,7 +9267,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "現れる数字を、頭の中で積み上げて合計。\n途中で逃さないように、しずかに。"
     },
     {
       "id": "minatomo-serial-calc",
@@ -9241,7 +9349,8 @@
       },
       "applied_patterns": [
         "P9"
-      ]
+      ],
+      "description_user": "連続する数字を、足していくゲーム。\nリズムに乗ると、楽しくなります。"
     },
     {
       "id": "minatomo-simple-same",
@@ -9321,7 +9430,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "同じものを見つけてタップしましょう。\nシンプルだけど、ちょっと頭を使います。"
     },
     {
       "id": "minatomo-simple-order",
@@ -9401,7 +9511,8 @@
       },
       "applied_patterns": [
         "P8"
-      ]
+      ],
+      "description_user": "正しい順番に、並べてみてください。\nじっくり考えても大丈夫です。"
     },
     {
       "id": "minatomo-simple-pattern",
@@ -9481,7 +9592,8 @@
       },
       "applied_patterns": [
         "P4"
-      ]
+      ],
+      "description_user": "繰り返しの中の、次の一つは？\nリズムを感じながら、当ててみて。"
     }
   ],
   "baseline_contraindications": {
