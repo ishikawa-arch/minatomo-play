@@ -305,9 +305,6 @@ function App() {
           <div style={{ fontSize:14, color:'#6B6B6B', marginBottom:8, lineHeight:1.7 }}>
             N個前と同じものが出たら「同じ！」<br/>違ったら「ちがう」をタップ！
           </div>
-          <div style={{ fontSize:12, color:'#9E9E9E', marginBottom:28, background:'#FFF3E0', padding:'8px 16px', borderRadius:12 }}>
-            🧠 ワーキングメモリ（作業記憶）のトレーニングです
-          </div>
 
           {/* Stim type */}
           <div style={{ width:'100%', maxWidth:420, marginBottom:24 }}>
@@ -581,7 +578,7 @@ function App() {
                     {hitRate >= 0.8 && faRate <= 0.2 && '💡 検出力が高く、正確にワーキングメモリを使えています'}
                     {hitRate >= 0.8 && faRate > 0.2 && '💡 検出力は高いですが、慎重さを少し上げましょう'}
                     {hitRate < 0.8 && faRate <= 0.2 && '💡 慎重ですが、もう少し素早い判断を心がけましょう'}
-                    {hitRate < 0.8 && faRate > 0.2 && '💡 ワーキングメモリの強化トレーニングを続けましょう'}
+                    {hitRate < 0.8 && faRate > 0.2 && '💡 ワーキングメモリの感覚、続けて深めましょう'}
                   </div>
                 </div>
               </div>
